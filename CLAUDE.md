@@ -141,6 +141,74 @@ mcp__supabase__apply_migration({
 
 **NEVER** ask the user to manually run SQL in Supabase SQL Editor - always use MCP tools.
 
+## Git Workflow
+
+### Repository
+- **GitHub:** https://github.com/kobiagi-builder/consultant-helper
+- **Remote:** `git@github.com:kobiagi-builder/consultant-helper.git`
+- **Main Branch:** `main`
+
+### Pre-Push Hook
+
+A pre-push hook is configured to enforce quality standards before pushing to remote. The hook automatically runs:
+
+1. **Sensitive File Check** - Blocks push if `.env` files are staged
+2. **TODO/FIXME Check** - Warns about BLOCKING comments
+3. **TypeScript Compilation** - Blocks push if frontend build fails
+4. **Test Execution** - Warns if tests fail
+
+**Location:** `.git/hooks/pre-push`
+
+**To bypass hook (not recommended):**
+```bash
+git push --no-verify
+```
+
+### Commit Conventions
+
+Follow conventional commit format:
+```
+<type>(<scope>): <description>
+
+<body>
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+```
+
+**Types:**
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+**Example:**
+```bash
+git commit -m "$(cat <<'EOF'
+feat(portfolio): add artifact creation workflow
+
+- Implement multi-step artifact form
+- Add AI chat integration for artifact refinement
+- Include research area selector
+
+Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>
+EOF
+)"
+```
+
+### Protected Files
+
+These files must NEVER be committed:
+- `.env` (root environment)
+- `.env.local` (frontend environment)
+- `backend/.env` (backend environment)
+- `frontend/.env.local` (frontend local environment)
+- Any file containing API keys, secrets, or credentials
+
+All sensitive files are listed in [.gitignore](.gitignore).
+
 ## Conventions
 
 ### Components (Frontend)
