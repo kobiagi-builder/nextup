@@ -30,16 +30,16 @@ export type DateString = string
 /** Supported artifact types */
 export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 
-/** Artifact status workflow - Phase 1: Added content creation statuses */
+/** Artifact status workflow - matches database schema */
 export type ArtifactStatus =
-  | 'draft'
-  | 'researching'           // NEW: AI is conducting research
-  | 'skeleton_ready'        // NEW: Skeleton generated, awaiting approval
-  | 'skeleton_approved'     // NEW: Skeleton approved by user
-  | 'in_progress'
-  | 'ready'
-  | 'published'
-  | 'archived'
+  | 'draft'                 // Initial state, empty artifact
+  | 'researching'           // AI is researching and gathering information
+  | 'skeleton_ready'        // Skeleton/outline ready for user approval
+  | 'skeleton_approved'     // User approved skeleton, ready for full content
+  | 'in_progress'           // Content creation/research in progress
+  | 'ready'                 // Content generated and ready for editing/publishing
+  | 'published'             // Published to platform
+  | 'archived'              // Archived, no longer active
 
 /** Tone options for content generation - Phase 1 */
 export type ToneOption =
@@ -366,12 +366,12 @@ export interface UpdatePreferencesInput {
 // State Machine Types
 // =============================================================================
 
-/** Valid artifact status transitions - Phase 1: Updated for content creation workflow */
+/** Valid artifact status transitions - matches database schema */
 export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
-  draft: ['researching', 'in_progress', 'archived'],
-  researching: ['draft', 'skeleton_ready', 'archived'],
-  skeleton_ready: ['draft', 'skeleton_approved', 'researching', 'archived'],
-  skeleton_approved: ['draft', 'in_progress', 'archived'],
+  draft: ['researching', 'archived'],
+  researching: ['skeleton_ready', 'archived'],
+  skeleton_ready: ['skeleton_approved', 'researching', 'archived'],
+  skeleton_approved: ['in_progress', 'archived'],
   in_progress: ['draft', 'ready', 'archived'],
   ready: ['in_progress', 'published', 'archived'],
   published: ['archived'],
@@ -439,13 +439,13 @@ export interface StatusInfo {
   color: string // Tailwind color class
 }
 
-/** Artifact status configurations - Phase 1: Added content creation statuses */
+/** Artifact status configurations - matches database schema */
 export const ARTIFACT_STATUS_INFO: Record<ArtifactStatus, StatusInfo> = {
   draft: { id: 'draft', label: 'Draft', color: 'status-draft' },
-  researching: { id: 'researching', label: 'Researching...', color: 'status-in-progress' },
-  skeleton_ready: { id: 'skeleton_ready', label: 'Skeleton Ready', color: 'status-ready' },
-  skeleton_approved: { id: 'skeleton_approved', label: 'Skeleton Approved', color: 'status-ready' },
-  in_progress: { id: 'in_progress', label: 'In Progress', color: 'status-in-progress' },
+  researching: { id: 'researching', label: 'Researching...', color: 'status-researching' },
+  skeleton_ready: { id: 'skeleton_ready', label: 'Skeleton Ready', color: 'status-skeleton-ready' },
+  skeleton_approved: { id: 'skeleton_approved', label: 'Approved', color: 'status-approved' },
+  in_progress: { id: 'in_progress', label: 'Creating...', color: 'status-in-progress' },
   ready: { id: 'ready', label: 'Ready', color: 'status-ready' },
   published: { id: 'published', label: 'Published', color: 'status-published' },
   archived: { id: 'archived', label: 'Archived', color: 'status-archived' },
