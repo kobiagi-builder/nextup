@@ -24,7 +24,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
 
-    /* Path aliases - using rootDir approach for TS 5.9+ */
+    /* Path aliases - using relative paths for TS 5.9+ (no baseUrl needed) */
     "paths": {
       "@/*": ["./src/*"]
     }

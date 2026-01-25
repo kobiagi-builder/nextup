@@ -114,26 +114,42 @@ export function ArtifactPage() {
     const currentStatus = artifact.status
     const previousStatus = prevStatusRef.current
 
+    // Debug logging to understand condition evaluation
+    const isCurrentReady = currentStatus === 'ready'
+    const isPreviousNotReady = previousStatus !== 'ready'
+    const shouldTrigger = isCurrentReady && isPreviousNotReady
+
     console.log('[ArtifactPage] Artifact status tracking:', {
       artifactId: artifact.id,
       previousStatus,
       currentStatus,
       researchCount: research.length,
       timestamp: new Date().toISOString(),
+      // Debug: detailed condition evaluation
+      debug: {
+        isCurrentReady,
+        isPreviousNotReady,
+        shouldTrigger,
+        previousStatusType: typeof previousStatus,
+        previousStatusValue: previousStatus,
+      },
     })
 
-    // When status changes from 'researching' to 'skeleton_ready', force refetch research
-    if (previousStatus === 'researching' && currentStatus === 'skeleton_ready') {
-      console.log('[ArtifactPage] Status changed to skeleton_ready - invalidating research cache:', {
+    // When status becomes 'ready' from any previous state (including undefined on mount or fast completion)
+    // This handles: draft→ready, in_progress→ready, OR first render with status already 'ready'
+    if (shouldTrigger) {
+      console.log('[ArtifactPage] Status is ready - invalidating research cache:', {
         artifactId: artifact.id,
+        previousStatus,
+        currentStatus,
         timestamp: new Date().toISOString(),
       })
 
       // Invalidate research to force immediate refetch
       queryClient.invalidateQueries({ queryKey: ['research', artifact.id] })
 
-      // Auto-expand research area to show results
-      setIsResearchCollapsed(false)
+      // Note: Research area stays collapsed by default per user preference
+      // Users can expand manually if they want to see research sources
     }
 
     // Update ref for next render
@@ -154,20 +170,6 @@ export function ArtifactPage() {
     setLocalTone(newTone)
     setHasToneChanges(true)
   }, [])
-
-  // Handle skeleton approval (Phase 1)
-  const handleApproveSkeleton = useCallback(async () => {
-    if (!artifact?.id) return
-
-    try {
-      await updateArtifact.mutateAsync({
-        id: artifact.id,
-        updates: { status: 'skeleton_approved' },
-      })
-    } catch (err) {
-      console.error('Failed to approve skeleton:', err)
-    }
-  }, [artifact?.id, updateArtifact])
 
   // Auto-save content effect (debounced)
   useEffect(() => {
@@ -230,7 +232,7 @@ export function ArtifactPage() {
   }
 
   // Determine research area status
-  const researchStatus = artifact.status === 'researching'
+  const researchStatus = artifact.status === 'in_progress'
     ? 'loading'
     : research.length > 0
     ? 'loaded'
@@ -276,7 +278,7 @@ export function ArtifactPage() {
         {artifact.status === 'draft' && (
           <Button
             onClick={() => {
-              const researchMessage = `Research and create skeleton for: "${artifact.title}"`
+              const researchMessage = `Research and create skeleton for artifact ${artifact.id}: "${artifact.title}"`
               console.log('[ArtifactPage] Create Content clicked:', {
                 artifactId: artifact.id,
                 artifactTitle: artifact.title,
@@ -289,32 +291,14 @@ export function ArtifactPage() {
               setIsAIAssistantOpen(true)
             }}
             className="gap-2"
+            data-testid="artifact-page-create-content-button"
           >
             <Sparkles className="h-4 w-4" />
             Create Content
           </Button>
         )}
 
-        {/* Phase 1: Approve Skeleton button (only visible when skeleton_ready) */}
-        {artifact.status === 'skeleton_ready' && (
-          <Button
-            onClick={handleApproveSkeleton}
-            disabled={updateArtifact.isPending}
-            className="gap-2"
-          >
-            {updateArtifact.isPending ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Approving...
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                Approve Skeleton
-              </>
-            )}
-          </Button>
-        )}
+        {/* Skeleton is automatically ready for editing when status = 'ready' */}
       </div>
 
       {/* Main Area: Vertical Stack - Research (top) + Editor (bottom) */}
@@ -346,6 +330,7 @@ export function ArtifactPage() {
             onToneChange={handleToneChange}
             className="h-full"
             isCollapsed={isEditorCollapsed}
+            data-testid="artifact-editor"
             onCollapsedChange={setIsEditorCollapsed}
           />
         </div>
@@ -362,7 +347,7 @@ export function ArtifactPage() {
           }
         }}
       >
-        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside>
+        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside data-testid="ai-assistant-panel">
           <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
@@ -376,6 +361,7 @@ export function ArtifactPage() {
               showHeader={false}
               height="100%"
               initialMessage={initialResearchMessage}
+              data-testid="ai-chat-panel"
             />
           </div>
         </SheetContent>

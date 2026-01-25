@@ -139,10 +139,10 @@ export const conductDeepResearch = tool({
         artifactType
       });
 
-      // 0. Update artifact status to 'researching' (Phase 1: enables frontend polling)
+      // 0. Update artifact status to 'in_progress' (Phase 1: enables frontend polling)
       const { error: statusError } = await supabaseAdmin
         .from('artifacts')
-        .update({ status: 'researching', updated_at: new Date().toISOString() })
+        .update({ status: 'in_progress', updated_at: new Date().toISOString() })
         .eq('id', artifactId);
 
       if (statusError) {

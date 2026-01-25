@@ -95,27 +95,40 @@ export function useArtifact(id: string | null) {
       return data as Artifact
     },
     enabled: !!id,
-    // Phase 1: Poll every 2 seconds when artifact is being researched
-    // Also poll briefly when skeleton_ready to catch final content update
+    // Phase 1: Poll for status changes during content creation workflow
+    // Polls when: draft (waiting for AI to start), in_progress (AI executing), or ready without content yet
     refetchInterval: (query) => {
       const artifact = query.state.data as Artifact | undefined
-      if (artifact?.status === 'researching') {
-        console.log('[useArtifact] Polling for research completion:', {
+
+      // Poll while draft - AI might be about to start research (or just started)
+      if (artifact?.status === 'draft') {
+        console.log('[useArtifact] Polling draft artifact for AI tool execution:', {
           artifactId: artifact.id,
           status: artifact.status,
         })
         return 2000 // Poll every 2 seconds
       }
-      // Also poll once more when skeleton_ready to ensure content is synced
-      if (artifact?.status === 'skeleton_ready' && !artifact?.content) {
-        console.log('[useArtifact] Polling for skeleton content:', {
+
+      // Poll while in progress - AI is executing research/skeleton
+      if (artifact?.status === 'in_progress') {
+        console.log('[useArtifact] Polling for content creation completion:', {
+          artifactId: artifact.id,
+          status: artifact.status,
+        })
+        return 2000 // Poll every 2 seconds
+      }
+
+      // Poll once more when ready to ensure content is synced
+      if (artifact?.status === 'ready' && !artifact?.content) {
+        console.log('[useArtifact] Polling for ready content:', {
           artifactId: artifact.id,
           status: artifact.status,
           hasContent: !!artifact.content,
         })
         return 2000 // Poll until content appears
       }
-      return false // Don't poll otherwise
+
+      return false // Stop polling when content is loaded
     },
   })
 }

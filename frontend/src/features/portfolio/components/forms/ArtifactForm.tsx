@@ -107,12 +107,12 @@ export function ArtifactForm({
           value={selectedType}
           onValueChange={(value: string) => setValue('type', value as ArtifactType)}
         >
-          <SelectTrigger>
+          <SelectTrigger data-testid="artifact-form-type">
             <SelectValue placeholder="Select type" />
           </SelectTrigger>
           <SelectContent data-portal-ignore-click-outside>
             {ARTIFACT_TYPES.map((type) => (
-              <SelectItem key={type.value} value={type.value}>
+              <SelectItem key={type.value} value={type.value} data-testid={`artifact-type-${type.value}`}>
                 <div className="flex items-center gap-2">
                   <type.icon className="h-4 w-4" />
                   {type.label}
@@ -134,6 +134,7 @@ export function ArtifactForm({
           placeholder="Enter a title..."
           {...register('title')}
           className={errors.title ? 'border-destructive' : ''}
+          data-testid="artifact-form-title"
         />
         {errors.title && (
           <p className="text-sm text-destructive">{errors.title.message}</p>
@@ -148,6 +149,7 @@ export function ArtifactForm({
           placeholder="Start writing..."
           rows={6}
           {...register('content')}
+          data-testid="artifact-form-content"
         />
       </div>
 
@@ -179,10 +181,10 @@ export function ArtifactForm({
 
       {/* Actions */}
       <div className="flex justify-end gap-3 pt-4">
-        <Button type="button" variant="outline" onClick={onCancel}>
+        <Button type="button" variant="outline" onClick={onCancel} data-testid="artifact-form-cancel">
           Cancel
         </Button>
-        <Button type="submit" disabled={isLoading}>
+        <Button type="submit" disabled={isLoading} data-testid="artifact-form-submit">
           {isLoading ? 'Saving...' : artifact ? 'Update' : 'Create'}
         </Button>
       </div>

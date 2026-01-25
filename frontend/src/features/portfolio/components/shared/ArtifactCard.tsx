@@ -83,6 +83,7 @@ export function ArtifactCard({
         className
       )}
       onClick={handleClick}
+      data-testid="artifact-card"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
@@ -169,6 +170,7 @@ export function ArtifactCard({
             size="sm"
             className="w-full gap-2"
             onClick={handleCreateContent}
+            data-testid="artifact-create-content-button"
           >
             <Sparkles className="h-3.5 w-3.5" />
             Create Content

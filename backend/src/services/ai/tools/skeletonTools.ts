@@ -55,7 +55,9 @@ const toneModifiers: Record<ToneOption, string> = {
  * Blog:
  * - Title
  * - Hook/Introduction
+ * - Image placeholder (featured image)
  * - 3-5 H2 sections with placeholders
+ * - Image placeholders within content (after sections)
  * - Conclusion
  * - Call to action
  *
@@ -63,13 +65,16 @@ const toneModifiers: Record<ToneOption, string> = {
  * - Hook (first line)
  * - 2-3 key points
  * - Call to action
+ * - Image placeholder (post visual)
  * - 3-5 relevant hashtags
  *
  * Showcase:
+ * - Title
+ * - Hero image placeholder
  * - Project overview
- * - Problem statement
- * - Solution approach
- * - Results/impact
+ * - Problem statement with image
+ * - Solution approach with image
+ * - Results/impact with image
  * - Key learnings
  */
 function buildSkeletonPrompt(
@@ -96,18 +101,29 @@ Tone: ${toneModifier}
 
 1. Title: Compelling and specific
 2. Hook: [Write engaging hook here] - 2-3 sentences to grab attention
+
+[IMAGE: Featured image - describe what would visually represent the topic]
+
 3. Section 1 (H2): [Main point 1]
    - [Expand on this point - reference research sources]
+   [IMAGE: Describe visual that supports this section]
+
 4. Section 2 (H2): [Main point 2]
    - [Expand on this point - reference research sources]
+   [IMAGE: Describe visual that supports this section]
+
 5. Section 3 (H2): [Main point 3]
    - [Expand on this point - reference research sources]
+   [IMAGE: Describe visual that supports this section]
+
 6. (Optional) Section 4 (H2): [Main point 4]
    - [Expand on this point if needed]
+   [IMAGE: Describe visual if this section is included]
+
 7. Conclusion: [Summarize key takeaways]
 8. Call to Action: [Suggest next steps for reader]
 
-Use placeholders like [Write hook here] and [Expand on this point]. Reference research sources like "According to [Source]...". Keep total length under 2000 characters.`;
+Use placeholders like [Write hook here] and [IMAGE: description]. Include image placeholders within the content flow after major sections. Reference research sources like "According to [Source]...". Keep total length under 2000 characters.`;
   }
 
   if (artifactType === 'social_post') {
@@ -126,15 +142,19 @@ Use placeholders like [Write hook here] and [Expand on this point]. Reference re
 
 5. Call to Action: [Suggest engagement - comment, share, follow, etc.]
 
-6. Hashtags: #hashtag1 #hashtag2 #hashtag3 (3-5 relevant tags)
+6. Post Image: [IMAGE: Describe the visual that should accompany this post - should enhance the message and stop scrollers]
 
-Use placeholders and keep concise (suitable for LinkedIn/Twitter). Total length under 1500 characters.`;
+7. Hashtags: #hashtag1 #hashtag2 #hashtag3 (3-5 relevant tags)
+
+Use placeholders and keep concise (suitable for LinkedIn/Twitter). Include ONE image placeholder at the end (before hashtags) describing the visual that would accompany the post. Total length under 1500 characters.`;
   }
 
   if (artifactType === 'showcase') {
     return basePrompt + `Generate a project showcase skeleton with:
 
 1. Title: [Project name and brief descriptor]
+
+[IMAGE: Hero image - screenshot or visual of the project in action]
 
 2. Overview: [Write compelling project overview here]
    - What it is
@@ -144,19 +164,25 @@ Use placeholders and keep concise (suitable for LinkedIn/Twitter). Total length 
    - Why it matters
    - Current pain points
 
+[IMAGE: Describe visual showing the problem or pain point]
+
 4. Solution: [Explain your approach]
    - Key features or methods
    - Technical highlights
+
+[IMAGE: Describe visual showing the solution - architecture diagram, key feature, or interface]
 
 5. Results: [Share outcomes and impact]
    - Measurable results
    - User feedback or testimonials
 
+[IMAGE: Describe visual showing results - metrics dashboard, before/after, or testimonial graphic]
+
 6. Learnings: [Key takeaways from the project]
    - What went well
    - What you'd do differently
 
-Use placeholders and reference research. Keep under 2000 characters.`;
+Use placeholders like [IMAGE: description] within the content flow. Include image placeholders after major sections to visualize the project journey. Reference research sources. Keep under 2000 characters.`;
   }
 
   return basePrompt;
@@ -266,26 +292,26 @@ export const generateContentSkeleton = tool({
 
       // 5. Validate skeleton length
       const maxLength = artifactType === 'social_post' ? 1500 : 2000;
+      // 5. Validate skeleton length and truncate if needed
+      let finalSkeleton = skeleton;
+      let warning: string | undefined;
+
       if (skeleton.length > maxLength) {
         logger.warn('GenerateContentSkeleton', 'Skeleton exceeds max length', {
           length: skeleton.length,
           maxLength
         });
         // Truncate with warning
-        const truncated = skeleton.substring(0, maxLength - 100) + '\n\n[Skeleton truncated - exceeded max length]';
-        return {
-          success: true,
-          skeleton: truncated,
-          warning: 'Skeleton was truncated to fit length constraints'
-        };
+        finalSkeleton = skeleton.substring(0, maxLength - 100) + '\n\n[Skeleton truncated - exceeded max length]';
+        warning = 'Skeleton was truncated to fit length constraints';
       }
 
-      // 6. Update artifact content in database
+      // 6. Update artifact content in database (always update, even if truncated)
       const { error: updateError } = await supabaseAdmin
         .from('artifacts')
         .update({
-          content: skeleton,
-          status: 'skeleton_ready',
+          content: finalSkeleton,
+          status: 'ready',
           updated_at: new Date().toISOString()
         })
         .eq('id', artifactId);
@@ -304,13 +330,15 @@ export const generateContentSkeleton = tool({
 
       logger.info('GenerateContentSkeleton', 'Skeleton generation completed', {
         artifactId,
-        skeletonLength: skeleton.length,
-        status: 'skeleton_ready'
+        skeletonLength: finalSkeleton.length,
+        status: 'ready',
+        wasTruncated: !!warning
       });
 
       return {
         success: true,
-        skeleton,
+        skeleton: finalSkeleton,
+        ...(warning && { warning })
       };
 
     } catch (error) {

@@ -43,6 +43,8 @@ export interface ArtifactEditorProps {
   isCollapsed?: boolean
   /** Collapse state callback */
   onCollapsedChange?: (collapsed: boolean) => void
+  /** Test ID for E2E testing */
+  'data-testid'?: string
 }
 
 // =============================================================================
@@ -61,6 +63,7 @@ export function ArtifactEditor({
   className,
   isCollapsed: externalIsCollapsed,
   onCollapsedChange,
+  'data-testid': testId,
 }: ArtifactEditorProps) {
   const isMobile = useIsMobile()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
@@ -74,7 +77,7 @@ export function ArtifactEditor({
   // Mobile layout with FAB
   if (isMobile) {
     return (
-      <div className={cn('relative h-full', className)}>
+      <div className={cn('relative h-full', className)} data-testid={testId}>
         {/* Editor */}
         <div className="h-full">
           <RichTextEditor
@@ -120,7 +123,7 @@ export function ArtifactEditor({
   // Collapsed state (minimal height header)
   if (isCollapsed) {
     return (
-      <div className={cn('flex items-center justify-between border-b px-4 py-3 bg-muted/30', className)}>
+      <div className={cn('flex items-center justify-between border-b px-4 py-3 bg-muted/30', className)} data-testid={testId}>
         <div className="flex items-center gap-2">
           {title && <span className="font-medium text-sm">{title}</span>}
           {artifactType && (
@@ -149,7 +152,7 @@ export function ArtifactEditor({
 
   // Expanded state
   return (
-    <div className={cn('flex flex-col h-full', className)}>
+    <div className={cn('flex flex-col h-full', className)} data-testid={testId}>
       {/* Editor header */}
       <div className="flex items-center justify-between border-b px-4 py-2">
         <div className="flex items-center gap-2">

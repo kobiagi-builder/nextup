@@ -2,7 +2,7 @@
  * useResearch Hook (Phase 1)
  *
  * Manages research data fetching and manual entry for artifacts.
- * Polls for updates when artifact status is 'researching' or when skeleton_ready but no research loaded yet.
+ * Polls for updates when artifact status is 'in_progress' or when ready but no research loaded yet.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -45,20 +45,20 @@ export function useResearch(artifactId: string, artifactStatus?: ArtifactStatus)
     refetchInterval: (query) => {
       const currentResearch = query.state.data ?? []
       const shouldPoll =
-        artifactStatus === 'researching' ||
-        (artifactStatus === 'skeleton_ready' && currentResearch.length === 0)
+        artifactStatus === 'in_progress' ||
+        (artifactStatus === 'ready' && currentResearch.length === 0)
 
       if (shouldPoll) {
         console.log('[useResearch] Polling enabled:', {
           artifactId,
           artifactStatus,
           currentResearchCount: currentResearch.length,
-          reason: artifactStatus === 'researching' ? 'status_researching' : 'skeleton_ready_no_research',
+          reason: artifactStatus === 'in_progress' ? 'status_in_progress' : 'ready_no_research',
         })
         return 2000 // Poll every 2 seconds
       }
 
-      return false // Stop polling once we have research and status is no longer researching
+      return false // Stop polling once we have research and status is no longer in_progress
     },
   })
 }

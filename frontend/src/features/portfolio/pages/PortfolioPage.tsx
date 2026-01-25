@@ -118,7 +118,7 @@ export function PortfolioPage() {
             <Sparkles className="h-4 w-4" />
             AI Research
           </Button>
-          <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+          <Button onClick={() => setIsCreateOpen(true)} className="gap-2" data-testid="portfolio-new-button">
             <Plus className="h-4 w-4" />
             New
           </Button>
@@ -202,7 +202,7 @@ export function PortfolioPage() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl" data-portal-ignore-click-outside>
+        <DialogContent className="max-w-2xl" data-portal-ignore-click-outside data-testid="create-artifact-dialog">
           <DialogHeader>
             <DialogTitle>Create New Content</DialogTitle>
           </DialogHeader>
