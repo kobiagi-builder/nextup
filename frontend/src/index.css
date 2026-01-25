@@ -1,0 +1,338 @@
+/**
+ * Global CSS - Dynamic Color Palette System
+ *
+ * This design system supports multiple color palettes configured via VITE_COLOR_PALETTE.
+ *
+ * Available Palettes:
+ * - "cyan" (default) - "Midnight Architect" - Deep blue foundations with luminous cyan accents
+ * - "teal" - "Deep Dive" - Rich teal foundations with aqua accents
+ *
+ * Color values are dynamically injected by lib/inject-palette.ts based on environment config.
+ * Default values below serve as fallback if palette injection fails.
+ *
+ * Font: Plus Jakarta Sans (display + body), JetBrains Mono (code)
+ */
+
+/* Import fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================================
+   CSS Custom Properties - Light Theme (Default)
+   ============================================================================= */
+@layer base {
+  :root {
+    /* Font families */
+    --font-display: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-body: 'Plus Jakarta Sans', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Foundations - Light mode */
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    /* Brand Blues - Light mode uses deeper tones */
+    --primary: 214 83% 39%;
+    --primary-foreground: 210 20% 98%;
+
+    /* Secondary and Muted */
+    --secondary: 210 16% 93%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 16% 93%;
+    --muted-foreground: 215 16% 47%;
+
+    /* Accent - Blue for light mode */
+    --accent: 214 83% 39%;
+    --accent-foreground: 210 20% 98%;
+
+    /* Destructive - Light red #ffe0eb */
+    --destructive: 339 100% 94%;
+    --destructive-foreground: 340 100% 30%;
+
+    /* Borders and inputs */
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 214 83% 39%;
+
+    /* Surface colors - Light mode */
+    --surface: 0 0% 100%;
+    --surface-hover: 210 16% 96%;
+    --surface-active: 210 16% 93%;
+    --surface-selected: 214 83% 39% / 0.08;
+
+    /* Border opacity variants */
+    --border-subtle: 222 47% 11% / 0.05;
+    --border-default: 222 47% 11% / 0.1;
+    --border-strong: 222 47% 11% / 0.2;
+    --border-accent: 214 83% 39% / 0.4;
+
+    /* Chart colors */
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    /* Radius */
+    --radius: 0.5rem;
+
+    /* Sidebar widths */
+    --sidebar-expanded: 180px;
+    --sidebar-collapsed: 56px;
+  }
+
+  /* =============================================================================
+     CSS Custom Properties - Dark Theme ("Midnight Architect")
+     ============================================================================= */
+  .dark {
+    /* Foundations - Deep blue layered backgrounds */
+    --background: 220 60% 3%;          /* #030812 - Deepest background */
+    --foreground: 210 20% 95%;         /* #f0f4f8 - Primary text */
+    --card: 215 52% 10%;               /* #0a1628 - Cards, panels */
+    --card-foreground: 210 20% 95%;
+    --popover: 215 47% 15%;            /* #122238 - Modals, popovers */
+    --popover-foreground: 210 20% 95%;
+
+    /* Brand Blues - Cyan accent for dark mode */
+    --primary: 187 89% 49%;            /* #0ECCED - Bright cyan */
+    --primary-foreground: 220 60% 3%;  /* Dark text on cyan */
+
+    /* Secondary - Subtle blue */
+    --secondary: 215 47% 15%;          /* #122238 */
+    --secondary-foreground: 210 20% 95%;
+
+    /* Muted */
+    --muted: 215 47% 15%;
+    --muted-foreground: 215 16% 57%;   /* #94a3b8 */
+
+    /* Accent - Cyan for dark mode interactions */
+    --accent: 187 89% 49%;             /* #0ECCED */
+    --accent-foreground: 220 60% 3%;
+
+    /* Destructive - Dark red #FF4785 */
+    --destructive: 340 100% 64%;
+    --destructive-foreground: 0 0% 100%;
+
+    /* Borders - Subtle for dark backgrounds */
+    --border: 215 20% 25%;
+    --input: 215 20% 25%;
+    --ring: 187 89% 49%;               /* Cyan focus ring */
+
+    /* Surface colors - Dark mode elevation */
+    --surface: 215 40% 12%;            /* #0d1b2a */
+    --surface-hover: 215 36% 22%;      /* #1b3a5c */
+    --surface-active: 215 36% 28%;     /* #234b73 */
+    --surface-selected: 187 89% 49% / 0.15;
+
+    /* Border opacity variants - For dark backgrounds */
+    --border-subtle: 215 20% 57% / 0.1;
+    --border-default: 215 20% 57% / 0.2;
+    --border-strong: 215 20% 57% / 0.3;
+    --border-accent: 187 89% 49% / 0.5;
+
+    /* Chart colors - Adjusted for dark mode */
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+  }
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: var(--font-body);
+    min-height: 100vh;
+  }
+
+  /* Typography defaults */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    @apply font-semibold tracking-tight;
+  }
+
+  code, pre, kbd, samp {
+    font-family: var(--font-mono);
+  }
+
+  /* Focus styles - Cyan glow for dark mode */
+  :focus-visible {
+    @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  }
+
+  /* Selection color */
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
+}
+
+/* =============================================================================
+   Component Utilities
+   ============================================================================= */
+@layer components {
+  /* Card with hover effect */
+  .card-interactive {
+    @apply transition-all duration-200;
+    @apply hover:-translate-y-0.5 hover:shadow-card-hover;
+    @apply dark:hover:shadow-glow;
+  }
+
+  /* Gradient backgrounds */
+  .bg-gradient-card {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--popover)) 100%);
+  }
+
+  .bg-gradient-accent {
+    background: linear-gradient(135deg, #025EC4 0%, #0ECCED 100%);
+  }
+
+  /* Glow effect for dark mode accents */
+  .glow-accent {
+    @apply dark:shadow-glow;
+  }
+
+  /* Status indicator colors */
+  .status-draft { @apply bg-status-draft text-white; }
+  .status-in-progress { @apply bg-status-in-progress text-white; }
+  .status-ready { @apply bg-status-ready text-black; }
+  .status-published { @apply bg-status-published text-white; }
+  .status-archived { @apply bg-status-archived text-white; }
+
+  /* AI indicator pulse */
+  .ai-thinking {
+    @apply inline-block w-2 h-2 rounded-full bg-brand-300;
+    @apply animate-pulse-glow;
+  }
+
+  /* Streaming text cursor */
+  .streaming-cursor {
+    @apply inline-block w-0.5 h-4 bg-brand-300 ml-0.5;
+    @apply animate-blink;
+  }
+
+  /* Sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2 rounded-lg;
+    @apply text-muted-foreground transition-colors;
+    @apply hover:bg-surface-hover hover:text-foreground;
+  }
+
+  .nav-item-active {
+    @apply bg-surface-selected text-foreground;
+    @apply border-l-[3px] border-brand-300;
+  }
+}
+
+/* =============================================================================
+   Utility Classes
+   ============================================================================= */
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Custom scrollbar for dark mode */
+  .scrollbar-custom {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-custom::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 4px;
+  }
+
+  /* Text gradient */
+  .text-gradient {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #025EC4 0%, #0ECCED 100%);
+  }
+
+  /* Safe area padding for mobile */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-inset-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
+
+/* =============================================================================
+   Responsive Typography Adjustments
+   ============================================================================= */
+@media (max-width: 640px) {
+  :root {
+    /* Slightly reduce heading sizes on mobile */
+    --text-display-lg: 1.75rem;
+    --text-display-md: 1.5rem;
+    --text-heading-lg: 1.25rem;
+    --text-heading-md: 1.125rem;
+  }
+}
+
+/* =============================================================================
+   Animation Utilities
+   ============================================================================= */
+@layer utilities {
+  /* Page transition */
+  .page-enter {
+    @apply opacity-0 translate-y-2;
+  }
+
+  .page-enter-active {
+    @apply opacity-100 translate-y-0;
+    @apply transition-all duration-200 ease-out;
+  }
+
+  /* Slide animations */
+  .slide-in-from-left {
+    animation: slide-in-left 250ms ease-out;
+  }
+
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+}

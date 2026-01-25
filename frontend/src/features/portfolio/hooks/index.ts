@@ -1,0 +1,72 @@
+/**
+ * Portfolio Feature Hooks
+ *
+ * Re-exports all React Query hooks for the portfolio feature.
+ * Import from '@/features/portfolio/hooks' for cleaner imports.
+ */
+
+// Artifacts
+export {
+  artifactKeys,
+  useArtifacts,
+  useArtifact,
+  useCreateArtifact,
+  useUpdateArtifact,
+  useDeleteArtifact,
+  usePublishArtifact,
+} from './useArtifacts'
+
+// Skills
+export {
+  skillKeys,
+  useSkills,
+  useSkill,
+  useSkillsGroupedByCategory,
+  useCreateSkill,
+  useUpdateSkill,
+  useDeleteSkill,
+} from './useSkills'
+
+// User Context
+export {
+  userContextKeys,
+  useUserContext,
+  useProfileCompletion,
+  useUpdateUserContext,
+  useUpdateUserContextSection,
+} from './useUserContext'
+
+// Style Examples
+export {
+  styleExampleKeys,
+  TARGET_STYLE_EXAMPLES,
+  useStyleExamples,
+  useStyleExample,
+  useStyleExamplesProgress,
+  useCreateStyleExample,
+  useUpdateStyleExample,
+  useDeleteStyleExample,
+} from './useStyleExamples'
+
+// Preferences
+export {
+  preferencesKeys,
+  usePreferences,
+  useUpdatePreferences,
+  useUpdateTheme,
+  useUpdateInteractionMode,
+} from './usePreferences'
+
+// AI Chat
+export {
+  useAIChat,
+  type UseAIChatOptions,
+  type UseAIChatReturn,
+} from './useAIChat'
+
+// Structured Chat (with topic suggestion cards)
+export {
+  useStructuredChat,
+  type UseStructuredChatOptions,
+  type UseStructuredChatReturn,
+} from './useStructuredChat'
