@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "detectedPatterns": [
+    {
+      "category": "AI Vocabulary",
+      "example": "delve into the intricacies",
+      "fix": "Use simpler alternatives like 'explore' or 'examine'"
+    },
+    {
+      "category": "Promotional Language",
+      "example": "vibrant ecosystem",
+      "fix": "Use neutral descriptors instead of promotional adjectives"
+    },
+    {
+      "category": "Copula Avoidance",
+      "example": "serves as a testament",
+      "fix": "Simplify to 'is' or 'shows'"
+    },
+    {
+      "category": "Significance Inflation",
+      "example": "pivotal role in shaping",
+      "fix": "Let facts speak for themselves without inflated importance claims"
+    },
+    {
+      "category": "-ing Analysis Pattern",
+      "example": "highlighting the importance of",
+      "fix": "State the point directly without tacked-on participle phrases"
+    }
+  ],
+  "patternCount": 5,
+  "humanityScore": 68,
+  "topIssues": [
+    "Overuse of AI vocabulary words like 'delve', 'tapestry', 'nuanced'",
+    "Promotional language that sounds like marketing copy",
+    "Complex constructions avoiding simple 'is/are' verbs",
+    "Inflated claims about significance and importance",
+    "Present participle phrases adding superficial analysis"
+  ],
+  "suggestions": [
+    "Replace 'delve' with 'explore', 'examine', or 'look at'",
+    "Remove promotional adjectives like 'vibrant', 'stunning', 'groundbreaking'",
+    "Use simple 'is' and 'are' instead of 'serves as' or 'stands as'",
+    "Let facts speak for themselves without claims about their importance",
+    "Remove -ing phrases like 'highlighting', 'showcasing', 'emphasizing'",
+    "Add personal voice and opinions where appropriate",
+    "Vary sentence length for more natural rhythm"
+  ],
+  "contentLength": 2450,
+  "verdict": "Content has noticeable AI patterns",
+  "traceId": "{{traceId}}",
+  "duration": 1450
+}

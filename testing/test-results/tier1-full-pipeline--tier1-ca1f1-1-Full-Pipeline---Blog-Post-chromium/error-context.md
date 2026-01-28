@@ -1,0 +1,118 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main-content"
+        - text: Skip to main content
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CT
+        - navigation:
+          - link:
+            - /url: /
+            - img
+          - link:
+            - /url: /portfolio
+            - img
+        - navigation:
+          - link:
+            - /url: /profile
+            - img
+          - link:
+            - /url: /settings
+            - img
+          - button:
+            - img
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - button:
+                - img
+              - generic:
+                - heading [level=1]: AI in Product Management 2026
+              - button:
+                - img
+                - text: AI Assistant
+              - button:
+                - img
+                - text: Create Content
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - heading [level=3]: Research
+                  - button:
+                    - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: AI in Product Management 2026
+                      - generic: blog
+                    - generic:
+                      - button:
+                        - img
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - button:
+                            - img
+                          - button [disabled]:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                        - generic:
+                          - generic:
+                            - generic: "Tone:"
+                            - combobox:
+                              - generic: Professional
+                              - img
+                      - generic:
+                        - generic:
+                          - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation.
+    - list
+  - dialog "AI Assistant" [ref=e2]:
+    - button "Close" [active] [ref=e3] [cursor=pointer]:
+      - img [ref=e4]
+      - generic [ref=e7]: Close
+    - heading "AI Assistant" [level=2] [ref=e9]:
+      - img [ref=e10]
+      - text: AI Assistant
+    - generic [ref=e14]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e21]
+          - generic [ref=e26]: "Create content for artifact 6c95a91d-309b-4165-bac1-4c52c552e1e5: \"AI in Product Management 2026\""
+        - generic [ref=e27]:
+          - img [ref=e29]
+          - generic [ref=e34]: I'll start creating content for that AI in Product Management 2026 article.Your AI in Product Management 2026 article is now complete! I've created comprehensive content covering how AI will transform product management by 2026, including AI-powered discovery, intelligent roadmapping, and enhanced collaboration. The article positions you as a forward-thinking product leader while providing actionable insights for your audience.
+      - generic [ref=e36]:
+        - generic [ref=e37]:
+          - textbox "Let's chat about your content..." [ref=e39]
+          - button [disabled]:
+            - img
+        - paragraph [ref=e40]: Press Enter to send, Shift+Enter for new line
+```

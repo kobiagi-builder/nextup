@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { healthRouter } from './health.js'
 import { aiRouter } from './ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
+import contentAgentRouter from './contentAgentRoutes.js'
 import { logFrontend } from '../lib/logger.js'
 
 export const router = Router()
@@ -14,6 +15,9 @@ router.use('/ai', aiRouter)
 
 // Artifact research endpoints
 router.use('/artifacts', artifactResearchRouter)
+
+// Content agent endpoints
+router.use('/content-agent', contentAgentRouter)
 
 // Frontend logging endpoint - captures all FE logs to the debug file
 router.post('/log', (req, res) => {

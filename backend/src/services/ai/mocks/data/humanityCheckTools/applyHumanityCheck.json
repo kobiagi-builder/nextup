@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "originalLength": 2450,
+  "humanizedLength": 2312,
+  "lengthChange": -138,
+  "patternsChecked": 24,
+  "status": "review_ready",
+  "message": "Content humanized successfully. Removed AI patterns and added natural voice.",
+  "traceId": "{{traceId}}",
+  "duration": 2100
+}

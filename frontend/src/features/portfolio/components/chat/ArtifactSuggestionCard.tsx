@@ -5,31 +5,39 @@
  * When clicked, creates a draft artifact immediately.
  */
 
-import { useState } from 'react'
-import { FileText, MessageSquare, Trophy, Loader2, Check, Edit, Sparkles } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Card } from '@/components/ui/card'
-import type { ArtifactType } from '../../types/portfolio'
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+import {
+  Check,
+  Edit,
+  FileText,
+  Loader2,
+  MessageSquare,
+  Sparkles,
+  Trophy,
+} from "lucide-react";
+import { useState } from "react";
+import type { ArtifactType } from "../../types/portfolio";
 
 // =============================================================================
 // Types
 // =============================================================================
 
 export interface ArtifactSuggestion {
-  id: string
-  title: string
-  description: string
-  type: ArtifactType
-  rationale: string
-  tags?: string[]
+  id: string;
+  title: string;
+  description: string;
+  type: ArtifactType;
+  rationale: string;
+  tags?: string[];
 }
 
 export interface ArtifactSuggestionCardProps {
-  suggestion: ArtifactSuggestion
-  isAdded?: boolean
-  onCreate: (suggestion: ArtifactSuggestion) => Promise<void>
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void> // Phase 1: AI content creation
+  suggestion: ArtifactSuggestion;
+  isAdded?: boolean;
+  onCreate: (suggestion: ArtifactSuggestion) => Promise<void>;
+  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>; // Phase 1: AI content creation
 }
 
 // =============================================================================
@@ -37,10 +45,14 @@ export interface ArtifactSuggestionCardProps {
 // =============================================================================
 
 const ARTIFACT_TYPE_CONFIG = {
-  social_post: { icon: MessageSquare, label: 'Social Post', color: 'text-blue-500' },
-  blog: { icon: FileText, label: 'Blog Post', color: 'text-purple-500' },
-  showcase: { icon: Trophy, label: 'Case Study', color: 'text-amber-500' },
-}
+  social_post: {
+    icon: MessageSquare,
+    label: "Social Post",
+    color: "text-blue-500",
+  },
+  blog: { icon: FileText, label: "Blog Post", color: "text-purple-500" },
+  showcase: { icon: Trophy, label: "Case Study", color: "text-amber-500" },
+};
 
 export function ArtifactSuggestionCard({
   suggestion,
@@ -48,103 +60,56 @@ export function ArtifactSuggestionCard({
   onCreate,
   onCreateContent,
 }: ArtifactSuggestionCardProps) {
-  const [isCreating, setIsCreating] = useState(false)
-  const [isCreatingContent, setIsCreatingContent] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false);
+  const [isCreatingContent, setIsCreatingContent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const config = ARTIFACT_TYPE_CONFIG[suggestion.type]
-  const Icon = config.icon
+  const config = ARTIFACT_TYPE_CONFIG[suggestion.type];
+  const Icon = config.icon;
 
   const handleCreate = async () => {
-    if (isAdded || isCreating) return
+    if (isAdded || isCreating) return;
 
-    setIsCreating(true)
-    setError(null)
+    setIsCreating(true);
+    setError(null);
 
     try {
-      await onCreate(suggestion)
+      await onCreate(suggestion);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create artifact')
+      setError(
+        err instanceof Error ? err.message : "Failed to create artifact",
+      );
     } finally {
-      setIsCreating(false)
+      setIsCreating(false);
     }
-  }
+  };
 
   const handleCreateContent = async () => {
-    if (isAdded || isCreatingContent || !onCreateContent) return
+    if (isAdded || isCreatingContent || !onCreateContent) return;
 
-    setIsCreatingContent(true)
-    setError(null)
+    setIsCreatingContent(true);
+    setError(null);
 
     try {
-      await onCreateContent(suggestion)
+      await onCreateContent(suggestion);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create content')
+      setError(err instanceof Error ? err.message : "Failed to create content");
     } finally {
-      setIsCreatingContent(false)
+      setIsCreatingContent(false);
     }
-  }
+  };
 
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
-      {/* Header: Type badge + Action buttons */}
-      <div className="flex items-start justify-between gap-3 mb-3">
-        <div className={cn('flex items-center gap-2 text-sm font-medium', config.color)}>
-          <Icon className="h-4 w-4" />
-          <span>{config.label}</span>
-        </div>
-
-        {/* Two-button layout: Add & Edit / Create Content */}
-        <div className="flex flex-col gap-1.5 w-full sm:flex-row sm:gap-2 sm:w-auto">
-          {/* Add & Edit button (outline) */}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleCreate}
-            disabled={isAdded || isCreating || isCreatingContent}
-            className="gap-2"
-          >
-            {isCreating ? (
-              <>
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Creating...
-              </>
-            ) : isAdded ? (
-              <>
-                <Check className="h-3 w-3" />
-                Added
-              </>
-            ) : (
-              <>
-                <Edit className="h-3 w-3" />
-                Add & Edit
-              </>
-            )}
-          </Button>
-
-          {/* Create Content button (primary) - Phase 1 */}
-          {onCreateContent && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={handleCreateContent}
-              disabled={isAdded || isCreating || isCreatingContent}
-              className="gap-2"
-            >
-              {isCreatingContent ? (
-                <>
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-3 w-3" />
-                  Create Content
-                </>
-              )}
-            </Button>
-          )}
-        </div>
+    <Card className="p-4 hover:shadow-md transition-shadow min-w-[320px] w-full" data-testid={`topic-card-${suggestion.id}`}>
+      {/* Header: Type badge */}
+      <div
+        className={cn(
+          "flex items-center gap-2 text-sm font-medium mb-3",
+          config.color,
+        )}
+      >
+        <Icon className="h-4 w-4" />
+        <span>{config.label}</span>
       </div>
 
       {/* Title */}
@@ -174,6 +139,60 @@ export function ArtifactSuggestionCard({
         </div>
       )}
 
+      {/* Action buttons - at bottom */}
+      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border">
+        {/* Add & Edit button (outline) */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleCreate}
+          disabled={isAdded || isCreating || isCreatingContent}
+          className="gap-2 flex-1 min-w-[120px]"
+          data-testid={`topic-edit-button-${suggestion.id}`}
+        >
+          {isCreating ? (
+            <>
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Creating...
+            </>
+          ) : isAdded ? (
+            <>
+              <Check className="h-3 w-3" />
+              Added
+            </>
+          ) : (
+            <>
+              <Edit className="h-3 w-3" />
+              Edit
+            </>
+          )}
+        </Button>
+
+        {/* Create Content button (primary) - Phase 1 */}
+        {onCreateContent && (
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleCreateContent}
+            disabled={isAdded || isCreating || isCreatingContent}
+            className="gap-2 flex-1 min-w-[120px]"
+            data-testid={`topic-create-content-button-${suggestion.id}`}
+          >
+            {isCreatingContent ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                Creating...
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3" />
+                Create Content
+              </>
+            )}
+          </Button>
+        )}
+      </div>
+
       {/* Error */}
       {error && (
         <div className="mt-3 text-xs text-destructive bg-destructive/10 p-2 rounded">
@@ -181,7 +200,7 @@ export function ArtifactSuggestionCard({
         </div>
       )}
     </Card>
-  )
+  );
 }
 
-export default ArtifactSuggestionCard
+export default ArtifactSuggestionCard;

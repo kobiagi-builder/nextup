@@ -1,0 +1,11 @@
+{
+  "text": "I understand you'd like help with content creation. Based on your profile and context, I can suggest several approaches:\n\n1. **Topic Ideas** - I can generate topic suggestions based on your expertise and audience\n2. **Content Drafts** - I can create initial drafts for blog posts, social content, or showcases\n3. **Research** - I can conduct research to gather relevant insights from multiple sources\n4. **Profile Enhancement** - I can suggest improvements to your user profile\n\nWhat would you like to focus on today?",
+  "toolCalls": [],
+  "toolResults": [],
+  "usage": {
+    "promptTokens": 250,
+    "completionTokens": 120,
+    "totalTokens": 370
+  },
+  "finishReason": "stop"
+}

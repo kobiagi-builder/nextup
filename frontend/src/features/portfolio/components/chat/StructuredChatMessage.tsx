@@ -9,6 +9,7 @@ import { Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DiscussionSection } from './DiscussionSection'
 import { ArtifactSuggestionCard } from './ArtifactSuggestionCard'
+import { parseMessageSegments } from '../../utils/messageFormatter'
 import type {
   ParsedChatMessage,
   ArtifactSuggestion,
@@ -134,10 +135,22 @@ export function StructuredChatMessage({
 
           {/* Content */}
           <div className="flex-1 space-y-4 max-w-[90%]">
-            {/* Plain text content if any */}
+            {/* Plain text content if any - parse into segments */}
             {content && (
-              <div className="rounded-lg bg-muted px-4 py-2 text-sm">
-                <div className="whitespace-pre-wrap break-words">{content}</div>
+              <div className="flex flex-col gap-2">
+                {parseMessageSegments(content).map((segment) => (
+                  <div
+                    key={segment.id}
+                    className={cn(
+                      "rounded-lg px-4 py-2 text-sm",
+                      segment.type === 'result' && "bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100",
+                      segment.type === 'action' && "bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100",
+                      segment.type === 'explanation' && "bg-muted"
+                    )}
+                  >
+                    <div className="whitespace-pre-wrap break-words">{segment.text}</div>
+                  </div>
+                ))}
               </div>
             )}
 
@@ -154,7 +167,9 @@ export function StructuredChatMessage({
       )
     }
 
-    // Plain text message
+    // Plain text message - parse into segments for better formatting
+    const segments = parseMessageSegments(content)
+
     return (
       <div className={cn('flex gap-3 p-4', className)}>
         {/* Avatar */}
@@ -162,11 +177,22 @@ export function StructuredChatMessage({
           <Bot className="h-4 w-4" />
         </div>
 
-        {/* Content */}
+        {/* Content - Multiple message blobs */}
         <div className="flex max-w-[80%] flex-col gap-2 items-start">
-          <div className="rounded-lg bg-muted px-4 py-2 text-sm">
-            <div className="whitespace-pre-wrap break-words">{content}</div>
-          </div>
+          {segments.map((segment) => (
+            <div
+              key={segment.id}
+              className={cn(
+                "rounded-lg px-4 py-2 text-sm",
+                // Style based on segment type
+                segment.type === 'result' && "bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100",
+                segment.type === 'action' && "bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100",
+                segment.type === 'explanation' && "bg-muted"
+              )}
+            >
+              <div className="whitespace-pre-wrap break-words">{segment.text}</div>
+            </div>
+          ))}
         </div>
       </div>
     )

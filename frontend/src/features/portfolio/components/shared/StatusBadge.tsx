@@ -36,6 +36,7 @@ export function StatusBadge({
         sizeClasses[size],
         className
       )}
+      data-testid={`status-badge-${status}`}
     >
       {STATUS_LABELS[status]}
     </span>

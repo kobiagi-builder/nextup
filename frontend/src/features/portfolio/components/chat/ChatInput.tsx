@@ -4,11 +4,17 @@
  * Input field for chat messages with send button and keyboard hints.
  */
 
-import { useCallback, useRef, useState, useEffect, type KeyboardEvent } from 'react'
+import { useCallback, useRef, useState, useEffect, useLayoutEffect, type KeyboardEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
 import { Send, Square, Loader2 } from 'lucide-react'
+
+// =============================================================================
+// Constants
+// =============================================================================
+
+const MIN_HEIGHT = 44 // Minimum height in pixels
+const MAX_HEIGHT = 200 // Maximum height in pixels before scrollbar appears
 
 // =============================================================================
 // Types
@@ -62,6 +68,32 @@ export function ChatInput({
     setHasContent(value.trim().length > 0)
   }, [value])
 
+  // Auto-resize textarea based on content
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    // Reset height to auto to get the correct scrollHeight
+    textarea.style.height = 'auto'
+
+    // Calculate new height, clamped between min and max
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, MIN_HEIGHT), MAX_HEIGHT)
+    textarea.style.height = `${newHeight}px`
+
+    // Enable scrolling when content exceeds max height
+    textarea.style.overflowY = textarea.scrollHeight > MAX_HEIGHT ? 'auto' : 'hidden'
+  }, [textareaRef])
+
+  // Adjust height when value changes
+  useLayoutEffect(() => {
+    adjustTextareaHeight()
+  }, [value, adjustTextareaHeight])
+
+  // Adjust height on initial mount
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [adjustTextareaHeight])
+
   // Handle keyboard events
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -93,7 +125,7 @@ export function ChatInput({
       {/* Input area */}
       <div className="flex items-end gap-2">
         <div className="relative flex-1">
-          <Textarea
+          <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
@@ -102,9 +134,18 @@ export function ChatInput({
             disabled={isDisabled}
             rows={1}
             className={cn(
-              'min-h-[44px] max-h-[200px] resize-none pr-12',
-              'focus:ring-primary/20 focus:ring-2'
+              'flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm',
+              'placeholder:text-muted-foreground',
+              'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              'focus:ring-primary/20 focus:ring-2',
+              'disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+              'resize-none pr-12'
             )}
+            style={{
+              minHeight: `${MIN_HEIGHT}px`,
+              maxHeight: `${MAX_HEIGHT}px`,
+            }}
+            data-testid="chat-input"
           />
         </div>
 
@@ -116,6 +157,7 @@ export function ChatInput({
           disabled={!canSubmit}
           variant={isStreaming ? 'destructive' : 'default'}
           className="h-11 w-11 shrink-0"
+          data-testid="chat-submit-button"
         >
           {isLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />

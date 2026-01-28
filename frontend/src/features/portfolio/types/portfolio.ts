@@ -30,16 +30,15 @@ export type DateString = string
 /** Supported artifact types */
 export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 
-/** Artifact status workflow - matches database schema */
+/** Artifact status workflow - simplified linear flow (7 statuses) */
 export type ArtifactStatus =
-  | 'draft'                 // Initial state, empty artifact
-  | 'researching'           // AI is researching and gathering information
-  | 'skeleton_ready'        // Skeleton/outline ready for user approval
-  | 'skeleton_approved'     // User approved skeleton, ready for full content
-  | 'in_progress'           // Content creation/research in progress
-  | 'ready'                 // Content generated and ready for editing/publishing
-  | 'published'             // Published to platform
-  | 'archived'              // Archived, no longer active
+  | 'draft'             // Initial state, editable
+  | 'research'          // AI researching, editor locked
+  | 'skeleton'          // AI creating structure, editor locked
+  | 'writing'           // AI writing content, editor locked
+  | 'creating_visuals'  // AI generating images, editor locked
+  | 'ready'             // Content ready, editable, can publish
+  | 'published'         // Published, editable (editing → ready)
 
 /** Tone options for content generation - Phase 1 */
 export type ToneOption =
@@ -63,6 +62,7 @@ export interface Artifact {
   title: string | null
   content: string | null
   metadata: ArtifactMetadata
+  visuals_metadata?: VisualsMetadata | null  // Phase 3: Image generation metadata
   tags: string[]
   published_url: string | null
   published_at: DateString | null
@@ -123,6 +123,7 @@ export interface CreateArtifactInput {
   type: ArtifactType
   title?: string
   content?: string
+  tone?: ToneOption
   metadata?: Partial<ArtifactMetadata>
   tags?: string[]
 }
@@ -156,6 +157,58 @@ export interface ArtifactResearch {
   excerpt: string
   relevance_score: number
   created_at: DateString
+}
+
+// =============================================================================
+// Visuals / Image Generation Types (Phase 3)
+// =============================================================================
+
+/** Image phase tracking for creating_visuals status */
+export type ImagePhase =
+  | { phase: 'not_started' }
+  | { phase: 'identifying_needs'; progress: number }
+  | { phase: 'generating_images'; completed: number; total: number }
+  | { phase: 'complete'; finals: FinalImage[] }
+
+/** Image need identified by AI */
+export interface ImageNeed {
+  id: string
+  placement_after: string // Heading text or line number
+  description: string
+  purpose: 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart'
+  style: 'professional' | 'modern' | 'abstract' | 'realistic'
+  approved: boolean // User approval flag
+}
+
+/** Final generated image */
+export interface FinalImage {
+  id: string
+  image_need_id: string
+  url: string
+  storage_path: string
+  resolution: { width: number; height: number }
+  file_size_kb: number
+  generated_at: string
+  generation_attempts: number
+}
+
+/** Visuals metadata stored in artifacts.visuals_metadata JSONB field */
+export interface VisualsMetadata {
+  // Phase 3: Image generation fields
+  phase: ImagePhase
+  needs: ImageNeed[]
+  finals: FinalImage[]
+  generation_stats: {
+    total_needed: number
+    finals_generated: number
+    failures: number
+  }
+
+  // Phase 2 MVP: Stub fields (backward compatibility)
+  visualsDetected?: number
+  visualsGenerated?: number
+  placeholders?: unknown[]
+  mvpStub?: boolean
 }
 
 // =============================================================================
@@ -366,16 +419,15 @@ export interface UpdatePreferencesInput {
 // State Machine Types
 // =============================================================================
 
-/** Valid artifact status transitions - matches database schema */
+/** Valid artifact status transitions - linear flow (no approval gates) */
 export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
-  draft: ['researching', 'archived'],
-  researching: ['skeleton_ready', 'archived'],
-  skeleton_ready: ['skeleton_approved', 'researching', 'archived'],
-  skeleton_approved: ['in_progress', 'archived'],
-  in_progress: ['draft', 'ready', 'archived'],
-  ready: ['in_progress', 'published', 'archived'],
-  published: ['archived'],
-  archived: ['draft'],
+  draft: ['research'],
+  research: ['skeleton'],
+  skeleton: ['writing'],
+  writing: ['creating_visuals'],
+  creating_visuals: ['ready'],
+  ready: ['published'],
+  published: ['ready'],  // Edit triggers return to ready
 }
 
 /** Check if a status transition is valid */
@@ -439,16 +491,15 @@ export interface StatusInfo {
   color: string // Tailwind color class
 }
 
-/** Artifact status configurations - matches database schema */
+/** Artifact status configurations - simplified 7 statuses */
 export const ARTIFACT_STATUS_INFO: Record<ArtifactStatus, StatusInfo> = {
   draft: { id: 'draft', label: 'Draft', color: 'status-draft' },
-  researching: { id: 'researching', label: 'Researching...', color: 'status-researching' },
-  skeleton_ready: { id: 'skeleton_ready', label: 'Skeleton Ready', color: 'status-skeleton-ready' },
-  skeleton_approved: { id: 'skeleton_approved', label: 'Approved', color: 'status-approved' },
-  in_progress: { id: 'in_progress', label: 'Creating...', color: 'status-in-progress' },
-  ready: { id: 'ready', label: 'Ready', color: 'status-ready' },
+  research: { id: 'research', label: 'Creating Content', color: 'status-processing' },
+  skeleton: { id: 'skeleton', label: 'Creating Content', color: 'status-processing' },
+  writing: { id: 'writing', label: 'Creating Content', color: 'status-processing' },
+  creating_visuals: { id: 'creating_visuals', label: 'Creating Content', color: 'status-processing' },
+  ready: { id: 'ready', label: 'Content Ready', color: 'status-ready' },
   published: { id: 'published', label: 'Published', color: 'status-published' },
-  archived: { id: 'archived', label: 'Archived', color: 'status-archived' },
 }
 
 /** Skill category configurations */

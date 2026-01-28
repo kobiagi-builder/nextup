@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "topics": [
+    {
+      "title": "5 Counterintuitive Lessons from Building a 7-Figure SaaS (That No One Talks About)",
+      "description": "The unconventional strategies that actually worked when growing our startup. Forget the typical advice you've heard a thousand times...",
+      "rationale": "Found 9 related posts with high engagement (average relevance: 0.88). Strong audience interest in authentic founder stories.",
+      "trendingScore": 8.8,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Lead with vulnerability. Share specific failures and pivots with numbers. End with one actionable takeaway."
+    },
+    {
+      "title": "Your Morning Routine Might Be Sabotaging Your Success (Here's Why)",
+      "description": "New research reveals surprising insights about productivity patterns. The popular morning routine advice might be wrong for most people...",
+      "rationale": "Found 11 related posts. High shareability potential (average relevance: 0.85). Contrarian angle drives engagement.",
+      "trendingScore": 8.5,
+      "competitionLevel": "high",
+      "suggestedAngle": "Challenge conventional wisdom with data. Use a compelling hook that makes people question their assumptions. Include a 'what worked for me' personal example."
+    },
+    {
+      "title": "The AI Tool That Saved Me 15 Hours This Week (And It's Free)",
+      "description": "A practical demonstration of how AI can actually improve your workflow without hype. Real use cases, actual time savings, honest limitations...",
+      "rationale": "Found 8 related posts. Growing interest in practical AI applications (average relevance: 0.83).",
+      "trendingScore": 8.3,
+      "competitionLevel": "high",
+      "suggestedAngle": "Show, don't tell. Include screenshots or demo video. Be specific about the problem it solved and limitations it has."
+    },
+    {
+      "title": "I Quit My $150K Job to Build My Own Thing. Here's What Happened (6 Months Later)",
+      "description": "Raw, unfiltered update on the entrepreneurial journey. The wins, losses, and everything in between that no one prepares you for...",
+      "rationale": "Found 6 related posts. Story-driven content with emotional resonance (average relevance: 0.79).",
+      "trendingScore": 7.9,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Be brutally honest about finances and mental health. Share the unglamorous parts. End with whether you'd make the same decision again."
+    },
+    {
+      "title": "The LinkedIn Post Formula That Got Me 500K Impressions (Without Being Cringe)",
+      "description": "A breakdown of the content structure that consistently performs on LinkedIn. Pattern analysis from 100+ viral posts...",
+      "rationale": "Found 7 related posts. Meta-content about content creation (average relevance: 0.81).",
+      "trendingScore": 8.1,
+      "competitionLevel": "low",
+      "suggestedAngle": "Provide the actual template with examples. Acknowledge what feels inauthentic and why. Focus on sustainable authenticity."
+    }
+  ],
+  "sourcesQueried": [
+    "linkedin.com",
+    "reddit.com",
+    "medium.com",
+    "quora.com"
+  ],
+  "traceId": "{{traceId}}"
+}

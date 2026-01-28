@@ -1,0 +1,52 @@
+{
+  "success": true,
+  "topics": [
+    {
+      "title": "Complete Redesign: How I Transformed a Legacy Healthcare Platform (Case Study)",
+      "description": "A comprehensive breakdown of redesigning a 10-year-old healthcare system. Process, challenges, user research, final results, and measurable impact...",
+      "rationale": "Found 7 related portfolios. High-value industry with portfolio demand (average relevance: 0.86).",
+      "trendingScore": 8.6,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Focus on your problem-solving approach. Show before/after metrics. Include stakeholder management challenges and how you overcame them."
+    },
+    {
+      "title": "Building a Real-Time Collaboration Tool: Technical Deep Dive",
+      "description": "System architecture, scaling challenges, and technology decisions behind building a collaboration platform handling 50K concurrent users...",
+      "rationale": "Found 5 related projects. Technical showcases attract quality leads (average relevance: 0.82).",
+      "trendingScore": 8.2,
+      "competitionLevel": "low",
+      "suggestedAngle": "Balance technical depth with accessibility. Explain trade-offs made and lessons learned. Include infrastructure cost breakdown."
+    },
+    {
+      "title": "From Idea to Launch: My Mobile App Journey in 90 Days",
+      "description": "Complete product development story including market validation, MVP decisions, design iterations, and first 1,000 users...",
+      "rationale": "Found 8 related projects. End-to-end project stories engage multiple audiences (average relevance: 0.84).",
+      "trendingScore": 8.4,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Create a timeline visualization. Be transparent about budget and time investment. Share user feedback that influenced pivots."
+    },
+    {
+      "title": "Rebranding a B2B SaaS: Design System and Brand Strategy",
+      "description": "Complete brand refresh process: research, strategy development, visual identity, design system implementation, and rollout across all touchpoints...",
+      "rationale": "Found 6 related cases. B2B design work is underrepresented in portfolios (average relevance: 0.79).",
+      "trendingScore": 7.9,
+      "competitionLevel": "low",
+      "suggestedAngle": "Show the business impact, not just aesthetics. Include stakeholder workshop outcomes and how you built consensus."
+    },
+    {
+      "title": "Accessibility Overhaul: Making a Government Portal WCAG 2.1 Compliant",
+      "description": "Audit findings, remediation strategy, component library updates, automated testing setup, and final accessibility certification process...",
+      "rationale": "Found 4 related projects. Growing demand for accessibility expertise (average relevance: 0.77).",
+      "trendingScore": 7.7,
+      "competitionLevel": "low",
+      "suggestedAngle": "Position as both design and technical skill. Share specific examples of complex accessibility challenges solved. Include test coverage metrics."
+    }
+  ],
+  "sourcesQueried": [
+    "medium.com",
+    "behance.net",
+    "dribbble.com",
+    "github.com"
+  ],
+  "traceId": "{{traceId}}"
+}

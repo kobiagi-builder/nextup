@@ -27,3 +27,32 @@ export {
   getUserSkills,
   suggestProfileUpdates,
 } from './profileTools.js'
+
+// Context tools (ad-hoc fetchers for Content Agent)
+export {
+  fetchArtifactTopics,
+  fetchArtifact,
+  fetchResearch,
+  listDraftArtifacts,
+} from './contextTools.js'
+
+// Topics research tool
+export {
+  topicsResearch,
+} from './topicsResearchTool.js'
+
+// Visuals creator tool
+export {
+  generateContentVisuals,
+} from './visualsCreatorTool.js'
+
+// Image generation tools (Phase 3)
+export {
+  identifyImageNeeds,
+  updateImageApproval,
+} from './imageNeedsTools.js'
+
+export {
+  generateFinalImages,
+  regenerateImage,
+} from './finalImageTools.js'

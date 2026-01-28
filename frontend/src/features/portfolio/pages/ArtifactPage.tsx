@@ -7,17 +7,20 @@
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { markdownToHTML, isMarkdown } from '@/lib/markdown'
-import { ArrowLeft, Loader2, Sparkles } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, Sparkles } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { useArtifact, useUpdateArtifact } from '../hooks/useArtifacts'
+import { useArtifact, useUpdateArtifact, artifactKeys } from '../hooks/useArtifacts'
 import { ArtifactEditor } from '../components/editor'
 import { ResearchArea } from '../components/artifact/ResearchArea'
+import { isProcessingState } from '../validators/stateMachine'
 import { ChatPanel } from '../components'
 import { useResearch } from '../hooks/useResearch'
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ToneOption } from '../types/portfolio'
+import { useScreenContext } from '@/hooks/useScreenContext'
+import { supabase } from '@/lib/supabase'
 
 // =============================================================================
 // Component
@@ -36,6 +39,28 @@ export function ArtifactPage() {
 
   // Research hook (Phase 1) - pass artifact status for intelligent polling
   const { data: research = [] } = useResearch(id!, artifact?.status)
+
+  // Phase 6: Screen context for Content Agent
+  // IMPORTANT: Use fresh artifact data from useArtifact (which polls during processing)
+  // instead of useScreenContext (which uses stale list cache)
+  const baseScreenContext = useScreenContext()
+
+  // Create fresh screenContext with up-to-date artifact data
+  const screenContext = {
+    ...baseScreenContext,
+    artifactId: id, // Use URL param directly
+    artifactType: artifact?.type ?? baseScreenContext.artifactType,
+    artifactTitle: artifact?.title ?? baseScreenContext.artifactTitle,
+    artifactStatus: artifact?.status ?? baseScreenContext.artifactStatus, // CRITICAL: Fresh status from useArtifact
+  }
+
+  // Log screen context for debugging
+  useEffect(() => {
+    console.log('[ArtifactPage] Screen context (fresh):', screenContext, {
+      sourceArtifactStatus: artifact?.status,
+      baseCacheStatus: baseScreenContext.artifactStatus,
+    })
+  }, [screenContext, artifact?.status, baseScreenContext.artifactStatus])
 
   // Local state for optimistic updates
   const [localContent, setLocalContent] = useState('')
@@ -84,20 +109,21 @@ export function ArtifactPage() {
     }
   }, [artifact?.content, artifact?.tone, artifact?.id, artifact?.status])
 
-  // Auto-trigger research when navigating from portfolio card (Phase 1)
+  // Auto-trigger content creation when navigating with startCreation or autoResearch param
   useEffect(() => {
     const autoResearch = searchParams.get('autoResearch')
+    const startCreation = searchParams.get('startCreation')
 
-    if (autoResearch === 'true' && artifact?.title && artifact.status === 'draft') {
-      console.log('[ArtifactPage] Auto-research triggered:', {
+    if ((autoResearch === 'true' || startCreation === 'true') && artifact?.title && artifact.status === 'draft') {
+      console.log('[ArtifactPage] Auto content creation triggered:', {
         artifactId: artifact.id,
         artifactTitle: artifact.title,
-        source: 'portfolio-card',
+        source: startCreation === 'true' ? 'create-modal' : 'portfolio-card',
       })
 
-      // Set the research message to auto-send (include artifact ID for AI context)
-      const researchMessage = `Research and create skeleton for artifact ${artifact.id}: "${artifact.title}"`
-      setInitialResearchMessage(researchMessage)
+      // Set the content creation message to auto-send (artifact ID provided via screen context)
+      const contentMessage = `Create content: "${artifact.title}"`
+      setInitialResearchMessage(contentMessage)
 
       // Open AI Assistant (message will be sent by ChatPanel)
       setIsAIAssistantOpen(true)
@@ -156,20 +182,166 @@ export function ArtifactPage() {
     prevStatusRef.current = currentStatus
   }, [artifact, research.length, queryClient])
 
+  // Real-time artifact updates via Supabase Realtime
+  // Listens for UPDATE events on the artifacts table and invalidates cache for immediate refresh
+  useEffect(() => {
+    if (!id) return
+
+    console.log('[ArtifactPage] 🔌 Setting up Realtime subscription:', {
+      artifactId: id,
+      channelName: `artifact-${id}`,
+      table: 'artifacts',
+      filter: `id=eq.${id}`,
+      timestamp: new Date().toISOString(),
+    })
+
+    // Subscribe to changes on this specific artifact
+    const channel = supabase
+      .channel(`artifact-${id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'artifacts',
+          filter: `id=eq.${id}`,
+        },
+        (payload) => {
+          console.log('[ArtifactPage] 🔔 Realtime UPDATE event received:', {
+            artifactId: id,
+            newStatus: payload.new.status,
+            oldStatus: payload.old?.status,
+            hasContent: !!payload.new.content,
+            contentLength: payload.new.content?.length || 0,
+            timestamp: new Date().toISOString(),
+          })
+
+          // Check current cache state BEFORE invalidation
+          const correctQueryKey = artifactKeys.detail(id)
+          const cacheStateBefore = queryClient.getQueryState(correctQueryKey)
+          console.log('[ArtifactPage] 📦 Cache state BEFORE invalidation:', {
+            queryKey: correctQueryKey,
+            exists: !!cacheStateBefore,
+            status: cacheStateBefore?.status,
+          })
+
+          // FIXED: Now using correct query key that matches useArtifact hook
+          // useArtifact uses artifactKeys.detail(id) = ['artifacts', 'detail', id]
+          console.log('[ArtifactPage] ✅ Using CORRECT query key:', correctQueryKey)
+
+          // Invalidate artifact query to trigger refetch (CORRECT KEY)
+          queryClient.invalidateQueries({ queryKey: correctQueryKey })
+
+          // Check cache state AFTER invalidation
+          const cacheStateAfter = queryClient.getQueryState(correctQueryKey)
+          console.log('[ArtifactPage] 📦 Cache state AFTER invalidation:', {
+            queryKey: correctQueryKey,
+            exists: !!cacheStateAfter,
+            status: cacheStateAfter?.status,
+          })
+
+          // If status changed, also invalidate research query
+          if (payload.new.status !== payload.old?.status) {
+            console.log('[ArtifactPage] Status changed, invalidating research cache')
+            queryClient.invalidateQueries({ queryKey: ['research', id] })
+          }
+        }
+      )
+      .subscribe((status) => {
+        console.log('[ArtifactPage] 📡 Realtime subscription status changed:', {
+          artifactId: id,
+          status,
+          isSubscribed: status === 'SUBSCRIBED',
+          channelName: `artifact-${id}`,
+          timestamp: new Date().toISOString(),
+        })
+
+        if (status === 'SUBSCRIBED') {
+          console.log('[ArtifactPage] ✅ Successfully subscribed to Realtime updates')
+        } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.error('[ArtifactPage] ❌ Realtime subscription failed:', status)
+        }
+      })
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('[ArtifactPage] 🔌 Cleaning up Realtime subscription:', {
+        artifactId: id,
+        channelName: `artifact-${id}`,
+        timestamp: new Date().toISOString(),
+      })
+      supabase.removeChannel(channel)
+    }
+  }, [id, queryClient])
+
   // Handle content change with debounced save
+  // Auto-transition: published → ready when user edits content
   const handleContentChange = useCallback(
-    (newContent: string) => {
+    async (newContent: string) => {
       setLocalContent(newContent)
       setHasUnsavedChanges(true)
+
+      // Auto-transition published → ready on edit
+      if (artifact?.status === 'published') {
+        try {
+          await updateArtifact.mutateAsync({
+            id: artifact.id,
+            updates: { status: 'ready' },
+          })
+          console.log('[ArtifactPage] Auto-transitioned from published to ready on edit')
+        } catch (err) {
+          console.error('[ArtifactPage] Failed to transition status:', err)
+        }
+      }
     },
-    []
+    [artifact?.id, artifact?.status, updateArtifact]
   )
 
   // Handle tone change (Phase 1)
+  // When user changes tone, open AI assistant and request text adjustment
   const handleToneChange = useCallback((newTone: ToneOption) => {
+    const previousTone = localTone
     setLocalTone(newTone)
     setHasToneChanges(true)
-  }, [])
+
+    // Only trigger AI assistant if there's content to adjust and tone actually changed
+    if (localContent && localContent.trim().length > 0 && newTone !== previousTone) {
+      // Format tone label (capitalize first letter)
+      const toneLabel = newTone.charAt(0).toUpperCase() + newTone.slice(1)
+      const adjustMessage = `Adjust the text to use a ${toneLabel} tone`
+
+      console.log('[ArtifactPage] Tone changed, triggering AI assistant:', {
+        artifactId: artifact?.id,
+        previousTone,
+        newTone,
+        message: adjustMessage,
+      })
+
+      // Set the message and open AI assistant
+      setInitialResearchMessage(adjustMessage)
+      setIsAIAssistantOpen(true)
+    }
+  }, [localTone, localContent, artifact?.id])
+
+  // Handle mark as published
+  const handleMarkAsPublished = useCallback(async () => {
+    if (!artifact?.id) return
+
+    console.log('[ArtifactPage] Marking as published:', {
+      artifactId: artifact.id,
+      currentStatus: artifact.status,
+    })
+
+    try {
+      await updateArtifact.mutateAsync({
+        id: artifact.id,
+        updates: { status: 'published' },
+      })
+      console.log('[ArtifactPage] Marked as published successfully')
+    } catch (err) {
+      console.error('[ArtifactPage] Failed to mark as published:', err)
+    }
+  }, [artifact?.id, artifact?.status, updateArtifact])
 
   // Auto-save content effect (debounced)
   useEffect(() => {
@@ -212,7 +384,7 @@ export function ArtifactPage() {
   // Loading state
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center" data-testid="artifact-page-loading">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     )
@@ -221,7 +393,7 @@ export function ArtifactPage() {
   // Error state
   if (error || !artifact) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-4">
+      <div className="flex h-full flex-col items-center justify-center gap-4" data-testid="artifact-page-error">
         <h2 className="text-xl font-semibold">Artifact not found</h2>
         <p className="text-muted-foreground">
           The artifact you're looking for doesn't exist or was deleted.
@@ -231,8 +403,8 @@ export function ArtifactPage() {
     )
   }
 
-  // Determine research area status
-  const researchStatus = artifact.status === 'in_progress'
+  // Determine research area status (processing states show loading)
+  const researchStatus = isProcessingState(artifact.status)
     ? 'loading'
     : research.length > 0
     ? 'loaded'
@@ -247,14 +419,15 @@ export function ArtifactPage() {
   })
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="flex h-full flex-col" data-testid="artifact-page">
       {/* Header */}
-      <div className="flex items-center gap-4 border-b px-4 py-3">
+      <div className="flex items-center gap-4 border-b px-4 py-3" data-testid="artifact-page-header">
         <Button
           variant="ghost"
           size="icon"
           onClick={() => navigate('/portfolio')}
           className="shrink-0"
+          data-testid="artifact-page-back-button"
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
@@ -269,6 +442,7 @@ export function ArtifactPage() {
           variant="secondary"
           className="gap-2"
           onClick={() => setIsAIAssistantOpen(true)}
+          data-testid="artifact-page-ai-assistant-button"
         >
           <Sparkles className="h-4 w-4" />
           AI Assistant
@@ -278,15 +452,16 @@ export function ArtifactPage() {
         {artifact.status === 'draft' && (
           <Button
             onClick={() => {
-              const researchMessage = `Research and create skeleton for artifact ${artifact.id}: "${artifact.title}"`
+              // Artifact ID provided via screen context, not in message text
+              const contentMessage = `Create content: "${artifact.title}"`
               console.log('[ArtifactPage] Create Content clicked:', {
                 artifactId: artifact.id,
                 artifactTitle: artifact.title,
                 artifactStatus: artifact.status,
-                researchMessage,
+                contentMessage,
               })
-              // Set the research message to auto-send
-              setInitialResearchMessage(researchMessage)
+              // Set the content creation message to auto-send
+              setInitialResearchMessage(contentMessage)
               // Open AI Assistant (message will be sent by ChatPanel)
               setIsAIAssistantOpen(true)
             }}
@@ -298,7 +473,22 @@ export function ArtifactPage() {
           </Button>
         )}
 
-        {/* Skeleton is automatically ready for editing when status = 'ready' */}
+        {/* Mark as Published button (visible when ready) */}
+        {artifact.status === 'ready' && (
+          <Button
+            onClick={handleMarkAsPublished}
+            disabled={updateArtifact.isPending}
+            className="gap-2"
+            data-testid="artifact-page-mark-published-button"
+          >
+            {updateArtifact.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle className="h-4 w-4" />
+            )}
+            Mark as Published
+          </Button>
+        )}
       </div>
 
       {/* Main Area: Vertical Stack - Research (top) + Editor (bottom) */}
@@ -325,11 +515,14 @@ export function ArtifactPage() {
             onContentChange={handleContentChange}
             title={artifact.title || undefined}
             artifactType={artifact.type}
+            status={artifact.status}
+            visualsMetadata={artifact.visuals_metadata}
             isSaving={updateArtifact.isPending || hasUnsavedChanges || hasToneChanges}
             tone={localTone}
             onToneChange={handleToneChange}
             className="h-full"
             isCollapsed={isEditorCollapsed}
+            editable={!isProcessingState(artifact.status)}
             data-testid="artifact-editor"
             onCollapsedChange={setIsEditorCollapsed}
           />
@@ -361,6 +554,7 @@ export function ArtifactPage() {
               showHeader={false}
               height="100%"
               initialMessage={initialResearchMessage}
+              screenContext={screenContext}
               data-testid="ai-chat-panel"
             />
           </div>

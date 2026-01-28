@@ -10,16 +10,15 @@
 
 export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 
-// Phase 1: Added new statuses for content creation workflow
+// Unified Content Agent Architecture: 7-status linear workflow (no approval gates)
 export type ArtifactStatus =
-  | 'draft'
-  | 'researching'           // NEW: AI is conducting research
-  | 'skeleton_ready'        // NEW: Skeleton generated, awaiting approval
-  | 'skeleton_approved'     // NEW: Skeleton approved by user
-  | 'in_progress'
-  | 'ready'
-  | 'published'
-  | 'archived'
+  | 'draft'                 // Initial state, editable
+  | 'research'              // AI researching, editor locked
+  | 'skeleton'              // AI creating structure, editor locked
+  | 'writing'               // AI writing content, editor locked
+  | 'creating_visuals'      // AI generating images, editor locked
+  | 'ready'                 // Content ready, editable, can publish
+  | 'published'             // Published, editable (editing → ready)
 
 // Phase 1: 8 tone options for content generation
 export type ToneOption =
@@ -42,6 +41,7 @@ export interface Artifact {
   tone?: ToneOption         // NEW: User's selected tone for content
   tags: string[]
   metadata: Record<string, unknown>
+  visuals_metadata?: VisualsMetadata  // Phase 3: Image generation metadata
   created_at: string
   updated_at: string
 }
@@ -138,4 +138,57 @@ export interface ToolInvocation {
   toolName: string
   args: Record<string, unknown>
   result?: unknown
+}
+
+// =============================================================================
+// Phase 3: Visuals / Image Generation Types
+// =============================================================================
+
+/** Image phase tracking for creating_visuals status */
+export type ImagePhase =
+  | { phase: 'not_started' }
+  | { phase: 'identifying_needs'; progress: number }
+  | { phase: 'awaiting_approval' }
+  | { phase: 'generating_images'; completed: number; total: number }
+  | { phase: 'complete'; finals: FinalImage[] }
+
+/** Image need identified by AI */
+export interface ImageNeed {
+  id: string
+  placement_after: string // Heading text or line number
+  description: string
+  purpose: 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart'
+  style: 'professional' | 'modern' | 'abstract' | 'realistic'
+  approved: boolean // User approval flag
+}
+
+/** Final generated image */
+export interface FinalImage {
+  id: string
+  image_need_id: string
+  url: string
+  storage_path: string
+  resolution: { width: number; height: number }
+  file_size_kb: number
+  generated_at: string
+  generation_attempts: number
+}
+
+/** Visuals metadata stored in artifacts.visuals_metadata JSONB field */
+export interface VisualsMetadata {
+  // Phase 3: Image generation fields
+  phase: ImagePhase
+  needs: ImageNeed[]
+  finals: FinalImage[]
+  generation_stats: {
+    total_needed: number
+    finals_generated: number
+    failures: number
+  }
+
+  // Phase 2 MVP: Stub fields (backward compatibility)
+  visualsDetected?: number
+  visualsGenerated?: number
+  placeholders?: unknown[]
+  mvpStub?: boolean
 }

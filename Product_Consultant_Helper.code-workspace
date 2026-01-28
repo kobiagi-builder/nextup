@@ -1,10 +1,13 @@
 {
-    "folders": [
-        {
-            "path": "."
-        },
-        {
-            "path": "../../../.claude"
-        }
-    ]
+  "folders": [
+    {
+      "path": ".",
+    },
+    {
+      "path": "../../../.claude",
+    },
+    {
+      "path": "../fractional_pm_agent",
+    },
+  ],
 }

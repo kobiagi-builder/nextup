@@ -112,7 +112,7 @@ export function ArtifactCard({
                   Edit
                 </DropdownMenuItem>
               )}
-              {onArchive && artifact.status !== 'archived' && (
+              {onArchive && (
                 <DropdownMenuItem onClick={(e: React.MouseEvent) => { e.stopPropagation(); onArchive(); }}>
                   Archive
                 </DropdownMenuItem>

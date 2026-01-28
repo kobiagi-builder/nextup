@@ -1,0 +1,495 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main-content"
+        - text: Skip to main content
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CT
+        - navigation:
+          - link:
+            - /url: /
+            - img
+          - link:
+            - /url: /portfolio
+            - img
+        - navigation:
+          - link:
+            - /url: /profile
+            - img
+          - link:
+            - /url: /settings
+            - img
+          - button:
+            - img
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: Portfolio
+              - generic:
+                - button:
+                  - img
+                  - text: AI Research
+                - button:
+                  - img
+                  - text: New
+            - generic:
+              - generic:
+                - button: All
+                - button: Posts
+                - button: Blogs
+                - button: Showcases
+              - combobox
+              - generic:
+                - img
+                - textbox:
+                  - /placeholder: Search content...
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Real-Time Payment Rails: How The Clearing House's RTP Network Transformed B2B Payments"
+                - paragraph: The Clearing House's RTP Network changed how B2B payments work—and most businesses haven't caught up yet. Here's what a...
+                - generic:
+                  - img
+                  - generic: 27m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Open Banking API Revolution: How Plaid Enabled $6.7T in Transactions Across 12,000+ Financial Institutions"
+                - paragraph: Plaid just processed $6.7 trillion in transactions across 12,000+ financial institutions. That's a staggering amount of ...
+                - generic:
+                  - img
+                  - generic: 30m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "Open Banking API Revolution: How Plaid Enabled $6.7T in Transactions Across 12,000+ Financial Institutions"
+                - paragraph: "# Open Banking API Revolution: How Plaid Enabled $6.7T in Transactions Across 12,000+ Financial Institutions $6.7 trill..."
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 31m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Published
+                    - button:
+                      - img
+                - heading [level=3]: "Open Banking API Revolution: How Plaid Enabled $6.7T in Transactions Across 12,000+ Financial Institutions"
+                - paragraph: $6.7 trillion in transactions. 12,000+ financial institutions. One API that changed everything. Plaid rebuilt how finan...
+                - generic:
+                  - img
+                  - generic: 1h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "AP Automation Platform: How Tipalti Bills Drove 760% Remittance Volume Growth"
+                - paragraph: "# Tipalti Bills: AP Automation Platform Transformation [IMAGE: Hero dashboard screenshot showing Tipalti Bills interfac..."
+                - generic:
+                  - generic: ap-automation
+                  - generic: tipalti
+                  - generic: payment-processing
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Real-Time Payment Rails: How The Clearing House's RTP Network Transformed B2B Payments"
+                - paragraph: "# Real-Time Payment Rails: RTP Network B2B Payment Transformation [IMAGE: Hero image - Dashboard showing real-time paym..."
+                - generic:
+                  - generic: real-time-payments
+                  - generic: rtp-network
+                  - generic: payment-infrastructure
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Embedded Lending Platform: How Square Capital Disbursed $10B+ to SMBs"
+                - paragraph: "# Square Capital: Embedded Lending Platform Case Study [IMAGE: Hero image - Square Capital dashboard showing loan appro..."
+                - generic:
+                  - generic: embedded-lending
+                  - generic: square-capital
+                  - generic: smb-financing
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Buy Now, Pay Later Revolution: How Klarna Achieved 150M Active Users Through Embedded Finance"
+                - paragraph: "# Klarna BNPL Platform: Embedded Finance Revolution Case Study [IMAGE: Hero image - Klarna's checkout interface integra..."
+                - generic:
+                  - generic: bnpl
+                  - generic: embedded-finance
+                  - generic: merchant-integrations
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Cross-Border Payments: How Wise Reduced Transfer Costs by 80% and Scaled to 16M Customers"
+                - paragraph: "# Wise Cross-Border Payment Revolution: 80% Cost Reduction Case Study [IMAGE: Hero image - Wise mobile app interface sh..."
+                - generic:
+                  - generic: cross-border-payments
+                  - generic: fintech-disruption
+                  - generic: pricing-strategy
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Digital Banking Transformation: How a Regional Bank Increased Digital Adoption by 300%"
+                - paragraph: "# Digital Banking Transformation: Regional Bank's 300% Adoption Surge [IMAGE: Hero image - Modern mobile banking app in..."
+                - generic:
+                  - generic: digital-banking
+                  - generic: fintech-transformation
+                  - generic: customer-adoption
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: The Product Manager's Guide to Building AI-First Learning Platforms
+                - paragraph: No content yet
+                - generic:
+                  - generic: AI Product Management
+                  - generic: EdTech
+                  - generic: Product Strategy
+                  - generic: "+1"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "From Prompt to Product: Building AI-Powered EdTech Solutions That Actually Scale"
+                - paragraph: No content yet
+                - generic:
+                  - generic: AI Product Management
+                  - generic: EdTech
+                  - generic: Product Strategy
+                  - generic: "+1"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "Tipalti Bills: 760% Remittance Volume Growth Through Product-Led Expansion"
+                - paragraph: No content yet
+                - generic:
+                  - generic: tipalti
+                  - generic: ap-automation
+                  - generic: product-strategy
+                  - generic: "+2"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "Ginzi: Customer Discovery to First Paying Customers"
+                - paragraph: No content yet
+                - generic:
+                  - generic: customer-discovery
+                  - generic: early-stage
+                  - generic: market-research
+                  - generic: "+2"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: Portfolio Platform
+                - paragraph: "# Portfolio Platform: Streamlined Creative Showcase System [IMAGE: Hero image - clean, modern portfolio interface showi..."
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: Blog post about AI for students
+                - paragraph: No content yet
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: AI for students
+                - paragraph: "# Blog Skeleton: AI for Students ## Title: How AI Tools Are Transforming Student Success: A Practical Guide for Academi..."
+                - generic:
+                  - generic: AI
+                  - generic: students
+                  - generic: education
+                  - generic: "+1"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Fintech Product Strategy: Navigating Compliance, Security, and Growth [test1]"
+                - paragraph: "# Social Post Skeleton: Fintech Product Strategy ## 1. Hook: Building a successful fintech product isn't just about inn..."
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Fintech Product Strategy: Navigating Compliance, Security, and Growth"
+                - paragraph: "# Blog Skeleton: Fintech Product Strategy ## Title: The Fintech Balancing Act: How to Scale Products While Managing Co..."
+                - generic:
+                  - generic: fintech
+                  - generic: product strategy
+                  - generic: compliance
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: Fractional PMs Are Actually More Strategic Than Full-Time PMs (Here's Why)
+                - paragraph: Challenge the assumption that fractional = tactical. Argue that fractional PMs must think more strategically because the...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 2d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: Why Fractional PMs See Red Flags That Full-Time PMs Miss
+                - paragraph: An honest comparison of perspective differences - how outside consultants spot systemic issues that internal teams becom...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 2d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "The 90-Day Reality: What Fractional PMs Can (and Can't) Accomplish"
+                - paragraph: A realistic breakdown of the impact timeline for fractional product management - what you can fix quickly, what takes lo...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 2d ago
+    - list
+  - dialog "Create New Content" [ref=e2]:
+    - heading "Create New Content" [level=2] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - text: Type
+        - combobox [ref=e7] [cursor=pointer]:
+          - generic:
+            - generic:
+              - img
+              - text: Blog Post
+          - img [ref=e8]
+        - combobox [ref=e10]
+      - generic [ref=e11]:
+        - text: Title
+        - textbox "Title" [ref=e12]:
+          - /placeholder: Enter a title...
+          - text: AI in Product Management 2026
+      - generic [ref=e13]:
+        - text: Content (optional)
+        - textbox "Content (optional)" [active] [ref=e14]:
+          - /placeholder: Start writing...
+          - text: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation.
+      - generic [ref=e15]:
+        - text: Tags
+        - textbox "Type a tag and press Enter..." [ref=e16]
+      - generic [ref=e17]:
+        - button "Cancel" [ref=e18] [cursor=pointer]
+        - button "Save as Draft" [ref=e19] [cursor=pointer]:
+          - img
+          - text: Save as Draft
+        - button "Create Content" [ref=e20] [cursor=pointer]:
+          - img
+          - text: Create Content
+    - button "Close" [ref=e21] [cursor=pointer]:
+      - img [ref=e22]
+      - generic [ref=e25]: Close
+```

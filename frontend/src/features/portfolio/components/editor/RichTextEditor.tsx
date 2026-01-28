@@ -8,6 +8,7 @@ import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
 import {
   Bold,
   Italic,
@@ -26,6 +27,7 @@ import { Button } from '@/components/ui/button'
 import { ToneSelector } from '../artifact/ToneSelector'
 import { useCallback, useEffect } from 'react'
 import type { ToneOption } from '../../types/portfolio'
+import { formatListsInHtml } from '../../utils/htmlFormatter'
 
 interface RichTextEditorProps {
   content: string
@@ -205,7 +207,7 @@ function EditorToolbar({
           <ToneSelector
             value={tone}
             onChange={onToneChange}
-            showDescription={false}
+            layout="horizontal"
           />
         </div>
       )}
@@ -241,6 +243,13 @@ export function RichTextEditor({
           class: 'text-primary underline',
         },
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto my-4',
+        },
+      }),
     ],
     content,
     editable,
@@ -252,27 +261,32 @@ export function RichTextEditor({
         class: cn(
           'prose prose-invert max-w-none',
           'focus:outline-none min-h-[200px] p-6',
-          // Headings - distinct sizes with proper spacing
-          'prose-h1:text-3xl prose-h1:font-bold prose-h1:text-foreground prose-h1:mt-8 prose-h1:mb-4 prose-h1:leading-tight',
-          'prose-h2:text-2xl prose-h2:font-semibold prose-h2:text-foreground prose-h2:mt-6 prose-h2:mb-3 prose-h2:leading-snug',
-          'prose-h3:text-xl prose-h3:font-semibold prose-h3:text-foreground prose-h3:mt-4 prose-h3:mb-2 prose-h3:leading-snug',
-          // First heading no top margin
+          // Headings - distinct sizes with editorial spacing
+          // More space above (separate sections), less below (connect to content)
+          'prose-h1:text-3xl prose-h1:font-bold prose-h1:text-foreground prose-h1:mt-10 prose-h1:mb-4 prose-h1:leading-tight',
+          'prose-h2:text-2xl prose-h2:font-semibold prose-h2:text-foreground prose-h2:mt-8 prose-h2:mb-3 prose-h2:leading-snug',
+          'prose-h3:text-xl prose-h3:font-semibold prose-h3:text-foreground prose-h3:mt-6 prose-h3:mb-2 prose-h3:leading-snug',
+          // First element no top margin
           '[&>*:first-child]:mt-0',
-          // Paragraphs - proper spacing and line height
-          'prose-p:text-foreground prose-p:text-base prose-p:leading-7 prose-p:mb-4',
+          // Paragraphs - generous spacing for readability (1.5em = 24px)
+          // Line height 1.75 (28px) for comfortable reading
+          'prose-p:text-foreground prose-p:text-base prose-p:leading-7 prose-p:mb-6',
           // Links
           'prose-a:text-primary prose-a:no-underline hover:prose-a:underline',
           // Emphasis
           'prose-strong:text-foreground prose-strong:font-semibold',
           'prose-em:text-foreground prose-em:italic',
-          // Code
-          'prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm',
-          // Blockquotes
+          // Code - inline code styling
+          'prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono',
+          // Blockquotes - editorial spacing
           'prose-blockquote:border-l-4 prose-blockquote:border-l-primary prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-6',
-          // Lists
-          'prose-ul:text-foreground prose-ul:my-4 prose-ul:pl-6',
-          'prose-ol:text-foreground prose-ol:my-4 prose-ol:pl-6',
-          'prose-li:text-foreground prose-li:text-base prose-li:leading-7 prose-li:mb-2'
+          // Lists - improved spacing for readability
+          'prose-ul:text-foreground prose-ul:my-6 prose-ul:pl-6',
+          'prose-ol:text-foreground prose-ol:my-6 prose-ol:pl-6',
+          'prose-li:text-foreground prose-li:text-base prose-li:leading-7 prose-li:mb-3',
+          // Nested lists - slightly less spacing
+          'prose-li>ul:mt-3 prose-li>ul:mb-0',
+          'prose-li>ol:mt-3 prose-li>ol:mb-0'
         ),
       },
     },
@@ -283,7 +297,12 @@ export function RichTextEditor({
     if (!editor) return
 
     const currentHTML = editor.getHTML()
-    const newContent = content || ''
+    let newContent = content || ''
+
+    // Format plain text lists into proper HTML lists
+    // Converts "1. Item" -> <ol><li>Item</li></ol>
+    // Converts "- Item" -> <ul><li>Item</li></ul>
+    newContent = formatListsInHtml(newContent)
 
     // Normalize HTML for comparison (remove extra whitespace)
     const normalize = (html: string) => html.replace(/\s+/g, ' ').trim()
@@ -295,6 +314,7 @@ export function RichTextEditor({
         currentLength: currentHTML.length,
         newLength: newContent.length,
         preview: newContent.substring(0, 100),
+        hadPlainTextLists: newContent !== (content || ''),
       })
       editor.commands.setContent(newContent, { emitUpdate: false }) // Don't emit update event
     }
@@ -333,6 +353,13 @@ export function RichTextContent({
           class: 'text-primary underline',
         },
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: true,
+        HTMLAttributes: {
+          class: 'rounded-lg max-w-full h-auto my-4',
+        },
+      }),
     ],
     content,
     editable: false,
@@ -340,11 +367,21 @@ export function RichTextContent({
       attributes: {
         class: cn(
           'prose prose-invert prose-sm max-w-none',
-          'prose-headings:font-semibold prose-headings:text-foreground prose-headings:mb-4',
-          'prose-p:text-foreground prose-p:leading-relaxed prose-p:mb-4',
+          // Headings with editorial spacing
+          'prose-h1:font-bold prose-h1:text-foreground prose-h1:mt-8 prose-h1:mb-3 prose-h1:leading-tight',
+          'prose-h2:font-semibold prose-h2:text-foreground prose-h2:mt-6 prose-h2:mb-2.5 prose-h2:leading-snug',
+          'prose-h3:font-semibold prose-h3:text-foreground prose-h3:mt-5 prose-h3:mb-2 prose-h3:leading-snug',
+          '[&>*:first-child]:mt-0',
+          // Paragraphs with generous spacing
+          'prose-p:text-foreground prose-p:leading-7 prose-p:mb-5',
+          // Links
           'prose-a:text-primary',
-          'prose-ul:mb-4 prose-ol:mb-4',
-          'prose-li:mb-1',
+          // Lists with improved spacing
+          'prose-ul:my-5 prose-ol:my-5',
+          'prose-li:mb-2.5',
+          // Nested lists
+          'prose-li>ul:mt-2.5 prose-li>ul:mb-0',
+          'prose-li>ol:mt-2.5 prose-li>ol:mb-0',
           className
         ),
       },

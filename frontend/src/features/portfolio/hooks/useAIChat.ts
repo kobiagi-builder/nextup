@@ -13,7 +13,7 @@
 
 import { useChat } from '@ai-sdk/react'
 import { DefaultChatTransport } from 'ai'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   useChatStore,
   createChatMessage,
@@ -49,6 +49,14 @@ export interface UseAIChatOptions {
   onToolResult?: (toolName: string, result: unknown, messageId?: string) => void
   /** Callback when an error occurs */
   onError?: (error: Error) => void
+  /** Screen context for Content Agent (optional) */
+  screenContext?: {
+    currentPage: string
+    artifactId?: string
+    artifactType?: string
+    artifactTitle?: string
+    artifactStatus?: string
+  }
 }
 
 export interface UseAIChatReturn {
@@ -83,7 +91,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // =============================================================================
 
 export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
-  const { contextKey, onToolResult, onError } = options
+  const { contextKey, onToolResult, onError, screenContext } = options
 
   // Local input state (AI SDK v6 doesn't manage this)
   const [input, setInput] = useState('')
@@ -115,6 +123,17 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
   } = useChat({
     transport: new DefaultChatTransport({
       api: `${API_URL}/api/ai/chat/stream`,
+      // VERCEL AI SDK BEST PRACTICE: Use prepareSendMessagesRequest to inject additional context
+      // CRITICAL: Must be INSIDE DefaultChatTransport constructor, not outside useChat
+      prepareSendMessagesRequest({ messages }) {
+        return {
+          body: {
+            messages,
+            // Pass screenContext to backend (will be ignored if undefined)
+            ...(screenContext && { screenContext }),
+          },
+        }
+      },
     }),
     onError: (error: Error) => {
       finishStreaming(contextKey)
@@ -191,6 +210,26 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
       }
     }
   }, [status, contextKey, aiMessages, storeIsStreaming, onToolResult, startStreaming, finishStreaming, clearError])
+
+  // Initialize AI SDK with existing messages from store (for chat persistence)
+  const initializedRef = useRef(false)
+  useEffect(() => {
+    if (!initializedRef.current) {
+      initializedRef.current = true
+      // Check if there are existing messages in the store (e.g., copied from another context)
+      const existingMessages = useChatStore.getState().contexts[contextKey]?.messages || []
+      if (existingMessages.length > 0 && aiMessages.length === 0) {
+        // Convert store messages to AI SDK format and initialize
+        const aiFormatMessages = existingMessages.map((msg) => ({
+          id: msg.id,
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: msg.content,
+          createdAt: msg.created_at ? new Date(msg.created_at) : new Date(),
+        }))
+        setAiMessages(aiFormatMessages)
+      }
+    }
+  }, [contextKey, aiMessages.length, setAiMessages])
 
   // Convert AI messages to our format and sync to store
   useEffect(() => {

@@ -77,13 +77,23 @@ export function useArtifacts(options?: {
 /**
  * Fetch a single artifact by ID
  *
- * Phase 1: Auto-polls every 2 seconds when status is 'researching' to detect AI updates
+ * Auto-polls every 2 seconds during processing states (research, skeleton, writing, creating_visuals)
  */
 export function useArtifact(id: string | null) {
+  const queryKey = artifactKeys.detail(id ?? '')
+
+  console.log('[useArtifact] 🔑 Query key:', {
+    queryKey,
+    artifactId: id,
+    note: 'This key must match Realtime invalidation for real-time updates to work'
+  })
+
   return useQuery({
-    queryKey: artifactKeys.detail(id ?? ''),
+    queryKey,
     queryFn: async () => {
       if (!id) return null
+
+      console.log('[useArtifact] 🔍 Fetching artifact from database:', id)
 
       const { data, error } = await supabase
         .from('artifacts')
@@ -91,44 +101,55 @@ export function useArtifact(id: string | null) {
         .eq('id', id)
         .single()
 
-      if (error) throw error
+      if (error) {
+        console.error('[useArtifact] ❌ Error fetching artifact:', error)
+        throw error
+      }
+
+      console.log('[useArtifact] ✅ Artifact fetched:', {
+        id: data.id,
+        status: data.status,
+        contentLength: data.content?.length || 0,
+      })
+
       return data as Artifact
     },
     enabled: !!id,
-    // Phase 1: Poll for status changes during content creation workflow
-    // Polls when: draft (waiting for AI to start), in_progress (AI executing), or ready without content yet
+    // Poll for status changes during content creation workflow
+    // Processing states: research, skeleton, writing, creating_visuals
+    // NOTE: This is a FALLBACK - Realtime should handle updates in real-time
     refetchInterval: (query) => {
       const artifact = query.state.data as Artifact | undefined
 
-      // Poll while draft - AI might be about to start research (or just started)
-      if (artifact?.status === 'draft') {
-        console.log('[useArtifact] Polling draft artifact for AI tool execution:', {
-          artifactId: artifact.id,
-          status: artifact.status,
-        })
-        return 2000 // Poll every 2 seconds
-      }
+      // Processing states that require polling (editor is locked during these)
+      const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
 
-      // Poll while in progress - AI is executing research/skeleton
-      if (artifact?.status === 'in_progress') {
-        console.log('[useArtifact] Polling for content creation completion:', {
+      if (artifact?.status && processingStates.includes(artifact.status)) {
+        console.log('[useArtifact] ⏱️ POLLING (Fallback): Processing state detected:', {
           artifactId: artifact.id,
           status: artifact.status,
+          note: 'Realtime should update faster - if you see this, check Realtime subscription'
         })
         return 2000 // Poll every 2 seconds
       }
 
       // Poll once more when ready to ensure content is synced
       if (artifact?.status === 'ready' && !artifact?.content) {
-        console.log('[useArtifact] Polling for ready content:', {
+        console.log('[useArtifact] ⏱️ POLLING (Fallback): Waiting for content:', {
           artifactId: artifact.id,
           status: artifact.status,
           hasContent: !!artifact.content,
+          note: 'Realtime should have provided content - check Realtime subscription'
         })
         return 2000 // Poll until content appears
       }
 
-      return false // Stop polling when content is loaded
+      console.log('[useArtifact] ✅ Polling stopped - artifact in stable state:', {
+        status: artifact?.status,
+        note: 'Realtime subscription should handle future updates'
+      })
+
+      return false // Stop polling when not in processing state
     },
   })
 }
@@ -150,6 +171,7 @@ export function useCreateArtifact() {
         type: input.type,
         title: input.title ?? null,
         content: input.content ?? null,
+        tone: input.tone ?? 'professional',
         metadata: (input.metadata ?? {}) as Json,
         tags: input.tags ?? [],
         status: 'draft',

@@ -67,24 +67,10 @@ export function canPublishArtifact(status: ArtifactStatus): boolean {
 }
 
 /**
- * Check if artifact can be edited (not archived)
+ * Check if artifact can be edited (not in processing state)
  */
 export function canEditArtifact(status: ArtifactStatus): boolean {
-  return status !== 'archived'
-}
-
-/**
- * Check if artifact can be archived
- */
-export function canArchiveArtifact(status: ArtifactStatus): boolean {
-  return status !== 'archived'
-}
-
-/**
- * Check if artifact can be restored from archive
- */
-export function canRestoreArtifact(status: ArtifactStatus): boolean {
-  return status === 'archived'
+  return !isProcessingState(status)
 }
 
 
@@ -92,38 +78,51 @@ export function canRestoreArtifact(status: ArtifactStatus): boolean {
 // Status Display Helpers
 // =============================================================================
 
-/** Status colors for UI (Tailwind classes) */
+/** Status colors for UI (Tailwind classes) - 7 statuses */
 export const STATUS_COLORS: Record<ArtifactStatus, string> = {
   draft: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-  researching: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20',
-  skeleton_ready: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  skeleton_approved: 'bg-teal-500/10 text-teal-400 border-teal-500/20',
-  in_progress: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  research: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  skeleton: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  writing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  creating_visuals: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
   ready: 'bg-green-500/10 text-green-400 border-green-500/20',
-  published: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  archived: 'bg-gray-500/10 text-gray-500 border-gray-500/20',
+  published: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 }
 
-/** Status icons (Lucide icon names) */
+/** Status icons (Lucide icon names) - 7 statuses */
 export const STATUS_ICONS: Record<ArtifactStatus, string> = {
   draft: 'FileEdit',
-  researching: 'Search',
-  skeleton_ready: 'FileCheck',
-  skeleton_approved: 'ThumbsUp',
-  in_progress: 'Loader',
+  research: 'Search',
+  skeleton: 'Layout',
+  writing: 'PenLine',
+  creating_visuals: 'Image',
   ready: 'CheckCircle',
   published: 'Send',
-  archived: 'Archive',
 }
 
-/** Human-readable status labels */
+/** Human-readable status labels - 7 statuses */
 export const STATUS_LABELS: Record<ArtifactStatus, string> = {
   draft: 'Draft',
-  researching: 'Researching...',
-  skeleton_ready: 'Skeleton Ready',
-  skeleton_approved: 'Approved',
-  in_progress: 'Creating...',
-  ready: 'Ready',
+  research: 'Creating Content',
+  skeleton: 'Creating Content',
+  writing: 'Creating Content',
+  creating_visuals: 'Creating Content',
+  ready: 'Content Ready',
   published: 'Published',
-  archived: 'Archived',
+}
+
+// =============================================================================
+// Processing State Detection
+// =============================================================================
+
+/** Processing states that lock the editor */
+export const PROCESSING_STATES: ArtifactStatus[] = [
+  'research', 'skeleton', 'writing', 'creating_visuals'
+]
+
+/**
+ * Check if a status is a processing state (editor should be locked)
+ */
+export function isProcessingState(status: ArtifactStatus): boolean {
+  return PROCESSING_STATES.includes(status)
 }

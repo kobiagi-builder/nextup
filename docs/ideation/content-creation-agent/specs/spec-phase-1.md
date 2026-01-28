@@ -14,8 +14,14 @@ This specification details the technical implementation for Phase 1, covering:
 2. Deep research system with intelligent source matching
 3. LLM-generated content skeletons
 4. Research area UI with real-time updates
-5. Tone selection system
-6. Artifact page layout refinement
+5. Tone selection system (integrated into rich text editor toolbox)
+6. Artifact page layout (vertical stack: collapsible research + editor)
+7. Skeleton approval workflow (Approve Skeleton button)
+
+**Spec Revision Notes:**
+- Layout changed from 60/40 horizontal to vertical stack with collapsible sections
+- ToneSelector moved from header to rich text editor toolbox
+- Manual research entry deferred (see Known Gaps document)
 
 ---
 
@@ -1098,6 +1104,8 @@ export default ResearchArea;
 
 **Location**: `frontend/src/features/portfolio/components/artifact/ToneSelector.tsx` (NEW FILE)
 
+**Integration**: The ToneSelector is integrated into the ArtifactEditor toolbox (not the page header).
+
 ```tsx
 import {
   Select,
@@ -1169,125 +1177,53 @@ export default ToneSelector;
 
 **Location**: `frontend/src/features/portfolio/pages/ArtifactPage.tsx`
 
+**Layout Pattern**: Vertical stack with collapsible sections
+- Research area at top (collapsible, default collapsed)
+- Editor area below (main content area)
+- ToneSelector integrated into editor toolbox (not header)
+
+**Key Features**:
+- "Approve Skeleton" button visible when `status = 'skeleton_ready'`
+- "Create Content" button visible when `status = 'draft'`
+- AI Assistant as slide-out sheet
+
 ```tsx
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Sparkles } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { RichTextEditor } from '../components/artifact/RichTextEditor';
-import { ResearchArea } from '../components/artifact/ResearchArea';
-import { ToneSelector, type ToneOption } from '../components/artifact/ToneSelector';
-import { AIAssistanceModal } from '../components/chat/AIAssistanceModal';
-import { useArtifact } from '../hooks/useArtifacts';
-import { useResearch } from '../hooks/useResearch';
+// Vertical stack layout (not 60/40 horizontal)
+<div className="flex-1 flex flex-col overflow-hidden">
+  {/* Research Area - Collapsible at top (default: collapsed) */}
+  <div className={isResearchCollapsed ? 'h-auto' : 'h-1/3 min-h-[300px]'}>
+    <ResearchArea
+      artifactId={artifact.id}
+      research={research}
+      status={researchStatus}
+      isCollapsed={isResearchCollapsed}
+      onCollapsedChange={setIsResearchCollapsed}
+    />
+  </div>
 
-export function ArtifactPage() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [showAIAssistance, setShowAIAssistance] = useState(false);
+  {/* Editor Area - Below research */}
+  <div className="flex-1 overflow-hidden">
+    <ArtifactEditor
+      artifactId={artifact.id}
+      content={localContent}
+      onContentChange={handleContentChange}
+      tone={localTone}
+      onToneChange={handleToneChange}  // ToneSelector inside editor toolbox
+    />
+  </div>
+</div>
 
-  // Fetch artifact data
-  const { data: artifact, isLoading: isLoadingArtifact } = useArtifact(id!);
-
-  // Fetch research data
-  const { data: research, status: researchStatus, error: researchError, retry: retryResearch } = useResearch(id!);
-
-  // Tone selection
-  const [selectedTone, setSelectedTone] = useState<ToneOption>(
-    (artifact?.tone as ToneOption) || 'professional'
-  );
-
-  const handleToneChange = (tone: ToneOption) => {
-    setSelectedTone(tone);
-    // TODO: Update artifact tone in database
-  };
-
-  const handleManualResearchEntry = () => {
-    // TODO: Open modal for manual research entry
-  };
-
-  if (isLoadingArtifact) {
-    return <div>Loading...</div>;
-  }
-
-  if (!artifact) {
-    return <div>Artifact not found</div>;
-  }
-
-  return (
-    <div className="h-screen flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 border-b px-4 py-3 bg-background">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/portfolio')}
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-
-        <button
-          onClick={() => navigate('/portfolio')}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Back to Portfolio
-        </button>
-
-        <div className="flex-1" />
-
-        <ToneSelector
-          value={selectedTone}
-          onChange={handleToneChange}
-          disabled={artifact.status !== 'draft' && artifact.status !== 'skeleton_ready'}
-        />
-
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowAIAssistance(true)}
-          className="gap-2"
-        >
-          <Sparkles className="h-4 w-4" />
-          AI Assistance
-        </Button>
-      </div>
-
-      {/* Main Area: Editor (60%) + Research (40%) */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Editor area */}
-        <div className="w-[60%] border-r">
-          <RichTextEditor
-            artifactId={artifact.id}
-            initialContent={artifact.content || ''}
-            status={artifact.status}
-          />
-        </div>
-
-        {/* Research area */}
-        <div className="w-[40%]">
-          <ResearchArea
-            artifactId={artifact.id}
-            research={research || []}
-            status={researchStatus}
-            error={researchError?.message}
-            onRetry={retryResearch}
-            onManualEntry={handleManualResearchEntry}
-          />
-        </div>
-      </div>
-
-      {/* AI Assistance Modal */}
-      {showAIAssistance && (
-        <AIAssistanceModal
-          artifactId={artifact.id}
-          isOpen={showAIAssistance}
-          onClose={() => setShowAIAssistance(false)}
-        />
-      )}
-    </div>
-  );
-}
+{/* Approve Skeleton Button - in header, visible when skeleton_ready */}
+{artifact.status === 'skeleton_ready' && (
+  <Button onClick={handleApproveSkeleton}>
+    <Check className="h-4 w-4" />
+    Approve Skeleton
+  </Button>
+)}
 ```
+
+**Note**: ToneSelector is now part of the ArtifactEditor toolbox, not the page header.
+Manual research entry deferred to future phase (see Known Gaps document).
 
 ---
 
@@ -1634,14 +1570,17 @@ mcp__supabase__get_advisors({
 
 ## Deployment Checklist
 
-- [ ] Database migration applied (`002_add_research_and_statuses.sql`)
-- [ ] All new backend files created (researchTools.ts, skeletonTools.ts)
-- [ ] Tools registered in AIService
-- [ ] System prompts updated
-- [ ] All new frontend components created (ResearchArea, ToneSelector, updated ArtifactSuggestionCard)
-- [ ] Artifact page layout updated
-- [ ] Types updated (statuses, tone, research interface)
-- [ ] Research hook implemented
+- [x] Database migration applied (`002_add_research_and_statuses.sql`)
+- [x] All new backend files created (researchTools.ts, skeletonTools.ts)
+- [x] Tools registered in AIService
+- [x] System prompts updated
+- [x] All new frontend components created (ResearchArea, ToneSelector, updated ArtifactSuggestionCard)
+- [x] Artifact page layout updated (vertical stack with collapsible research)
+- [x] ToneSelector integrated into editor toolbox
+- [x] Types updated (statuses, tone, research interface)
+- [x] Research hook implemented
+- [ ] "Approve Skeleton" button added (visible when `status = 'skeleton_ready'`)
+- [ ] Status flow corrected (`researching` → `skeleton_ready`)
 - [ ] Unit tests written and passing
 - [ ] Integration tests written and passing
 - [ ] E2E tests written and passing
@@ -1661,6 +1600,8 @@ mcp__supabase__get_advisors({
 4. **Skeleton Templates**: First iteration may produce inconsistent skeletons. Requires prompt engineering iteration.
 
 5. **Tone Consistency**: Phase 1 applies tone to skeleton only. Full tone application happens in Phase 2 (content writing).
+
+6. **Manual Research Entry**: UI for manually adding research entries is deferred to a future phase. See `known-gaps-phase-1.md` for details.
 
 ---
 

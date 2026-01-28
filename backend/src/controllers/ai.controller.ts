@@ -33,6 +33,13 @@ const chatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1),
   model: z.enum(['claude-sonnet', 'claude-haiku', 'gpt-4o', 'gpt-4o-mini']).optional(),
   includeTools: z.boolean().optional(),
+  screenContext: z.object({
+    currentPage: z.string(),
+    artifactId: z.string().optional(),
+    artifactType: z.enum(['social_post', 'blog', 'showcase']).optional(),
+    artifactTitle: z.string().optional(),
+    artifactStatus: z.string().optional(),
+  }).optional(),
 })
 
 const generateContentSchema = z.object({
@@ -89,16 +96,25 @@ export async function streamChat(req: Request, res: Response) {
       return
     }
 
-    const { messages, model, includeTools } = parsed.data
+    const { messages, model, includeTools, screenContext } = parsed.data
 
     // Convert AI SDK v6 messages to simple format
     const simpleMessages = messages.map(convertToSimpleMessage)
 
-    logger.debug('Starting chat stream', { messageCount: simpleMessages.length, model })
+    logger.debug('Starting chat stream', {
+      messageCount: simpleMessages.length,
+      model,
+      hasScreenContext: !!screenContext,
+      screenContext: screenContext ? {
+        currentPage: screenContext.currentPage,
+        artifactId: screenContext.artifactId,
+      } : undefined,
+    })
 
     const result = await aiService.streamChat(simpleMessages, {
       model,
       includeTools,
+      screenContext,
       onFinish: ({ text, usage }) => {
         logger.debug('Chat stream finished', {
           responseLength: text.length,

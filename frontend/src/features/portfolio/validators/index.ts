@@ -10,12 +10,12 @@ export {
   getArtifactTransitions,
   canPublishArtifact,
   canEditArtifact,
-  canArchiveArtifact,
-  canRestoreArtifact,
+  isProcessingState,
   // Display helpers
   STATUS_COLORS,
   STATUS_ICONS,
   STATUS_LABELS,
+  PROCESSING_STATES,
   // Types
   type ValidationResult,
 } from './stateMachine'

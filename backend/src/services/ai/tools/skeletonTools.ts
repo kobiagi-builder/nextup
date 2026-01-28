@@ -4,6 +4,9 @@ import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { logger } from '../../../lib/logger.js';
+import { mockService, type SkeletonToolResponse } from '../mocks/index.js';
+import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
+import type { ToolOutput } from '../types/contentAgent.js';
 
 /**
  * Skeleton Generation Tools for Content Creation Agent (Phase 1)
@@ -46,6 +49,42 @@ const toneModifiers: Record<ToneOption, string> = {
   authoritative: 'Use strong declarative statements, expert positioning, evidence-based claims, and confident assertions. Establish credibility.',
   humorous: 'Include light jokes, wordplay, entertaining examples, and self-deprecating humor where appropriate. Keep it professional.',
 };
+
+/**
+ * Parse sections from skeleton content
+ */
+function parseSectionsFromSkeleton(skeleton: string, artifactType: string): string[] {
+  const sections: string[] = [];
+
+  if (artifactType === 'blog' || artifactType === 'showcase') {
+    const h2Pattern = /^##\s+(.+)$|^\d+\.\s+([^:]+):/gm;
+    let match;
+    while ((match = h2Pattern.exec(skeleton)) !== null) {
+      const sectionTitle = match[1] || match[2];
+      if (sectionTitle) {
+        sections.push(sectionTitle.trim());
+      }
+    }
+  } else if (artifactType === 'social_post') {
+    sections.push('Hook', 'Key Points', 'Call to Action');
+  }
+
+  return sections;
+}
+
+/**
+ * Estimate word count for final content
+ */
+function estimateWordCount(artifactType: string, sectionsCount: number): number {
+  if (artifactType === 'blog') {
+    return 150 + (sectionsCount * 400);
+  } else if (artifactType === 'showcase') {
+    return sectionsCount * 250;
+  } else if (artifactType === 'social_post') {
+    return 200;
+  }
+  return 500;
+}
 
 /**
  * Build skeleton prompt based on artifact type
@@ -231,13 +270,48 @@ export const generateContentSkeleton = tool({
   }),
 
   execute: async ({ artifactId, topic, artifactType, tone }) => {
+    const startTime = Date.now();
+    const traceId = generateMockTraceId('skeleton');
+
     try {
       logger.info('GenerateContentSkeleton', 'Starting skeleton generation', {
         artifactId,
         artifactType,
         tone,
-        topicLength: topic.length
+        topicLength: topic.length,
+        traceId,
       });
+
+      // =========================================================================
+      // MOCK CHECK: Return mock response if mocking is enabled
+      // =========================================================================
+      if (mockService.shouldMock('skeletonTools')) {
+        logger.info('GenerateContentSkeleton', 'Using mock response', {
+          artifactId,
+          artifactType,
+          tone,
+        });
+
+        const mockResponse = await mockService.getMockResponse<SkeletonToolResponse>(
+          'generateContentSkeleton',
+          artifactType,
+          { artifactId, topic, artifactType, tone }
+        );
+
+        // Update database with mock skeleton to maintain workflow
+        if (mockResponse.success && mockResponse.skeleton) {
+          await supabaseAdmin
+            .from('artifacts')
+            .update({
+              content: mockResponse.skeleton,
+              status: 'skeleton',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', artifactId);
+        }
+
+        return mockResponse;
+      }
 
       // 1. Fetch research results from database
       const { data: researchResults, error: researchError } = await supabaseAdmin
@@ -248,14 +322,29 @@ export const generateContentSkeleton = tool({
         .limit(10); // Top 10 most relevant sources
 
       if (researchError) {
+        const duration = Date.now() - startTime;
+
         logger.error('GenerateContentSkeleton', researchError, {
           artifactId,
-          stage: 'fetch_research'
+          stage: 'fetch_research',
+          duration,
+          traceId,
         });
 
         return {
           success: false,
-          error: `Failed to fetch research: ${researchError.message}`,
+          traceId,
+          duration,
+          data: {
+            skeleton: '',
+            sections: [],
+            estimatedWordCount: 0,
+          },
+          error: {
+            category: 'RESEARCH_NOT_FOUND' as const,
+            message: `Failed to fetch research: ${researchError.message}`,
+            recoverable: true,
+          },
         };
       }
 
@@ -307,49 +396,112 @@ export const generateContentSkeleton = tool({
       }
 
       // 6. Update artifact content in database (always update, even if truncated)
+      // Status: skeleton (user reviews outline and approves before writeFullContent)
       const { error: updateError } = await supabaseAdmin
         .from('artifacts')
         .update({
           content: finalSkeleton,
-          status: 'ready',
+          status: 'skeleton',
           updated_at: new Date().toISOString()
         })
         .eq('id', artifactId);
 
       if (updateError) {
+        const duration = Date.now() - startTime;
+
         logger.error('GenerateContentSkeleton', updateError, {
           artifactId,
-          stage: 'update_artifact'
+          stage: 'update_artifact',
+          duration,
+          traceId,
         });
 
         return {
           success: false,
-          error: `Failed to update artifact: ${updateError.message}`,
+          traceId,
+          duration,
+          data: {
+            skeleton: finalSkeleton,
+            sections: parseSectionsFromSkeleton(finalSkeleton, artifactType),
+            estimatedWordCount: estimateWordCount(artifactType, parseSectionsFromSkeleton(finalSkeleton, artifactType).length),
+          },
+          error: {
+            category: 'TOOL_EXECUTION_FAILED' as const,
+            message: `Failed to update artifact: ${updateError.message}`,
+            recoverable: false,
+          },
         };
       }
+
+      // Parse sections and estimate word count
+      const sections = parseSectionsFromSkeleton(finalSkeleton, artifactType);
+      const estimatedWords = estimateWordCount(artifactType, sections.length);
+      const duration = Date.now() - startTime;
 
       logger.info('GenerateContentSkeleton', 'Skeleton generation completed', {
         artifactId,
         skeletonLength: finalSkeleton.length,
-        status: 'ready',
-        wasTruncated: !!warning
+        sectionsCount: sections.length,
+        estimatedWords,
+        status: 'skeleton',
+        wasTruncated: !!warning,
+        duration,
+        traceId,
       });
 
-      return {
+      // Build standardized response
+      const response: ToolOutput<{
+        skeleton: string;
+        sections: string[];
+        estimatedWordCount: number;
+        warning?: string;
+      }> = {
         success: true,
-        skeleton: finalSkeleton,
-        ...(warning && { warning })
+        traceId,
+        duration,
+        statusTransition: { from: 'researching', to: 'skeleton' },
+        data: {
+          skeleton: finalSkeleton,
+          sections,
+          estimatedWordCount: estimatedWords,
+          ...(warning && { warning }),
+        },
       };
 
+      // Capture response for mock data generation (if enabled)
+      await mockService.captureRealResponse(
+        'generateContentSkeleton',
+        artifactType,
+        { artifactId, topic, artifactType, tone },
+        response
+      );
+
+      return response;
+
     } catch (error) {
+      const duration = Date.now() - startTime;
+
       logger.error('GenerateContentSkeleton', error instanceof Error ? error : new Error(String(error)), {
         artifactId,
-        topic: topic.substring(0, 50)
+        topic: topic.substring(0, 50),
+        duration,
+        traceId,
       });
 
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error occurred',
+        traceId,
+        duration,
+        data: {
+          skeleton: '',
+          sections: [],
+          estimatedWordCount: 0,
+        },
+        error: {
+          category: 'TOOL_EXECUTION_FAILED' as const,
+          message: error instanceof Error ? error.message : 'Unknown error occurred',
+          recoverable: true,
+        },
       };
     }
   },

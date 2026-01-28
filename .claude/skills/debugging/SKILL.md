@@ -71,27 +71,31 @@ You are now in **Evidence-Based Debugging Mode**. Follow this systematic workflo
    - Ask user to trigger the issue OR
    - Reproduce it yourself if you have the steps using the .claude/skills/playwright-skill skill
 
-7. **Fetch DB logs immediately using MCP tools**:
+7. **Fetch application logs from file system**:
 
-   ```javascript
-   // Application logs (backend)
-   await mcp__supabase__get_logs({
-     project_id: "[project-id]",
-     service: "api",
-   });
+   **CRITICAL**: For application-level debugging, use **file-based logs** + **Supabase data queries**.
 
-   // Database logs
-   await mcp__supabase__get_logs({
-     project_id: "[project-id]",
-     service: "postgres",
-   });
+   **DO NOT use Supabase API logs** (`mcp__supabase__get_logs`) for application debugging:
+   - Supabase API logs only show HTTP requests (API gateway level)
+   - They do NOT contain application logic, business decisions, or tool executions
+   - File-based logs contain the actual LoggerService output with full context
 
-   // Auth logs (if auth-related)
-   await mcp__supabase__get_logs({
-     project_id: "[project-id]",
-     service: "auth",
-   });
+   **Correct approach:**
+   ```bash
+   # Read application debug logs from file
+   Read backend/logs/debug.log
+   Read backend/logs/console-output.log
+   Read frontend/logs/console-output.log
+
+   # Or use Grep to search for specific patterns
+   Grep pattern="artifact.*168868c9" path="backend/logs"
+   Grep pattern="ContentAgent.*execute" path="backend/logs"
    ```
+
+   **When to use Supabase logs** (rare cases only):
+   - Database-level errors (postgres service logs)
+   - Auth service errors (auth service logs)
+   - Infrastructure issues (edge-functions logs)
 
 8. **Query database for relevant data**:
 

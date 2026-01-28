@@ -8,17 +8,22 @@
  * that causes TypeScript OOM during compilation.
  */
 
-import { streamText, generateText, stepCountIs } from 'ai'
+import { streamText, generateText, stepCountIs, simulateReadableStream } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { openai } from '@ai-sdk/openai'
 import { supabaseAdmin } from '../../lib/supabase.js'
 import { logger, logToFile } from '../../lib/logger.js'
 import { getBaseSystemPrompt } from './prompts/systemPrompts.js'
+import { mockService, type AIServiceResponse } from './mocks/index.js'
 import * as contentTools from './tools/contentTools.js'
 import * as profileTools from './tools/profileTools.js'
 import * as responseTools from './tools/responseTools.js'
 import * as researchTools from './tools/researchTools.js'
 import * as skeletonTools from './tools/skeletonTools.js'
+import * as contentWritingTools from './tools/contentWritingTools.js'
+import * as humanityCheckTools from './tools/humanityCheckTools.js'
+import * as visualsCreatorTool from './tools/visualsCreatorTool.js'
+import * as imageNeedsTools from './tools/imageNeedsTools.js'
 import type { UserContext } from '../../types/portfolio.js'
 
 // =============================================================================
@@ -43,6 +48,13 @@ interface ChatOptions {
 
 interface StreamChatOptions extends ChatOptions {
   onFinish?: (result: { text: string; usage: { input: number; output: number } }) => void
+  screenContext?: {
+    currentPage: string
+    artifactId?: string
+    artifactType?: string
+    artifactTitle?: string
+    artifactStatus?: string
+  }
 }
 
 // =============================================================================
@@ -80,6 +92,16 @@ const AVAILABLE_TOOLS: Record<string, any> = {
   conductDeepResearch: researchTools.conductDeepResearch,
   // Skeleton tools (Phase 1)
   generateContentSkeleton: skeletonTools.generateContentSkeleton,
+  // Content writing tools (Phase 2)
+  writeContentSection: contentWritingTools.writeContentSection,
+  writeFullContent: contentWritingTools.writeFullContent,
+  // Humanity check tools (Phase 2)
+  applyHumanityCheck: humanityCheckTools.applyHumanityCheck,
+  checkContentHumanity: humanityCheckTools.checkContentHumanity,
+  // Visuals creator tools (Phase 2 MVP - deprecated)
+  generateContentVisuals: visualsCreatorTool.generateContentVisuals,
+  // Image needs tools (Phase 3)
+  identifyImageNeeds: imageNeedsTools.identifyImageNeeds,
   // Profile tools
   getUserContext: profileTools.getUserContext,
   getUserSkills: profileTools.getUserSkills,
@@ -137,11 +159,52 @@ export class AIService {
       systemPrompt,
       includeTools = true,
       onFinish,
+      screenContext,
     } = options
+
+    // =========================================================================
+    // Mock Check - Return mock response if mocking is enabled
+    // =========================================================================
+    if (mockService.shouldMock('aiService')) {
+      logger.info('AIService', 'Using mock response for streamChat', {
+        model,
+        messageCount: messages.length,
+      })
+
+      const mockResponse = await mockService.getMockResponse<AIServiceResponse>(
+        'streamChat',
+        'default',
+        { model, messageCount: messages.length }
+      )
+
+      // Call onFinish callback with mock data
+      onFinish?.({
+        text: mockResponse.text,
+        usage: {
+          input: mockResponse.usage.promptTokens,
+          output: mockResponse.usage.completionTokens,
+        },
+      })
+
+      // Return a mock stream-like result
+      // Note: This is a simplified mock that works for basic streaming scenarios
+      return {
+        textStream: simulateReadableStream({
+          chunks: mockResponse.text.split(' ').map(word => word + ' '),
+          initialDelayInMs: 100,
+          chunkDelayInMs: 50,
+        }),
+        text: Promise.resolve(mockResponse.text),
+        usage: Promise.resolve(mockResponse.usage),
+        finishReason: Promise.resolve(mockResponse.finishReason),
+        toolCalls: Promise.resolve(mockResponse.toolCalls || []),
+        toolResults: Promise.resolve(mockResponse.toolResults || []),
+      }
+    }
 
     // Fetch user context for personalization
     const userContext = await fetchUserContext()
-    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext)
+    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext)
 
     const toolsToUse = includeTools ? AVAILABLE_TOOLS : undefined
 
@@ -165,6 +228,22 @@ export class AIService {
       logToFile(`  [${i}] ${msg.role}`, msg.content)
     })
     logToFile('='.repeat(80))
+
+    // Log screen context if provided
+    if (screenContext) {
+      logToFile('')
+      logToFile('🖥️ SCREEN CONTEXT:')
+      logToFile('-'.repeat(40))
+      logToFile(`  Current Page: ${screenContext.currentPage}`)
+      if (screenContext.artifactId) {
+        logToFile(`  Artifact ID: ${screenContext.artifactId}`)
+        logToFile(`  Artifact Type: ${screenContext.artifactType || 'unknown'}`)
+        logToFile(`  Artifact Title: ${screenContext.artifactTitle || 'untitled'}`)
+        logToFile(`  Artifact Status: ${screenContext.artifactStatus || 'unknown'}`)
+      }
+      logToFile('-'.repeat(40))
+      logToFile('')
+    }
 
     logger.debug('Starting AI stream', {
       model,
@@ -269,6 +348,30 @@ export class AIService {
       systemPrompt,
       includeTools = true,
     } = options
+
+    // =========================================================================
+    // Mock Check - Return mock response if mocking is enabled
+    // =========================================================================
+    if (mockService.shouldMock('aiService')) {
+      logger.info('AIService', 'Using mock response for generateResponse', {
+        model,
+        messageCount: messages.length,
+      })
+
+      const mockResponse = await mockService.getMockResponse<AIServiceResponse>(
+        'generateResponse',
+        'default',
+        { model, messageCount: messages.length }
+      )
+
+      return {
+        text: mockResponse.text,
+        toolCalls: mockResponse.toolCalls || [],
+        toolResults: mockResponse.toolResults || [],
+        usage: mockResponse.usage,
+        finishReason: mockResponse.finishReason,
+      }
+    }
 
     const userContext = await fetchUserContext()
     const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext)

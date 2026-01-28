@@ -28,6 +28,8 @@ import type {
 export interface UseStructuredChatOptions extends Omit<UseAIChatOptions, 'onToolResult'> {
   /** Callback when an artifact is created */
   onArtifactCreated?: (artifact: ArtifactSuggestion) => void
+  /** Screen context for Content Agent (optional, passed through from parent) */
+  screenContext?: UseAIChatOptions['screenContext']
 }
 
 export interface UseStructuredChatReturn {
@@ -110,7 +112,7 @@ function isArtifactSuggestions(result: unknown): result is {
 // =============================================================================
 
 export function useStructuredChat(options: UseStructuredChatOptions): UseStructuredChatReturn {
-  const { contextKey, onError, onArtifactCreated } = options
+  const { contextKey, onError, onArtifactCreated, screenContext } = options
 
   // Track added items locally
   const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set())
@@ -169,6 +171,7 @@ export function useStructuredChat(options: UseStructuredChatOptions): UseStructu
     contextKey,
     onToolResult: handleToolResult,
     onError,
+    screenContext, // Pass through to useAIChat
   })
 
   // Read messages from store (which includes our updates from handleToolResult)

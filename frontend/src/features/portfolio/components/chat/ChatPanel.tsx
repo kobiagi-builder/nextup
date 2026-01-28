@@ -17,6 +17,7 @@ import {
   type UseStructuredChatOptions,
 } from "../../hooks/useStructuredChat";
 import { useCreateArtifact } from "../../hooks/useArtifacts";
+import { useChatStore, artifactContextKey } from "../../stores/chatStore";
 import type { ParsedChatMessage, ArtifactSuggestion } from "../../types/chat";
 import { ChatInput } from "./ChatInput";
 import { StructuredChatMessage } from "./StructuredChatMessage";
@@ -36,6 +37,8 @@ export interface ChatPanelProps extends UseStructuredChatOptions {
   height?: string | number;
   /** Initial message to send automatically (Phase 1 - for research triggering) */
   initialMessage?: string;
+  /** Screen context for Content Agent (optional, passed through from parent) */
+  screenContext?: UseStructuredChatOptions['screenContext'];
 }
 
 // =============================================================================
@@ -48,6 +51,7 @@ export function ChatPanel({
   className,
   height = "100%",
   initialMessage,
+  screenContext, // Extract from props
   ...chatOptions
 }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -70,7 +74,10 @@ export function ChatPanel({
     error,
     addedItemIds,
     markItemAdded,
-  } = useStructuredChat(chatOptions);
+  } = useStructuredChat({
+    ...chatOptions,
+    screenContext, // Pass to hook
+  });
 
   // Handle creating an artifact from suggestion (draft only)
   const handleCreateArtifact = useCallback(
@@ -99,6 +106,9 @@ export function ChatPanel({
     [createArtifactMutation, markItemAdded, toast],
   );
 
+  // Get store actions for copying messages between contexts
+  const setMessages = useChatStore((state) => state.setMessages);
+
   // Handle creating artifact with AI content generation (Phase 1)
   const handleCreateContent = useCallback(
     async (suggestion: ArtifactSuggestion) => {
@@ -113,16 +123,31 @@ export function ChatPanel({
 
         markItemAdded(suggestion.id);
 
-        // 2. Send AI message to trigger research and skeleton generation
-        await sendMessage(`Research and create skeleton for: "${suggestion.title}"`);
+        // 2. Copy current chat messages to the new artifact context
+        // This preserves the conversation when transitioning from topic research to content creation
+        // We need to do a deep copy to ensure structuredResponse and other nested objects are preserved
+        const currentContextKey = chatOptions.contextKey;
+        if (currentContextKey) {
+          const currentMessages = useChatStore.getState().contexts[currentContextKey]?.messages || [];
+          if (currentMessages.length > 0) {
+            const newContextKey = artifactContextKey(artifact.id);
+            // Deep copy messages to preserve nested objects like structuredResponse
+            // Use JSON parse/stringify for true deep copy to ensure all nested data is preserved
+            const messagesCopy = JSON.parse(JSON.stringify(currentMessages));
+            setMessages(newContextKey, messagesCopy);
+          }
+        }
 
         toast({
           title: "Content Creation Started",
-          description: `AI is researching and generating content for "${suggestion.title}". Check the artifact page for progress.`,
+          description: `AI is researching and generating content for "${suggestion.title}".`,
         });
 
-        // 3. Navigate to artifact page
-        window.location.href = `/portfolio/${artifact.id}`;
+        // 3. Navigate to artifact page with autoResearch flag to trigger content generation
+        // Use setTimeout to ensure Zustand persist middleware has time to write to sessionStorage
+        setTimeout(() => {
+          window.location.href = `/portfolio/artifacts/${artifact.id}?autoResearch=true`;
+        }, 100);
       } catch (err) {
         toast({
           variant: "destructive",
@@ -132,13 +157,18 @@ export function ChatPanel({
         throw err; // Re-throw so the card shows error state
       }
     },
-    [createArtifactMutation, markItemAdded, sendMessage, toast],
+    [createArtifactMutation, markItemAdded, setMessages, chatOptions.contextKey, toast],
   );
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      // ScrollArea uses Radix, the actual scrollable viewport is a child element
+      // Find the viewport element which has the scrollable content
+      const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
   }, [messages, isStreaming]);
 
@@ -165,17 +195,18 @@ export function ChatPanel({
     <div
       className={cn("flex flex-col bg-background", className)}
       style={{ height }}
+      data-testid="chat-panel"
     >
       {/* Header */}
       {showHeader && (
-        <div className="flex items-center gap-2 border-b px-4 py-3">
+        <div className="flex items-center gap-2 border-b px-4 py-3" data-testid="chat-panel-header">
           <Sparkles className="h-4 w-4 text-primary" />
           <span className="font-medium">{title}</span>
         </div>
       )}
 
       {/* Messages area */}
-      <ScrollArea className="flex-1" ref={scrollRef}>
+      <ScrollArea className="flex-1" ref={scrollRef} data-testid="chat-panel-messages">
         <div className="flex flex-col">
           {messages.length === 0 ? (
             <EmptyState
@@ -223,7 +254,7 @@ export function ChatPanel({
 
           {/* Error message */}
           {error && (
-            <div className="mx-4 my-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive">
+            <div className="mx-4 my-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive" data-testid="chat-panel-error">
               {error}
             </div>
           )}
@@ -231,7 +262,7 @@ export function ChatPanel({
       </ScrollArea>
 
       {/* Input area */}
-      <div className="border-t px-3 py-3">
+      <div className="border-t px-3 py-3" data-testid="chat-panel-input-area">
         <ChatInput
           value={input}
           onChange={setInput}
@@ -306,7 +337,7 @@ interface EmptyStateProps {
 
 function EmptyState({ onSuggestionClick }: EmptyStateProps) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center" data-testid="chat-panel-empty-state">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
         <Bot className="h-6 w-6 text-primary" />
       </div>

@@ -1,0 +1,53 @@
+{
+  "success": true,
+  "topics": [
+    {
+      "title": "The Future of AI in Healthcare: 5 Breakthrough Technologies Transforming Patient Care",
+      "description": "Explore how artificial intelligence is revolutionizing healthcare delivery, from diagnostic accuracy to personalized treatment plans. Discover the latest innovations...",
+      "rationale": "Found 8 related articles with strong engagement metrics. High reader interest in AI healthcare applications (average relevance: 0.87).",
+      "trendingScore": 8.7,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Focus on real-world implementation stories and patient outcomes rather than technical specifications. Interview healthcare professionals using AI tools."
+    },
+    {
+      "title": "Remote Work in 2026: What Actually Changed and What's Still the Same",
+      "description": "A data-driven analysis of remote work trends post-pandemic. Survey insights from 1,000+ companies reveal surprising patterns in productivity, culture, and hiring...",
+      "rationale": "Found 12 related articles. Consistently high search volume (average relevance: 0.82). Strong evergreen potential.",
+      "trendingScore": 8.2,
+      "competitionLevel": "high",
+      "suggestedAngle": "Cut through the noise with original research. Focus on lesser-discussed aspects like remote onboarding effectiveness and long-term career development."
+    },
+    {
+      "title": "Building Your First Side Business: A Reality Check for Working Professionals",
+      "description": "An honest breakdown of what it really takes to launch a side business while working full-time. Time management, financial planning, and avoiding common pitfalls...",
+      "rationale": "Found 6 related articles. Growing interest in entrepreneurship (average relevance: 0.79).",
+      "trendingScore": 7.9,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Share authentic failure stories alongside successes. Address the mental health aspects that most guides skip."
+    },
+    {
+      "title": "Sustainable Living on a Budget: Practical Changes That Actually Make a Difference",
+      "description": "Move beyond expensive eco-products. Discover cost-effective sustainable living practices that reduce both your carbon footprint and monthly expenses...",
+      "rationale": "Found 5 related articles. Emerging trend with lower competition (average relevance: 0.76).",
+      "trendingScore": 7.6,
+      "competitionLevel": "low",
+      "suggestedAngle": "Quantify impact with specific data. Create a 30-day challenge framework that readers can follow with measurable results."
+    },
+    {
+      "title": "The Psychology of Productivity: Why Most Time Management Advice Fails",
+      "description": "Examine the scientific research behind productivity systems. Understand why popular methods don't work for everyone and how to design your own approach...",
+      "rationale": "Found 7 related articles. Strong engagement in self-improvement niche (average relevance: 0.81).",
+      "trendingScore": 8.1,
+      "competitionLevel": "medium",
+      "suggestedAngle": "Debunk common productivity myths with scientific evidence. Create a framework for readers to experiment and find what works for their unique psychology."
+    }
+  ],
+  "sourcesQueried": [
+    "medium.com",
+    "reddit.com",
+    "linkedin.com",
+    "substack.com",
+    "quora.com"
+  ],
+  "traceId": "{{traceId}}"
+}

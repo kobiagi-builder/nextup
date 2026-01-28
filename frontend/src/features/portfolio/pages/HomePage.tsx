@@ -29,7 +29,7 @@ const DOMAIN_CARDS = [
     label: 'Create Content',
     title: 'Turn expertise into content',
     description: 'LinkedIn posts, blogs, and case studies that showcase your value.',
-    href: '/content',
+    href: '/portfolio',
     primary: true,
     cta: 'Start Creating',
   },
@@ -136,7 +136,7 @@ export function HomePage() {
           </h2>
           {artifacts.length > 0 && (
             <button
-              onClick={() => navigate('/content')}
+              onClick={() => navigate('/portfolio')}
               className="text-sm text-brand-300 hover:underline"
             >
               View All
@@ -157,7 +157,7 @@ export function HomePage() {
             </p>
             <Button
               className="mt-4"
-              onClick={() => navigate('/content')}
+              onClick={() => navigate('/portfolio')}
             >
               Create Your First Content
             </Button>

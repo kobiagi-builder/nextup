@@ -70,11 +70,14 @@ export interface Database {
           type: 'social_post' | 'blog' | 'showcase'
           title: string | null
           content: string | null
+          tone: string | null
           metadata: Json | null
           tags: string[]
-          status: 'draft' | 'in_progress' | 'ready' | 'published' | 'archived'
+          status: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
           published_url: string | null
           published_at: string | null
+          visuals_metadata: Json | null
+          writing_metadata: Json | null
           created_at: string
           updated_at: string
         }
@@ -85,11 +88,14 @@ export interface Database {
           type: 'social_post' | 'blog' | 'showcase'
           title?: string | null
           content?: string | null
+          tone?: string | null
           metadata?: Json | null
           tags?: string[]
-          status?: 'draft' | 'in_progress' | 'ready' | 'published' | 'archived'
+          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
           published_url?: string | null
           published_at?: string | null
+          visuals_metadata?: Json | null
+          writing_metadata?: Json | null
           created_at?: string
           updated_at?: string
         }
@@ -100,11 +106,14 @@ export interface Database {
           type?: 'social_post' | 'blog' | 'showcase'
           title?: string | null
           content?: string | null
+          tone?: string | null
           metadata?: Json | null
           tags?: string[]
-          status?: 'draft' | 'in_progress' | 'ready' | 'published' | 'archived'
+          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
           published_url?: string | null
           published_at?: string | null
+          visuals_metadata?: Json | null
+          writing_metadata?: Json | null
           created_at?: string
           updated_at?: string
         }

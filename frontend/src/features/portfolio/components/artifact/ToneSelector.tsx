@@ -10,7 +10,6 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from '@/components/ui/select'
 import type { ToneOption } from '../../types/portfolio'
 
@@ -22,7 +21,8 @@ export interface ToneSelectorProps {
   value?: ToneOption
   onChange: (tone: ToneOption) => void
   disabled?: boolean
-  showDescription?: boolean // If false, only show label in trigger (default: true)
+  /** Layout style: 'vertical' for forms, 'horizontal' for toolbars */
+  layout?: 'vertical' | 'horizontal'
 }
 
 // =============================================================================
@@ -80,28 +80,29 @@ export function ToneSelector({
   value,
   onChange,
   disabled = false,
-  showDescription = true
+  layout = 'vertical',
 }: ToneSelectorProps) {
   const selectedOption = TONE_OPTIONS.find((opt) => opt.value === (value || 'professional'))
 
+  const isHorizontal = layout === 'horizontal'
+
   return (
-    <div className="flex items-center gap-2">
-      <label htmlFor="tone-selector" className="text-sm font-medium whitespace-nowrap">
-        Tone:
+    <div className={isHorizontal ? 'flex items-center gap-2' : 'space-y-2'}>
+      <label
+        htmlFor="tone-selector"
+        className={isHorizontal ? 'text-sm font-medium whitespace-nowrap' : 'text-sm font-medium'}
+      >
+        Tone{isHorizontal ? ':' : ''}
       </label>
       <Select
         value={value || 'professional'}
         onValueChange={(value) => onChange(value as ToneOption)}
         disabled={disabled}
       >
-        <SelectTrigger id="tone-selector" className="w-[180px]">
-          {showDescription ? (
-            <SelectValue placeholder="Select tone" />
-          ) : (
-            <span className="text-sm">{selectedOption?.label || 'Select tone'}</span>
-          )}
+        <SelectTrigger id="tone-selector" className={isHorizontal ? 'w-[180px]' : undefined}>
+          <span>{selectedOption?.label || 'Select tone'}</span>
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent data-portal-ignore-click-outside>
           {TONE_OPTIONS.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               <div className="flex flex-col">

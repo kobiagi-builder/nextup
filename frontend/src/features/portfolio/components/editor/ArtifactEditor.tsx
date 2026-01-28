@@ -3,18 +3,24 @@
  *
  * Rich text editor for artifacts.
  * AI Assistant is now accessed via button in page header (not embedded).
+ * Phase 3: Includes image approval panel and regeneration support.
  */
 
 import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
-import { Sparkles, ChevronDown, ChevronUp } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Card, CardContent } from '@/components/ui/card'
+import { Sparkles, ChevronDown, ChevronUp, Lock, Loader2, PartyPopper } from 'lucide-react'
 import { RichTextEditor } from './RichTextEditor'
 import { ChatPanel } from '../chat/ChatPanel'
+import { ImageApprovalPanel } from '../artifact/ImageApprovalPanel'
+import { ImageRegenerationModal } from '../artifact/ImageRegenerationModal'
 import { artifactContextKey } from '../../stores/chatStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
-import type { ToneOption } from '../../types/portfolio'
+import { useImageGeneration } from '../../hooks/useImageGeneration'
+import type { ToneOption, VisualsMetadata, FinalImage, ImageNeed, ArtifactStatus } from '../../types/portfolio'
 
 // =============================================================================
 // Types
@@ -31,6 +37,10 @@ export interface ArtifactEditorProps {
   title?: string
   /** Artifact type for context */
   artifactType?: 'social_post' | 'blog' | 'showcase'
+  /** Artifact status (Phase 3: for image workflow) */
+  status?: ArtifactStatus
+  /** Visuals metadata (Phase 3: image generation) */
+  visualsMetadata?: VisualsMetadata | null
   /** Is saving */
   isSaving?: boolean
   /** Content tone (Phase 1) */
@@ -43,6 +53,8 @@ export interface ArtifactEditorProps {
   isCollapsed?: boolean
   /** Collapse state callback */
   onCollapsedChange?: (collapsed: boolean) => void
+  /** Whether the editor is editable (false locks for AI processing) */
+  editable?: boolean
   /** Test ID for E2E testing */
   'data-testid'?: string
 }
@@ -57,36 +69,121 @@ export function ArtifactEditor({
   onContentChange,
   title,
   artifactType,
+  status,
+  visualsMetadata,
   isSaving,
   tone,
   onToneChange,
   className,
   isCollapsed: externalIsCollapsed,
   onCollapsedChange,
+  editable = true,
   'data-testid': testId,
 }: ArtifactEditorProps) {
   const isMobile = useIsMobile()
   const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(false)
+  const [regeneratingImage, setRegeneratingImage] = useState<FinalImage | null>(null)
+  const [regeneratingImageNeed, setRegeneratingImageNeed] = useState<ImageNeed | null>(null)
 
   const isCollapsed = externalIsCollapsed !== undefined ? externalIsCollapsed : internalIsCollapsed
   const setIsCollapsed = onCollapsedChange || setInternalIsCollapsed
 
   const contextKey = artifactContextKey(artifactId)
 
+  // Phase 3: Image generation hooks
+  const {
+    approveDescriptions,
+    rejectDescriptions,
+    generateFinals,
+    regenerateImage: regenerateImageMutation,
+    isLoading: isImageOperationLoading,
+  } = useImageGeneration(artifactId)
+
+  // Phase 3: Image approval panel is disabled (auto-approval workflow)
+  // Keep the condition here for potential future use, but always false
+  const showImageApprovalPanel = false // Disabled: auto-approval workflow skips this step
+
+  // Phase 3: Check if showing complete banner (shows when ready with images processed)
+  const showCompleteBanner = status === 'ready' && visualsMetadata?.phase?.phase === 'complete'
+
+  // Phase 3: Check if generating images (during creating_visuals status)
+  const isGeneratingImages = status === 'creating_visuals'
+
+  // Phase 3: Image generation handlers
+  const handleApproveImages = async (imageIds: string[]) => {
+    try {
+      await approveDescriptions(imageIds)
+    } catch (error) {
+      console.error('[ArtifactEditor] Failed to approve images:', error)
+      throw error
+    }
+  }
+
+  const handleRejectImages = async (imageIds: string[]) => {
+    try {
+      await rejectDescriptions(imageIds)
+    } catch (error) {
+      console.error('[ArtifactEditor] Failed to reject images:', error)
+      throw error
+    }
+  }
+
+  const handleGenerateFinals = async () => {
+    try {
+      await generateFinals()
+    } catch (error) {
+      console.error('[ArtifactEditor] Failed to generate final images:', error)
+      throw error
+    }
+  }
+
+  const handleRegenerateImage = async (imageId: string, description: string) => {
+    try {
+      await regenerateImageMutation({ imageId, description })
+      setRegeneratingImage(null)
+      setRegeneratingImageNeed(null)
+    } catch (error) {
+      console.error('[ArtifactEditor] Failed to regenerate image:', error)
+      throw error
+    }
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const _openRegenerationModal = (image: FinalImage, need: ImageNeed) => {
+    setRegeneratingImage(image)
+    setRegeneratingImageNeed(need)
+  }
+  void _openRegenerationModal // Suppress TS6133 - function preserved for future image regeneration UI
+
+  const closeRegenerationModal = () => {
+    setRegeneratingImage(null)
+    setRegeneratingImageNeed(null)
+  }
+
   // Mobile layout with FAB
   if (isMobile) {
     return (
       <div className={cn('relative h-full', className)} data-testid={testId}>
         {/* Editor */}
-        <div className="h-full">
+        <div className="h-full relative">
           <RichTextEditor
             content={content}
             onChange={onContentChange}
             placeholder="Start writing..."
             tone={tone}
             onToneChange={onToneChange}
+            editable={editable}
           />
+          {/* Lock overlay when not editable */}
+          {!editable && (
+            <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10" data-testid="editor-lock-overlay">
+              <div className="flex items-center gap-2 text-muted-foreground bg-background/80 px-4 py-2 rounded-lg">
+                <Lock className="h-4 w-4" />
+                <span>Content is being generated...</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* AI FAB Button */}
@@ -142,6 +239,7 @@ export function ArtifactEditor({
             onClick={() => setIsCollapsed(false)}
             className="h-8 w-8"
             aria-label="Expand editor"
+            data-testid="editor-expand-button"
           >
             <ChevronDown className="h-4 w-4" />
           </Button>
@@ -173,14 +271,69 @@ export function ArtifactEditor({
             onClick={() => setIsCollapsed(true)}
             className="h-8 w-8"
             aria-label="Collapse editor"
+            data-testid="editor-collapse-button"
           >
             <ChevronUp className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
+      {/* Phase 3: Content Complete Banner */}
+      {showCompleteBanner && (
+        <div className="border-b">
+          <Alert className="rounded-none border-x-0 border-t-0 border-green-500 bg-green-50 dark:bg-green-900/20">
+            <PartyPopper className="h-4 w-4 text-green-600" />
+            <AlertTitle>Content Creation Complete!</AlertTitle>
+            <AlertDescription>
+              Your artifact is ready for final review. You can still edit content and regenerate
+              images if needed.
+            </AlertDescription>
+          </Alert>
+        </div>
+      )}
+
+      {/* Phase 3: Image Generation Progress */}
+      {isGeneratingImages && !showImageApprovalPanel && (
+        <div className="border-b">
+          <Card className="rounded-none border-x-0 border-t-0">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                <div className="flex-1">
+                  <p className="font-medium">
+                    {visualsMetadata?.phase?.phase === 'identifying_needs' &&
+                      'Analyzing content for images...'}
+                    {visualsMetadata?.phase?.phase === 'generating_images' &&
+                      `Generating final images... ${
+                        (visualsMetadata.phase as any).completed || 0
+                      }/${(visualsMetadata.phase as any).total || 0}`}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    This may take a few minutes. You'll be notified when complete.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Phase 3: Image Approval Panel */}
+      {showImageApprovalPanel && visualsMetadata && (
+        <div className="border-b p-4 overflow-auto max-h-[60vh]">
+          <ImageApprovalPanel
+            artifactId={artifactId}
+            imageNeeds={visualsMetadata.needs}
+            onApprove={handleApproveImages}
+            onReject={handleRejectImages}
+            onGenerateFinals={handleGenerateFinals}
+            isLoading={isImageOperationLoading}
+          />
+        </div>
+      )}
+
       {/* Editor */}
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-auto relative">
         <RichTextEditor
           content={content}
           onChange={onContentChange}
@@ -188,8 +341,32 @@ export function ArtifactEditor({
           tone={tone}
           onToneChange={onToneChange}
           className="h-full"
+          editable={editable}
         />
+        {/* Lock overlay when not editable */}
+        {!editable && (
+          <div
+            className="absolute inset-0 bg-background/50 flex items-center justify-center z-10"
+            data-testid="editor-lock-overlay"
+          >
+            <div className="flex items-center gap-2 text-muted-foreground bg-background/80 px-4 py-2 rounded-lg">
+              <Lock className="h-4 w-4" />
+              <span>Content is being generated...</span>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Phase 3: Image Regeneration Modal */}
+      {regeneratingImage && regeneratingImageNeed && (
+        <ImageRegenerationModal
+          isOpen={true}
+          onClose={closeRegenerationModal}
+          image={regeneratingImage}
+          imageNeed={regeneratingImageNeed}
+          onRegenerate={handleRegenerateImage}
+        />
+      )}
     </div>
   )
 }

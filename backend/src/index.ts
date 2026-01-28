@@ -11,6 +11,14 @@ import { logger } from './lib/logger.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
+// Debug: Log environment variables at startup
+console.log('[STARTUP] Environment check:', {
+  cwd: process.cwd(),
+  MOCK_ALL_AI_TOOLS: process.env.MOCK_ALL_AI_TOOLS,
+  MOCK_CONTENT_WRITING_TOOLS: process.env.MOCK_CONTENT_WRITING_TOOLS,
+  SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
+})
+
 // Middleware
 app.use(helmet())
 app.use(cors({

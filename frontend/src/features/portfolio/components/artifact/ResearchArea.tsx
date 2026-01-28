@@ -318,12 +318,12 @@ export function ResearchArea({
   // Collapsed state (minimal height header)
   if (isCollapsed) {
     return (
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-muted/30">
+      <div className="flex items-center justify-between gap-2 border-b px-4 py-3 bg-muted/30" data-testid="research-area-collapsed">
         <div className="flex items-center gap-2">
           <FileSearch className="h-4 w-4 text-muted-foreground" />
           <h3 className="font-semibold text-sm">Research</h3>
           {showNewBadge && (
-            <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-primary text-primary-foreground rounded">
+            <span className="px-1.5 py-0.5 text-[10px] font-semibold bg-primary text-primary-foreground rounded" data-testid="research-new-badge">
               NEW
             </span>
           )}
@@ -334,6 +334,7 @@ export function ResearchArea({
           onClick={handleExpand}
           className="h-8 w-8"
           aria-label="Expand research area"
+          data-testid="research-expand-button"
         >
           <ChevronDown className="h-4 w-4" />
         </Button>
@@ -343,7 +344,7 @@ export function ResearchArea({
 
   // Expanded state
   return (
-    <div className="h-full flex flex-col border-b bg-background">
+    <div className="h-full flex flex-col border-b bg-background" data-testid="research-area">
       {/* Header */}
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <div className="flex items-center gap-2">
@@ -357,6 +358,7 @@ export function ResearchArea({
           onClick={() => setIsCollapsed(true)}
           className="h-8 w-8"
           aria-label="Collapse research area"
+          data-testid="research-collapse-button"
         >
           <ChevronUp className="h-4 w-4" />
         </Button>
@@ -366,7 +368,7 @@ export function ResearchArea({
       <div className="flex-1 overflow-y-auto p-4">
         {/* State: Empty */}
         {status === 'empty' && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+          <div className="flex flex-col items-center justify-center h-full text-center px-4" data-testid="research-state-empty">
             <FileSearch className="h-12 w-12 text-muted-foreground/40 mb-3" />
             <p className="text-sm text-muted-foreground mb-1">No research data yet</p>
             <p className="text-xs text-muted-foreground">
@@ -377,7 +379,7 @@ export function ResearchArea({
 
         {/* State: Loading */}
         {status === 'loading' && (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3" data-testid="research-state-loading">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Researching sources...</span>
@@ -420,7 +422,7 @@ export function ResearchArea({
 
         {/* State: Loaded */}
         {status === 'loaded' && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4" data-testid="research-state-loaded">
             {/* Research Report Document */}
             <Card className="p-4 bg-primary/5 border-primary/20">
               <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -483,7 +485,7 @@ export function ResearchArea({
 
         {/* State: Error */}
         {status === 'error' && (
-          <div className="flex flex-col items-center justify-center h-full text-center px-4">
+          <div className="flex flex-col items-center justify-center h-full text-center px-4" data-testid="research-state-error">
             <AlertCircle className="h-12 w-12 text-destructive/40 mb-3" />
             <p className="text-sm font-medium mb-1">Research failed</p>
             <p className="text-xs text-muted-foreground mb-4">{error || 'An error occurred'}</p>

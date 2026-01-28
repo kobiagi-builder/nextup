@@ -35,10 +35,8 @@ const TYPE_FILTERS: { value: ArtifactType | 'all'; label: string; icon?: React.E
 const STATUS_FILTERS: { value: ArtifactStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'draft', label: 'Draft' },
-  { value: 'in_progress', label: 'In Progress' },
   { value: 'ready', label: 'Ready' },
   { value: 'published', label: 'Published' },
-  { value: 'archived', label: 'Archived' },
 ]
 
 export function PortfolioPage() {
@@ -77,9 +75,13 @@ export function PortfolioPage() {
     })
   }, [artifacts, typeFilter, statusFilter, searchQuery])
 
-  // Handle create artifact
-  const handleCreate = async (data: CreateArtifactInput) => {
+  // Track which action is loading
+  const [loadingAction, setLoadingAction] = useState<'draft' | 'create' | null>(null)
+
+  // Handle save as draft
+  const handleSaveDraft = async (data: CreateArtifactInput) => {
     try {
+      setLoadingAction('draft')
       const created = await createArtifact.mutateAsync(data)
       setIsCreateOpen(false)
       // Navigate to the new artifact
@@ -88,6 +90,25 @@ export function PortfolioPage() {
       }
     } catch (error) {
       console.error('Failed to create artifact:', error)
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  // Handle create content (save + trigger AI)
+  const handleCreateContent = async (data: CreateArtifactInput) => {
+    try {
+      setLoadingAction('create')
+      const created = await createArtifact.mutateAsync(data)
+      setIsCreateOpen(false)
+      // Navigate to the new artifact with flag to trigger AI
+      if (created) {
+        navigate(`/portfolio/artifacts/${created.id}?startCreation=true`)
+      }
+    } catch (error) {
+      console.error('Failed to create artifact:', error)
+    } finally {
+      setLoadingAction(null)
     }
   }
 
@@ -114,6 +135,7 @@ export function PortfolioPage() {
             variant="secondary"
             className="gap-2"
             onClick={() => setIsAIResearchOpen(true)}
+            data-testid="ai-research-button"
           >
             <Sparkles className="h-4 w-4" />
             AI Research
@@ -207,16 +229,18 @@ export function PortfolioPage() {
             <DialogTitle>Create New Content</DialogTitle>
           </DialogHeader>
           <ArtifactForm
-            onSubmit={handleCreate}
+            onSaveDraft={handleSaveDraft}
+            onCreateContent={handleCreateContent}
             onCancel={() => setIsCreateOpen(false)}
             isLoading={createArtifact.isPending}
+            loadingAction={loadingAction}
           />
         </DialogContent>
       </Dialog>
 
       {/* AI Research Sheet */}
       <Sheet open={isAIResearchOpen} onOpenChange={setIsAIResearchOpen}>
-        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside>
+        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside data-testid="ai-research-sheet">
           <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />

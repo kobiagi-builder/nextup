@@ -34,10 +34,8 @@ const TYPE_FILTERS: { value: ArtifactType | 'all'; label: string; icon?: React.E
 const STATUS_FILTERS: { value: ArtifactStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'All Status' },
   { value: 'draft', label: 'Draft' },
-  { value: 'in_progress', label: 'In Progress' },
   { value: 'ready', label: 'Ready' },
   { value: 'published', label: 'Published' },
-  { value: 'archived', label: 'Archived' },
 ]
 
 export function ContentPage() {
@@ -75,9 +73,13 @@ export function ContentPage() {
     })
   }, [artifacts, typeFilter, statusFilter, searchQuery])
 
-  // Handle create artifact
-  const handleCreate = async (data: CreateArtifactInput) => {
+  // Track which action is loading
+  const [loadingAction, setLoadingAction] = useState<'draft' | 'create' | null>(null)
+
+  // Handle save as draft
+  const handleSaveDraft = async (data: CreateArtifactInput) => {
     try {
+      setLoadingAction('draft')
       const created = await createArtifact.mutateAsync(data)
       setIsCreateOpen(false)
       // Navigate to the new artifact
@@ -86,6 +88,25 @@ export function ContentPage() {
       }
     } catch (error) {
       console.error('Failed to create artifact:', error)
+    } finally {
+      setLoadingAction(null)
+    }
+  }
+
+  // Handle create content (save + trigger AI)
+  const handleCreateContent = async (data: CreateArtifactInput) => {
+    try {
+      setLoadingAction('create')
+      const created = await createArtifact.mutateAsync(data)
+      setIsCreateOpen(false)
+      // Navigate to the new artifact with flag to trigger AI
+      if (created) {
+        navigate(`/portfolio/artifacts/${created.id}?startCreation=true`)
+      }
+    } catch (error) {
+      console.error('Failed to create artifact:', error)
+    } finally {
+      setLoadingAction(null)
     }
   }
 
@@ -107,7 +128,7 @@ export function ContentPage() {
         <h1 className="text-display-md font-semibold text-foreground">
           My Content
         </h1>
-        <Button onClick={() => setIsCreateOpen(true)} className="gap-2">
+        <Button onClick={() => setIsCreateOpen(true)} className="gap-2" data-testid="content-new-button">
           <Plus className="h-4 w-4" />
           New
         </Button>
@@ -190,14 +211,16 @@ export function ContentPage() {
 
       {/* Create Dialog */}
       <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-        <DialogContent className="max-w-2xl" data-portal-ignore-click-outside>
+        <DialogContent className="max-w-2xl" data-portal-ignore-click-outside data-testid="create-artifact-dialog">
           <DialogHeader>
             <DialogTitle>Create New Content</DialogTitle>
           </DialogHeader>
           <ArtifactForm
-            onSubmit={handleCreate}
+            onSaveDraft={handleSaveDraft}
+            onCreateContent={handleCreateContent}
             onCancel={() => setIsCreateOpen(false)}
             isLoading={createArtifact.isPending}
+            loadingAction={loadingAction}
           />
         </DialogContent>
       </Dialog>
