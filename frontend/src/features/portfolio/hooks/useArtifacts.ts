@@ -79,12 +79,13 @@ export function useArtifacts(options?: {
  *
  * Auto-polls every 2 seconds during processing states (research, skeleton, writing, creating_visuals)
  */
-export function useArtifact(id: string | null) {
+export function useArtifact(id: string | null, enableDraftPolling = false) {
   const queryKey = artifactKeys.detail(id ?? '')
 
   console.log('[useArtifact] 🔑 Query key:', {
     queryKey,
     artifactId: id,
+    enableDraftPolling,
     note: 'This key must match Realtime invalidation for real-time updates to work'
   })
 
@@ -116,13 +117,15 @@ export function useArtifact(id: string | null) {
     },
     enabled: !!id,
     // Poll for status changes during content creation workflow
-    // Processing states: research, skeleton, writing, creating_visuals
+    // Processing states: research, skeleton, writing, creating_visuals, foundations, foundations_approval
     // NOTE: This is a FALLBACK - Realtime should handle updates in real-time
     refetchInterval: (query) => {
       const artifact = query.state.data as Artifact | undefined
 
       // Processing states that require polling (editor is locked during these)
-      const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
+      // NOTE: 'skeleton' and 'foundations_approval' are NOT included because they are
+      // "paused for approval" states - the pipeline is waiting for user action, not processing
+      const processingStates = ['research', 'foundations', 'writing', 'creating_visuals']
 
       if (artifact?.status && processingStates.includes(artifact.status)) {
         console.log('[useArtifact] ⏱️ POLLING (Fallback): Processing state detected:', {
@@ -131,6 +134,17 @@ export function useArtifact(id: string | null) {
           note: 'Realtime should update faster - if you see this, check Realtime subscription'
         })
         return 2000 // Poll every 2 seconds
+      }
+
+      // Poll during draft state when content creation is expected
+      // This handles the case where Realtime fails and we need to catch draft→research transition
+      if (artifact?.status === 'draft' && enableDraftPolling) {
+        console.log('[useArtifact] ⏱️ POLLING (Draft): Content creation in progress, waiting for status change:', {
+          artifactId: artifact.id,
+          status: artifact.status,
+          note: 'Polling to catch draft→research transition when Realtime fails'
+        })
+        return 3000 // Poll every 3 seconds during draft when content creation triggered
       }
 
       // Poll once more when ready to ensure content is synced
@@ -146,6 +160,7 @@ export function useArtifact(id: string | null) {
 
       console.log('[useArtifact] ✅ Polling stopped - artifact in stable state:', {
         status: artifact?.status,
+        enableDraftPolling,
         note: 'Realtime subscription should handle future updates'
       })
 

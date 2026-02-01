@@ -7,6 +7,7 @@ import { logger, logToFile } from '../../../lib/logger.js';
 import { mockService, type ContentSectionResponse, type FullContentResponse } from '../mocks/index.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
+import type { WritingCharacteristics } from '../../../types/portfolio.js';
 
 /**
  * Content Writing Tools for Content Creation Agent (Phase 2)
@@ -96,6 +97,74 @@ function logPhase2(
 // =============================================================================
 
 /**
+ * Extract characteristics guidance for content writing (Phase 4)
+ */
+function getWritingCharacteristicsGuidance(characteristics?: WritingCharacteristics): string {
+  if (!characteristics || Object.keys(characteristics).length === 0) {
+    return '';
+  }
+
+  const guidance: string[] = ['## Writing Style Characteristics (apply throughout)'];
+
+  // Extract relevant characteristics for content writing
+  const toneChar = characteristics.tone;
+  if (toneChar) {
+    guidance.push(`- Tone: ${toneChar.value}`);
+  }
+
+  const voiceChar = characteristics.voice;
+  if (voiceChar) {
+    guidance.push(`- Voice: ${voiceChar.value} (e.g., first-person, we/our, third-person)`);
+  }
+
+  const sentenceChar = characteristics.sentence_structure;
+  if (sentenceChar) {
+    guidance.push(`- Sentence structure: ${sentenceChar.value}`);
+  }
+
+  const vocabChar = characteristics.vocabulary_complexity;
+  if (vocabChar) {
+    guidance.push(`- Vocabulary: ${vocabChar.value}`);
+  }
+
+  const pacingChar = characteristics.pacing;
+  if (pacingChar) {
+    guidance.push(`- Pacing: ${pacingChar.value}`);
+  }
+
+  const evidenceChar = characteristics.use_of_evidence;
+  if (evidenceChar) {
+    guidance.push(`- Evidence usage: ${evidenceChar.value}`);
+  }
+
+  const examplesChar = characteristics.use_of_examples;
+  if (examplesChar) {
+    guidance.push(`- Examples usage: ${examplesChar.value}`);
+  }
+
+  const ctaChar = characteristics.cta_style;
+  if (ctaChar) {
+    guidance.push(`- Call-to-action style: ${ctaChar.value}`);
+  }
+
+  const emotionalChar = characteristics.emotional_appeal;
+  if (emotionalChar) {
+    guidance.push(`- Emotional appeal: ${emotionalChar.value}`);
+  }
+
+  const audienceChar = characteristics.audience_assumption;
+  if (audienceChar) {
+    guidance.push(`- Target audience level: ${audienceChar.value}`);
+  }
+
+  if (guidance.length === 1) {
+    return ''; // Only header, no actual characteristics
+  }
+
+  return '\n' + guidance.join('\n') + '\n';
+}
+
+/**
  * Build content generation prompt
  */
 function buildContentPrompt(
@@ -104,9 +173,11 @@ function buildContentPrompt(
   tone: ToneOption,
   artifactType: 'blog' | 'social_post' | 'showcase',
   researchContext: string,
-  isFirstSection: boolean = false
+  isFirstSection: boolean = false,
+  characteristics?: WritingCharacteristics
 ): string {
   const toneModifier = toneModifiers[tone];
+  const characteristicsGuidance = getWritingCharacteristicsGuidance(characteristics);
 
   // Determine image placeholder type based on section position
   const imageType = isFirstSection ? 'Featured/Hero' : 'Section';
@@ -128,7 +199,7 @@ ${researchContext || 'No specific research available. Write based on general kno
 
 ## Tone Requirements
 ${toneModifier}
-
+${characteristicsGuidance}
 ## Writing Guidelines
 - Write engaging, well-researched content
 - Reference research findings naturally (don't cite sources explicitly)
@@ -455,7 +526,7 @@ export const writeContentSection = tool({
  * Parses skeleton to find H2 sections, writes each, and assembles final content.
  */
 export const writeFullContent = tool({
-  description: `Write content for all sections in an artifact skeleton. Parses skeleton for H2 headings, writes each section, and updates the artifact. Returns full generated content.`,
+  description: `Write content for all sections in an artifact skeleton. Parses skeleton for H2 headings, writes each section, and updates the artifact. Returns full generated content. Uses writing characteristics from Phase 4 analysis if available.`,
 
   inputSchema: z.object({
     artifactId: z.string().uuid().describe('ID of the artifact with skeleton'),
@@ -470,9 +541,10 @@ export const writeFullContent = tool({
       'humorous'
     ]).describe('Desired tone/voice for content'),
     artifactType: z.enum(['blog', 'social_post', 'showcase']).describe('Type of artifact'),
+    useWritingCharacteristics: z.boolean().optional().default(true).describe('Whether to fetch and use writing characteristics from Phase 4 analysis'),
   }),
 
-  execute: async ({ artifactId, tone, artifactType }) => {
+  execute: async ({ artifactId, tone, artifactType, useWritingCharacteristics = true }) => {
     const traceId = generateMockTraceId('writing-full');
     const startTime = Date.now();
 
@@ -736,6 +808,40 @@ export const writeFullContent = tool({
       });
 
       // =======================================================================
+      // TRACE: Step 4.5 - Fetch Writing Characteristics (Phase 4)
+      // =======================================================================
+      let writingCharacteristics: WritingCharacteristics | undefined;
+      if (useWritingCharacteristics) {
+        logPhase2('CHARACTERISTICS_FETCH', 'Fetching writing characteristics (Phase 4)', {
+          traceId,
+          artifactId,
+        });
+
+        const { data: charData } = await supabaseAdmin
+          .from('artifact_writing_characteristics')
+          .select('characteristics')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (charData?.characteristics) {
+          writingCharacteristics = charData.characteristics as WritingCharacteristics;
+          logPhase2('CHARACTERISTICS_FETCH', 'Writing characteristics loaded', {
+            traceId,
+            characteristicsCount: Object.keys(writingCharacteristics).length,
+          });
+          logger.debug('WriteFullContent', 'Writing characteristics loaded', {
+            traceId,
+            characteristicsCount: Object.keys(writingCharacteristics).length,
+          });
+        } else {
+          logPhase2('CHARACTERISTICS_FETCH', 'No writing characteristics found, using defaults', {
+            traceId,
+            artifactId,
+          });
+        }
+      }
+
+      // =======================================================================
       // TRACE: Step 5 - Write Content for Each Section
       // =======================================================================
       logPhase2('SECTIONS_WRITE_START', `Starting to write ${sections.length} sections`, {
@@ -770,7 +876,8 @@ export const writeFullContent = tool({
             tone,
             artifactType,
             researchContext,
-            i === 0  // isFirstSection - first section gets featured/hero image
+            i === 0,  // isFirstSection - first section gets featured/hero image
+            writingCharacteristics  // Phase 4: Pass writing characteristics
           );
 
           logPhase2('GEMINI_API_CALL', `Calling Gemini for section "${section.heading}"`, {

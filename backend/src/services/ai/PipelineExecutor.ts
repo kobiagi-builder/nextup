@@ -8,6 +8,7 @@
 import { logger } from '../../lib/logger.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { conductDeepResearch } from './tools/researchTools.js';
+import { analyzeWritingCharacteristics } from './tools/writingCharacteristicsTools.js';
 import { generateContentSkeleton } from './tools/skeletonTools.js';
 import { writeFullContent } from './tools/contentWritingTools.js';
 import { generateContentVisuals } from './tools/visualsCreatorTool.js';
@@ -29,6 +30,7 @@ export interface PipelineStep {
   expectedStatusBefore: ArtifactStatus;
   expectedStatusAfter: ArtifactStatus;
   required: boolean;
+  pauseForApproval?: boolean; // Phase 4: Pipeline pauses here for user approval
 }
 
 export interface PipelineCheckpoint {
@@ -55,6 +57,9 @@ export interface PipelineResult {
   stepsCompleted: number;
   totalSteps: number;
   toolResults: Record<string, any>;
+  // Phase 4: Pipeline pause for user approval
+  pausedForApproval?: boolean;
+  pausedAtStep?: string;
   error?: {
     category: ErrorCategory;
     message: string;
@@ -77,30 +82,115 @@ export interface PipelineOptions {
 const PIPELINE_STEPS: PipelineStep[] = [
   {
     toolName: 'conductDeepResearch',
-    execute: (artifactId: string) => conductDeepResearch.execute({
-      artifactId,
-      minRequired: 5,
-    }),
+    execute: async (artifactId: string) => {
+      // Fetch artifact to get required fields
+      const { data: artifact } = await supabaseAdmin
+        .from('artifacts')
+        .select('type, title')
+        .eq('id', artifactId)
+        .single();
+
+      if (!artifact) {
+        return {
+          success: false,
+          error: { message: 'Artifact not found' },
+        };
+      }
+
+      return conductDeepResearch.execute({
+        artifactId,
+        topic: artifact.title || 'Content',
+        artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
+      });
+    },
     expectedStatusBefore: 'draft',
     expectedStatusAfter: 'research',
     required: true,
   },
+  // Phase 4: Writing characteristics analysis after research
   {
-    toolName: 'generateContentSkeleton',
-    execute: (artifactId: string) => generateContentSkeleton.execute({
-      artifactId,
-    }),
+    toolName: 'analyzeWritingCharacteristics',
+    execute: async (artifactId: string) => {
+      // Fetch artifact to get type
+      const { data: artifact } = await supabaseAdmin
+        .from('artifacts')
+        .select('type')
+        .eq('id', artifactId)
+        .single();
+
+      if (!artifact) {
+        return {
+          success: false,
+          error: { message: 'Artifact not found' },
+        };
+      }
+
+      return analyzeWritingCharacteristics.execute({
+        artifactId,
+        artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
+      });
+    },
     expectedStatusBefore: 'research',
-    expectedStatusAfter: 'skeleton',
+    expectedStatusAfter: 'foundations',
     required: true,
   },
   {
+    toolName: 'generateContentSkeleton',
+    execute: async (artifactId: string) => {
+      // Fetch artifact to get required fields
+      const { data: artifact } = await supabaseAdmin
+        .from('artifacts')
+        .select('type, title, tone')
+        .eq('id', artifactId)
+        .single();
+
+      if (!artifact) {
+        return {
+          success: false,
+          error: { message: 'Artifact not found' },
+        };
+      }
+
+      return generateContentSkeleton.execute({
+        artifactId,
+        topic: artifact.title || 'Content',
+        artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
+        tone: (artifact.tone as any) || 'professional',
+        useWritingCharacteristics: true,
+      });
+    },
+    expectedStatusBefore: 'foundations',
+    expectedStatusAfter: 'skeleton',
+    required: true,
+    pauseForApproval: true, // Phase 4: Pipeline pauses here for user approval
+  },
+  {
     toolName: 'writeFullContent',
-    execute: (artifactId: string) => writeFullContent.execute({
-      artifactId,
-      tone: 'professional',
-    }),
-    expectedStatusBefore: 'skeleton',
+    execute: async (artifactId: string) => {
+      // Fetch artifact to get required fields
+      const { data: artifact } = await supabaseAdmin
+        .from('artifacts')
+        .select('type, tone')
+        .eq('id', artifactId)
+        .single();
+
+      if (!artifact) {
+        return {
+          success: false,
+          error: { message: 'Artifact not found' },
+        };
+      }
+
+      return writeFullContent.execute({
+        artifactId,
+        tone: (artifact.tone as any) || 'professional',
+        artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
+        useWritingCharacteristics: true,
+      });
+    },
+    // Phase 4: writeFullContent expects 'foundations_approval' status
+    // This is set when user clicks "Foundations Approved" button
+    expectedStatusBefore: 'foundations_approval',
     expectedStatusAfter: 'writing',
     required: true,
   },
@@ -371,6 +461,74 @@ export class PipelineExecutor {
               toolName: step.toolName,
               duration: toolResult.duration,
             });
+
+            // [Artifact status] - status changed (after tool execution)
+            if (toolResult.statusTransition) {
+              // Fetch artifact title for structured log
+              const { data: artifactData } = await supabaseAdmin
+                .from('artifacts')
+                .select('title')
+                .eq('id', artifactId)
+                .single();
+
+              logger.info('[Artifact status] status changed', {
+                artifactId,
+                title: artifactData?.title || 'Untitled',
+                previousStatus: toolResult.statusTransition.from || step.expectedStatusBefore,
+                newStatus: toolResult.statusTransition.to || step.expectedStatusAfter,
+              });
+            }
+
+            // Phase 4: Check if pipeline should pause for user approval
+            if (step.pauseForApproval) {
+              logger.info('PipelineExecutor', 'Pipeline pausing for user approval', {
+                artifactId,
+                traceId,
+                pausedAtTool: step.toolName,
+                pausedAtStep: i + 1,
+              });
+
+              // Get artifact title for logging
+              const { data: artifactForLog } = await supabaseAdmin
+                .from('artifacts')
+                .select('title, status')
+                .eq('id', artifactId)
+                .single();
+
+              const previousStatus = artifactForLog?.status || step.expectedStatusAfter;
+
+              // Update status to foundations_approval
+              await supabaseAdmin
+                .from('artifacts')
+                .update({
+                  status: 'foundations_approval',
+                  updated_at: new Date().toISOString(),
+                })
+                .eq('id', artifactId);
+
+              // [Artifact status] - status changed
+              logger.info('[Artifact status] status changed', {
+                artifactId,
+                title: artifactForLog?.title || 'Untitled',
+                previousStatus,
+                newStatus: 'foundations_approval',
+              });
+
+              const duration = Date.now() - startTime;
+
+              // Return partial success - pipeline paused, not failed
+              return {
+                success: true,
+                artifactId,
+                traceId,
+                duration,
+                stepsCompleted: i + 1,
+                totalSteps: steps.length,
+                toolResults,
+                pausedForApproval: true,
+                pausedAtStep: step.toolName,
+              } as PipelineResult;
+            }
           }
 
           // All steps completed successfully
@@ -545,6 +703,260 @@ export class PipelineExecutor {
           message: toolError.message || 'Unknown error',
           failedStep: 0,
           failedTool: toolName,
+          recoverable: toolError.recoverable ?? true,
+        },
+      };
+    }
+  }
+
+  /**
+   * Resume pipeline from user approval point (Phase 4)
+   *
+   * Called after user clicks "Foundations Approved" button.
+   * Starts from writeFullContent step and continues to completion.
+   */
+  async resumeFromApproval(
+    artifactId: string,
+    options: PipelineOptions = {}
+  ): Promise<PipelineResult> {
+    const startTime = Date.now();
+    const traceId = generateTraceId('pipeline-resume');
+    const toolResults: Record<string, any> = {};
+
+    logger.info('PipelineExecutor', 'Resuming pipeline from approval', {
+      artifactId,
+      traceId,
+    });
+
+    // Verify artifact is in foundations_approval status
+    const { data: artifact, error: fetchError } = await supabaseAdmin
+      .from('artifacts')
+      .select('status')
+      .eq('id', artifactId)
+      .single();
+
+    if (fetchError || !artifact) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.ARTIFACT_NOT_FOUND,
+          message: 'Artifact not found',
+          failedStep: 0,
+          failedTool: 'resumeFromApproval',
+          recoverable: false,
+        },
+      };
+    }
+
+    if (artifact.status !== 'foundations_approval') {
+      logger.warn('PipelineExecutor', 'Cannot resume: artifact not in foundations_approval status', {
+        artifactId,
+        currentStatus: artifact.status,
+      });
+
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.INVALID_STATUS,
+          message: `Cannot resume: artifact status is '${artifact.status}', expected 'foundations_approval'`,
+          failedStep: 0,
+          failedTool: 'resumeFromApproval',
+          recoverable: false,
+        },
+      };
+    }
+
+    // Get remaining steps (starting from writeFullContent)
+    const writeFullContentIndex = PIPELINE_STEPS.findIndex(s => s.toolName === 'writeFullContent');
+    if (writeFullContentIndex === -1) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.TOOL_EXECUTION_FAILED,
+          message: 'writeFullContent step not found in pipeline',
+          failedStep: 0,
+          failedTool: 'resumeFromApproval',
+          recoverable: false,
+        },
+      };
+    }
+
+    const remainingSteps = options.skipHumanityCheck
+      ? PIPELINE_STEPS.slice(writeFullContentIndex).filter(step => step.toolName !== 'applyHumanityCheck')
+      : PIPELINE_STEPS.slice(writeFullContentIndex);
+
+    let currentStep = 0;
+
+    try {
+      return await withTracing(
+        traceId,
+        'resumePipeline',
+        async () => {
+          for (let i = 0; i < remainingSteps.length; i++) {
+            const step = remainingSteps[i];
+            currentStep = i;
+
+            // Notify progress
+            if (options.onProgress) {
+              options.onProgress({
+                currentStep: writeFullContentIndex + i,
+                totalSteps: PIPELINE_STEPS.length,
+                completedTools: Object.keys(toolResults),
+                currentTool: step.toolName,
+                traceId,
+              });
+            }
+
+            // Create checkpoint before execution
+            await checkpointManager.createCheckpoint(artifactId, writeFullContentIndex + i, {
+              toolName: step.toolName,
+            });
+
+            logger.info('PipelineExecutor', `Executing resumed step ${i + 1}/${remainingSteps.length}`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+            });
+
+            // Execute tool with backoff
+            const toolResult = await withExponentialBackoff(
+              async () => {
+                const result = await step.execute(artifactId);
+                return result;
+              },
+              options.retryOptions
+            );
+
+            // Record tool result
+            toolResults[step.toolName] = toolResult;
+
+            // Record metrics
+            metricsCollector.recordToolExecution(
+              step.toolName,
+              toolResult.duration || 0,
+              toolResult.success
+            );
+
+            if (!toolResult.success) {
+              throw createToolError(
+                toolResult.error?.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+                `Tool ${step.toolName} failed: ${toolResult.error?.message}`,
+                toolResult.error?.recoverable ?? true
+              );
+            }
+
+            logger.info('PipelineExecutor', `Resumed step ${i + 1}/${remainingSteps.length} completed`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+              duration: toolResult.duration,
+            });
+
+            // [Artifact status] - status changed (after resumed tool execution)
+            if (toolResult.statusTransition) {
+              // Fetch artifact title for structured log
+              const { data: artifactData } = await supabaseAdmin
+                .from('artifacts')
+                .select('title')
+                .eq('id', artifactId)
+                .single();
+
+              logger.info('[Artifact status] status changed', {
+                artifactId,
+                title: artifactData?.title || 'Untitled',
+                previousStatus: toolResult.statusTransition.from || step.expectedStatusBefore,
+                newStatus: toolResult.statusTransition.to || step.expectedStatusAfter,
+              });
+            }
+          }
+
+          // All remaining steps completed successfully
+          const duration = Date.now() - startTime;
+
+          // Record pipeline metrics
+          metricsCollector.recordPipelineExecution(duration, true);
+
+          // Clear checkpoints after success
+          checkpointManager.clearCheckpoints(artifactId);
+
+          logger.info('PipelineExecutor', 'Resumed pipeline execution completed', {
+            artifactId,
+            traceId,
+            duration,
+            stepsCompleted: remainingSteps.length,
+          });
+
+          return {
+            success: true,
+            artifactId,
+            traceId,
+            duration,
+            stepsCompleted: remainingSteps.length,
+            totalSteps: remainingSteps.length,
+            toolResults,
+          };
+        },
+        { artifactId }
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      // Record pipeline failure
+      metricsCollector.recordPipelineExecution(duration, false);
+
+      const toolError = error as any;
+      const failedStep = remainingSteps[currentStep];
+
+      logger.error('PipelineExecutor', error instanceof Error ? error : new Error(String(error)), {
+        artifactId,
+        traceId,
+        failedStep: currentStep,
+        failedTool: failedStep?.toolName,
+        duration,
+      });
+
+      // Attempt rollback
+      try {
+        await checkpointManager.rollback(artifactId);
+      } catch (rollbackError) {
+        logger.error('PipelineExecutor', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)), {
+          artifactId,
+          traceId,
+          context: 'rollback_failed',
+        });
+      }
+
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration,
+        stepsCompleted: currentStep,
+        totalSteps: remainingSteps.length,
+        toolResults,
+        error: {
+          category: toolError.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+          message: toolError.message || 'Unknown error',
+          failedStep: currentStep,
+          failedTool: failedStep?.toolName || 'unknown',
           recoverable: toolError.recoverable ?? true,
         },
       };

@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import * as researchController from '../controllers/artifactResearch.controller.js';
 import * as imageController from '../controllers/imageGeneration.controller.js';
+import * as foundationsController from '../controllers/foundations.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
@@ -35,5 +36,15 @@ router.post('/:id/images/generate', requireAuth, imageController.generateFinalIm
 
 // Regenerate specific image
 router.post('/:id/images/:imageId/regenerate', requireAuth, imageController.regenerateImage);
+
+// ============================================
+// Phase 4: Writing Characteristics & Foundations Routes
+// ============================================
+
+// Get writing characteristics for an artifact
+router.get('/:id/writing-characteristics', requireAuth, foundationsController.getWritingCharacteristics);
+
+// Approve foundations and resume pipeline
+router.post('/:id/approve-foundations', requireAuth, foundationsController.approveFoundations);
 
 export default router;

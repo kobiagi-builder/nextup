@@ -1,8 +1,8 @@
 # Content Agent Overview
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
-**Status:** Production Ready
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
+**Status:** Production Ready (Phase 4 Foundations Approval)
 
 ## Table of Contents
 
@@ -10,10 +10,12 @@
 - [Architecture](#architecture)
 - [Core Components](#core-components)
   - [ContentAgent Orchestrator](#contentagent-orchestrator)
+  - [PipelineExecutor](#pipelineexecutor)
   - [Session State Management](#session-state-management)
   - [Token Budget Management](#token-budget-management)
   - [Intent Detection](#intent-detection)
 - [Workflow Modes](#workflow-modes)
+- [Phase 4: Foundations Approval Workflow](#phase-4-foundations-approval-workflow)
 - [Data Flow](#data-flow)
 - [Usage Examples](#usage-examples)
 - [Configuration](#configuration)
@@ -28,15 +30,18 @@ The **Content Agent** is the unified orchestrator for the content creation pipel
 - **Intelligent Intent Detection** - Understands user requests using a hybrid regex + AI approach
 - **Session Management** - Maintains conversation state with automatic timeout handling
 - **Token Budget Control** - Manages Claude Sonnet 4's 200K context window efficiently
-- **Tool Orchestration** - Coordinates 6 core tools + 4 context tools for content creation
+- **Tool Orchestration** - Coordinates 7 core tools + 4 context tools for content creation
 - **Error Recovery** - Implements checkpoint/rollback for pipeline atomicity
+- **Foundations Approval** - Phase 4 user approval gate for writing characteristics and skeleton review
 
 ### Key Capabilities
 
-- ✅ **Full Pipeline Execution** - draft → research → skeleton → writing → creating_visuals → ready
-- ✅ **Partial Flow Support** - Execute individual steps (e.g., "humanize only")
-- ✅ **Conversational Interface** - Natural language interaction with context awareness
-- ✅ **Production-Grade Security** - Rate limiting, ownership validation, prompt injection protection
+- **Full Pipeline Execution** - draft → research → foundations → skeleton → [APPROVAL] → writing → creating_visuals → ready
+- **Writing Characteristics Analysis** - AI analyzes user's writing style to guide content generation
+- **User Approval Gate** - Pipeline pauses for user to review skeleton before content writing
+- **Partial Flow Support** - Execute individual steps (e.g., "humanize only")
+- **Conversational Interface** - Natural language interaction with context awareness
+- **Production-Grade Security** - Rate limiting, ownership validation, prompt injection protection
 
 ---
 
@@ -49,15 +54,18 @@ graph TB
     subgraph "Frontend Layer"
         UI[ArtifactPage]
         Hook[useScreenContext]
+        FS[FoundationsSection]
     end
 
     subgraph "API Layer"
         Controller[ContentAgentController]
         Middleware[Security Middleware]
+        Approval[ApprovalEndpoint]
     end
 
     subgraph "Orchestration Layer"
         CA[ContentAgent Orchestrator]
+        PE[PipelineExecutor]
         Intent[Intent Detection]
         Token[Token Budget Manager]
         Session[Session State]
@@ -65,52 +73,74 @@ graph TB
 
     subgraph "Tool Execution Layer"
         T1[conductDeepResearch]
-        T2[generateContentSkeleton]
-        T3[writeFullContent]
-        T4[generateContentVisuals]
-        T5[applyHumanityCheck]
-        T6[checkContentHumanity]
+        T2[analyzeWritingCharacteristics]
+        T3[generateContentSkeleton]
+        T4[writeFullContent]
+        T5[identifyImageNeeds]
+        T6[applyHumanityCheck]
     end
 
     subgraph "Context Layer"
         C1[fetchArtifact]
         C2[fetchResearch]
         C3[fetchArtifactTopics]
-        C4[listDraftArtifacts]
+        C4[fetchWritingCharacteristics]
+    end
+
+    subgraph "Data Layer"
+        DB[(Supabase Database)]
+        UWE[user_writing_examples]
+        UC[user_context]
+        AWC[artifact_writing_characteristics]
+        AR[artifact_research]
     end
 
     subgraph "Infrastructure Layer"
         Security[Input Validation + Privacy + Ownership]
         Observability[Tracing + Metrics + Circuit Breaker]
-        DB[(Supabase Database)]
         Tavily[Tavily API]
+        Claude[Claude API]
+        DALLE[DALL-E 3 / Gemini]
     end
 
     UI --> Hook
+    UI --> FS
     Hook --> Controller
+    FS --> Approval
     Controller --> Middleware
     Middleware --> CA
+    Approval --> PE
+    CA --> PE
     CA --> Intent
     CA --> Token
     CA --> Session
-    CA --> T1 & T2 & T3 & T4 & T5 & T6
+    PE --> T1 & T2 & T3 & T4 & T5 & T6
     CA --> C1 & C2 & C3 & C4
     T1 & T2 & T3 & T4 & T5 & T6 --> Security
     T1 & T2 & T3 & T4 & T5 & T6 --> Observability
     T1 --> Tavily
-    T1 & T2 & T3 & T4 --> DB
+    T2 --> Claude
+    T3 --> Claude
+    T4 --> Claude
+    T5 --> DALLE
+    T1 & T2 & T3 & T4 & T5 --> DB
     C1 & C2 & C3 & C4 --> DB
+    T2 --> UWE
+    T2 --> UC
+    T2 --> AWC
+    T1 --> AR
 ```
 
 ### Architecture Layers
 
 | Layer | Purpose | Key Components |
 |-------|---------|----------------|
-| **Frontend** | User interface for artifact editing | ArtifactPage, useScreenContext hook |
-| **API** | REST endpoints with security | ContentAgentController, auth middleware |
-| **Orchestration** | Request routing and state management | ContentAgent, Intent Detection, Token Budget |
-| **Tool Execution** | Content creation operations | 6 core tools + 4 context tools |
-| **Infrastructure** | Security, observability, data | Validation, tracing, metrics, database |
+| **Frontend** | User interface for artifact editing | ArtifactPage, FoundationsSection, useScreenContext |
+| **API** | REST endpoints with security | ContentAgentController, approval endpoint |
+| **Orchestration** | Request routing and state management | ContentAgent, PipelineExecutor, Intent Detection |
+| **Tool Execution** | Content creation operations | 7 core tools + 4 context tools |
+| **Data** | Writing references and characteristics | user_writing_examples, user_context, artifact_writing_characteristics |
+| **Infrastructure** | Security, observability, external APIs | Validation, tracing, Tavily, Claude, DALL-E |
 
 ---
 
@@ -129,6 +159,7 @@ The `ContentAgent` class is the central orchestrator that coordinates all conten
 - Orchestrate tool execution (full pipeline or individual tools)
 - Handle errors with automatic recovery
 - Enforce token budget constraints
+- Coordinate with PipelineExecutor for pipeline execution
 
 **Public API:**
 
@@ -151,25 +182,46 @@ class ContentAgent {
 }
 ```
 
-**Example Usage:**
+---
+
+### PipelineExecutor
+
+The `PipelineExecutor` manages the sequential execution of pipeline steps with checkpoint/rollback support.
+
+**Location:** `/backend/src/services/ai/PipelineExecutor.ts`
+
+**Key Responsibilities:**
+
+- Execute pipeline steps in correct order
+- Create checkpoints before each step
+- Rollback to checkpoint on failure
+- **Pause pipeline after skeleton generation** (Phase 4)
+- Resume pipeline from approval endpoint
+
+**Pipeline Steps (Phase 4):**
 
 ```typescript
-import { createContentAgent } from './ContentAgent';
+const PIPELINE_STEPS: PipelineStep[] = [
+  { toolName: 'conductDeepResearch', expectedStatusBefore: 'draft', expectedStatusAfter: 'research' },
+  { toolName: 'analyzeWritingCharacteristics', expectedStatusBefore: 'research', expectedStatusAfter: 'foundations' },
+  { toolName: 'generateContentSkeleton', expectedStatusBefore: 'foundations', expectedStatusAfter: 'skeleton' },
+  // PIPELINE PAUSES HERE - status is 'skeleton', waiting for user approval
+  { toolName: 'writeFullContent', expectedStatusBefore: 'foundations_approval', expectedStatusAfter: 'writing' },
+  { toolName: 'identifyImageNeeds', expectedStatusBefore: 'writing', expectedStatusAfter: 'ready' },
+]
+```
 
-const agent = createContentAgent();
+**Pause/Resume Mechanism:**
 
-const response = await agent.processRequest(
-  "Create content for my blog post about AI in product management",
-  {
-    currentPage: 'artifact',
-    artifactId: 'abc-123',
-    artifactType: 'blog',
-    artifactStatus: 'draft'
-  }
-);
+```typescript
+// Pipeline execution stops after skeleton step
+// Agent notifies user via ChatPanel
 
-console.log(response.text); // "I'll run the full content creation pipeline..."
-console.log(response.intentDetected); // UserIntent.FULL_PIPELINE
+// User clicks "Foundations Approved" button
+// Frontend calls: POST /api/artifact/:id/approve-foundations
+
+// Backend resumes pipeline:
+await pipelineExecutor.executeSingleTool('writeFullContent', artifactId);
 ```
 
 ---
@@ -182,149 +234,43 @@ Session state tracks the agent's current context across multiple interactions wi
 
 ```typescript
 interface SessionState {
-  /** Unique session identifier */
   sessionId: string;
-
-  /** Currently active artifact (if any) */
   currentArtifactId?: string;
-
-  /** Last tool executed in session */
   lastToolExecuted?: string;
-
-  /** Pipeline progress tracking */
   pipelineProgress?: {
     currentStep: number;
     totalSteps: number;
     completedTools: string[];
+    pausedForApproval: boolean;  // NEW: Phase 4
   };
-
-  /** Timestamp of last activity (for timeout detection) */
   lastActivityTimestamp: number;
 }
 ```
-
-**Session Timeout Behavior:**
-
-- **Timeout Duration:** 30 minutes (1,800,000 ms)
-- **Trigger:** Checked on every `processRequest()` call
-- **Action:** Automatic session reset with new session ID
-- **Logging:** Session timeout events logged for monitoring
-
-**Implementation:**
-
-```typescript
-// Session timeout constant
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
-
-// Check on every request
-private checkSessionTimeout(): boolean {
-  const elapsed = Date.now() - this.sessionState.lastActivityTimestamp;
-  return elapsed > SESSION_TIMEOUT_MS;
-}
-
-// Automatic reset when timeout detected
-if (this.checkSessionTimeout()) {
-  this.resetSession();
-  logger.info('ContentAgent', 'Session reset due to timeout', {
-    sessionId: this.sessionState.sessionId
-  });
-}
-```
-
-**Session ID Format:** `session-{timestamp}-{random7}`
-
-**Example:** `session-1706284800000-a7b3c4d`
 
 ---
 
 ### Token Budget Management
 
-The Token Budget Manager ensures efficient use of Claude Sonnet 4's 200K context window by prioritizing critical content and truncating lower-priority data.
+The Token Budget Manager ensures efficient use of Claude Sonnet 4's 200K context window.
 
 **Total Context Window:** 200,000 tokens
 
 **Reserved Allocations:**
 
-| Category | Tokens | Priority | Truncation Policy |
-|----------|--------|----------|-------------------|
-| System Prompt | 3,000 | CRITICAL | Never truncate |
-| Tool Definitions | 8,000 | CRITICAL | Never truncate |
-| Current User Message | 500 | REQUIRED | Never truncate |
-| Response Buffer | 4,000 | CRITICAL | Never truncate |
-| **Available for Dynamic Content** | **184,500** | - | - |
-
-**Dynamic Content Priority Order (for truncation):**
-
-1. **Screen Context** - Truncate last (lowest priority for truncation)
-2. **Conversation History** - Summarize if needed
-3. **Research Data** - Truncate first (highest priority for truncation)
-
-**Token Estimation:**
-
-```typescript
-// Rough approximation: 1 token ≈ 4 characters
-calculateUsage(text: string): number {
-  return Math.ceil(text.length / 4);
-}
-```
-
-**Truncation Strategy:**
-
-```typescript
-// Example: Truncate research data if needed
-const research = tokenBudgetManager.truncateIfNeeded(
-  researchData,
-  ContextPriority.RESEARCH_DATA,
-  50000 // Max 50K tokens for research
-);
-```
-
-**Conversation History Optimization:**
-
-```typescript
-// Keep most recent messages, drop oldest to fit budget
-const optimized = tokenBudgetManager.optimizeConversationHistory(
-  conversationMessages,
-  20000 // Max 20K tokens for history
-);
-
-// Adds summary marker for dropped messages:
-// "[Earlier 5 messages truncated to fit token budget]"
-```
-
-**Why This Matters:**
-
-- ⚠️ **Without budget management:** Context window overflow → silent truncation by API
-- ✅ **With budget management:** Controlled truncation with priority → predictable behavior
+| Category | Tokens | Priority |
+|----------|--------|----------|
+| System Prompt | 3,000 | CRITICAL |
+| Tool Definitions | 8,000 | CRITICAL |
+| Writing Characteristics | 2,000 | HIGH |
+| Current User Message | 500 | REQUIRED |
+| Response Buffer | 4,000 | CRITICAL |
+| **Available for Dynamic Content** | **182,500** | - |
 
 ---
 
 ### Intent Detection
 
 Intent detection uses a **hybrid approach** combining regex patterns (fast, high-confidence) with Claude Haiku (AI-powered, handles ambiguity).
-
-**Detection Flow:**
-
-```mermaid
-flowchart LR
-    A[User Message] --> B{Regex Match?}
-    B -->|Yes, Confidence ≥ 0.9| C[Execute Intent]
-    B -->|No Match| D[Claude Haiku Classification]
-    D --> E{Confidence Check}
-    E -->|≥ 0.7| C
-    E -->|< 0.7| F[Ask Clarification]
-    F --> G[User Clarifies]
-    G --> A
-```
-
-**Confidence Thresholds:**
-
-| Threshold | Confidence | Action |
-|-----------|------------|--------|
-| **HIGH** | ≥ 0.9 | Execute immediately (regex matches) |
-| **MEDIUM** | ≥ 0.7 | Proceed with caution (strong AI signal) |
-| **LOW** | ≥ 0.5 | Ask for clarification (weak signal) |
-| **UNCLEAR** | < 0.5 | Must clarify before proceeding |
 
 **Available Intents:**
 
@@ -337,71 +283,10 @@ enum UserIntent {
   HUMANIZE_CONTENT,     // "make it sound more human"
   CREATE_VISUALS,       // "generate images"
   FULL_PIPELINE,        // "create content" (end-to-end)
+  APPROVE_FOUNDATIONS,  // "approve the skeleton" [NEW]
   STATUS_CHECK,         // "what's the status?"
   UNCLEAR               // Conversational or ambiguous
 }
-```
-
-**Regex Patterns (High Confidence ≥ 0.9):**
-
-```typescript
-// Example: FULL_PIPELINE intent
-patterns: [
-  /\bcreate\s+content\b/i,
-  /\bgenerate\s+(everything|complete\s+content)\b/i,
-  /\brun\s+(the\s+)?(full\s+)?pipeline\b/i,
-  /\bstart\s+from\s+scratch\b/i
-]
-
-// Match: "Create content for my blog"
-// Confidence: 0.95 (regex match)
-```
-
-**Claude Haiku Classification (For Ambiguous Cases):**
-
-```typescript
-// Low temperature (0.1) for consistent classification
-const { text } = await generateText({
-  model: anthropic('claude-3-5-haiku-20241022'),
-  prompt: `Classify intent from message: "${message}"
-
-  Available intents: GENERATE_TOPICS | RESEARCH_TOPIC | ...
-
-  Respond ONLY with: INTENT|0.8`,
-  maxTokens: 50,
-  temperature: 0.1
-});
-
-// Example response: "WRITE_CONTENT|0.75"
-// Parsed → intent: WRITE_CONTENT, confidence: 0.75
-```
-
-**Screen Context Integration:**
-
-Intent detection uses screen context to improve accuracy:
-
-```typescript
-interface ScreenContext {
-  currentPage?: 'portfolio' | 'artifact' | 'dashboard';
-  artifactId?: string;
-  artifactType?: 'blog' | 'social_post' | 'showcase';
-  artifactStatus?: 'draft' | 'research' | 'skeleton' | 'ready';
-  artifactTitle?: string;
-}
-
-// Example: User says "write it"
-// Without context: UNCLEAR (confidence 0.3)
-// With context (artifactStatus: 'skeleton'): WRITE_CONTENT (confidence 0.9)
-```
-
-**Clarification Flow:**
-
-When confidence < 0.7, the agent generates a clarification question:
-
-```typescript
-// User: "make it better"
-// Intent: HUMANIZE_CONTENT (confidence 0.6)
-// Clarification: "Would you like me to humanize the content (remove AI patterns)?"
 ```
 
 ---
@@ -412,14 +297,16 @@ The Content Agent supports three workflow modes depending on user intent and con
 
 ### 1. Full Pipeline Mode
 
-Executes the complete 4-step content creation pipeline automatically.
+Executes the complete **6-step** content creation pipeline with approval gate.
 
 **Steps:**
 
 1. **Research** (draft → research) - Query 5+ sources via Tavily API
-2. **Skeleton** (research → skeleton) - Generate H1 title + H2 section headings
-3. **Writing** (skeleton → creating_visuals) - Write full content for all sections
-4. **Visuals** (creating_visuals → ready) - Generate images + apply humanization
+2. **Foundations** (research → foundations) - Analyze writing characteristics [NEW]
+3. **Skeleton** (foundations → skeleton) - Generate H1 title + H2 section headings
+4. **[APPROVAL GATE]** - Pipeline pauses, user reviews skeleton
+5. **Writing** (foundations_approval → writing) - Write full content using characteristics
+6. **Visuals** (writing → ready) - Generate images with DALL-E 3
 
 **Triggers:**
 
@@ -427,28 +314,7 @@ Executes the complete 4-step content creation pipeline automatically.
 - Intent detected: `UserIntent.FULL_PIPELINE`
 - Artifact status: `draft`
 
-**Duration:** ~3-5 minutes for blog post (~2000 words)
-
-**Example:**
-
-```typescript
-const response = await agent.processRequest(
-  "Create content for artifact abc-123",
-  { artifactId: 'abc-123', artifactStatus: 'draft' }
-);
-
-// Agent executes:
-// 1. conductDeepResearch({ artifactId: 'abc-123' })
-// 2. generateContentSkeleton({ artifactId: 'abc-123' })
-// 3. writeFullContent({ artifactId: 'abc-123' })
-// 4. generateContentVisuals({ artifactId: 'abc-123' })
-```
-
-**Checkpoint/Rollback:**
-
-- Checkpoint created before each tool execution
-- If any tool fails → rollback to previous checkpoint
-- Ensures atomicity: either complete pipeline succeeds or nothing changes
+**Duration:** ~3-5 minutes for blog post (~2000 words) + user approval time
 
 ---
 
@@ -459,38 +325,8 @@ Executes a single tool or subset of the pipeline based on current artifact statu
 **Use Cases:**
 
 - **Humanize Only:** "Make the content sound more human" → `applyHumanityCheck`
-- **Regenerate Skeleton:** "Create a new outline" (status: research) → `generateContentSkeleton`
-- **Add Visuals:** "Generate images" (status: creating_visuals) → `generateContentVisuals`
-
-**Status Constraint Validation:**
-
-The agent validates that the artifact is in the correct status before executing:
-
-```typescript
-// User: "Write the content"
-// Artifact status: draft (not skeleton)
-// Response: "I can help you write content. Do you have an outline ready?"
-
-// User: "Write the content"
-// Artifact status: skeleton
-// Response: "I'll write the content based on your skeleton."
-// Executes: writeFullContent()
-```
-
-**Example:**
-
-```typescript
-const response = await agent.processRequest(
-  "Humanize the content for artifact xyz-789",
-  {
-    artifactId: 'xyz-789',
-    artifactStatus: 'creating_visuals' // Valid status for humanization
-  }
-);
-
-// Agent executes ONLY applyHumanityCheck tool
-// Skips research, skeleton, writing steps
-```
+- **Regenerate Skeleton:** "Create a new outline" (status: foundations) → `generateContentSkeleton`
+- **Resume from Approval:** User clicks "Foundations Approved" → `writeFullContent`
 
 ---
 
@@ -498,51 +334,120 @@ const response = await agent.processRequest(
 
 User provides guidance at each step with conversational feedback.
 
-**Current Status:** Phase 1 MVP (basic conversational responses)
+**Current Status:** Phase 4 (approval gate implemented)
 
-**Future Enhancement:** Manual approval gates between steps
+---
 
-**Flow:**
+## Phase 4: Foundations Approval Workflow
 
+Phase 4 introduces a **user approval gate** between skeleton generation and content writing.
+
+### Why Approval Gate?
+
+- **Writing Quality**: User reviews AI-analyzed writing characteristics before content generation
+- **Skeleton Review**: User can edit the content structure before full writing begins
+- **Transparency**: User understands how their content will be written
+
+### Flow Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FE as Frontend
+    participant BE as Backend
+    participant PE as PipelineExecutor
+    participant DB as Database
+
+    Note over User,DB: User clicks "Create Content"
+    FE->>BE: POST /api/content-agent/chat
+    BE->>PE: execute(artifactId)
+
+    Note over PE,DB: Step 1: Research
+    PE->>DB: status = 'research'
+    PE->>PE: conductDeepResearch
+
+    Note over PE,DB: Step 2: Foundations (NEW)
+    PE->>DB: status = 'foundations'
+    PE->>PE: analyzeWritingCharacteristics
+    PE->>DB: INSERT artifact_writing_characteristics
+
+    Note over PE,DB: Step 3: Skeleton
+    PE->>DB: status = 'skeleton'
+    PE->>PE: generateContentSkeleton
+    PE->>DB: content = skeleton_markdown
+
+    Note over PE,FE: PIPELINE PAUSES
+    PE-->>BE: Pipeline paused for approval
+    BE-->>FE: Stream: "Foundations complete!"
+    FE->>FE: Show FoundationsSection (expanded)
+    FE->>FE: Show WritingCharacteristicsDisplay
+    FE->>FE: Show editable skeleton
+    FE->>FE: Show "Foundations Approved" button
+
+    Note over User,FE: User reviews and optionally edits
+    User->>FE: Edit skeleton (optional)
+    User->>FE: Click "Foundations Approved"
+
+    Note over FE,DB: Pipeline Resumes
+    FE->>BE: POST /api/artifact/:id/approve-foundations
+    BE->>PE: executeSingleTool('writeFullContent')
+
+    Note over PE,DB: Step 4: Writing
+    PE->>DB: status = 'writing'
+    PE->>PE: writeFullContent (uses characteristics)
+
+    Note over PE,DB: Step 5: Visuals
+    PE->>DB: status = 'creating_visuals'
+    PE->>PE: identifyImageNeeds
+    PE->>DB: status = 'ready'
+
+    PE-->>BE: Pipeline complete
+    BE-->>FE: Content ready!
 ```
-User: "Help me create a blog post about AI in product management"
-Agent: "I'll help you create content. Let's start with research. What specific aspects would you like to focus on?"
 
-User: "Focus on AI-driven roadmapping and feature prioritization"
-Agent: "Great! I'll research those topics. Should I also include AI for user feedback analysis?"
+### Writing References System
 
-User: "Yes, that too"
-Agent: "Perfect. I'll research all three areas and create an outline."
-```
+The `analyzeWritingCharacteristics` tool pulls from multiple data sources:
 
-**Implementation (MVP):**
+**Reference Sources:**
+
+| Source | Table | Data |
+|--------|-------|------|
+| Writing Examples | `user_writing_examples` | 500+ word samples from user |
+| User Context | `user_context` | Profession, goals, target audience |
+| Artifact Research | `artifact_research` | Topic-specific research context |
+
+**Characteristics Output:**
 
 ```typescript
-// Phase 1: Basic intent handling with text responses
-private async handleIntent(intent: UserIntent, message: string, context: ScreenContext) {
-  switch (intent) {
-    case UserIntent.RESEARCH_TOPIC:
-      return {
-        text: context.artifactTitle
-          ? `I'll research "${context.artifactTitle}" for you.`
-          : "What topic would you like me to research?"
-      };
-    // ... other intents
-  }
+interface WritingCharacteristics {
+  tone: { value: 'professional', confidence: 0.85, source: 'examples' };
+  voice: { value: 'first-person', confidence: 0.7, source: 'mix' };
+  sentence_structure: { value: 'varied', confidence: 0.8, source: 'examples' };
+  vocabulary_complexity: { value: 'intermediate', confidence: 0.75, source: 'context' };
+  pacing: { value: 'measured', confidence: 0.6, source: 'default' };
+  use_of_evidence: { value: 'moderate', confidence: 0.7, source: 'examples' };
+  // ... additional characteristics
 }
 ```
 
-**Future (Phase 2+):**
+### UI Components
 
-- Step-by-step execution with user confirmation
-- Review and edit at each pipeline stage
-- Alternative content suggestions with A/B variants
+**FoundationsSection** - Contains:
+- WritingCharacteristicsDisplay (grouped by source)
+- **Editable** skeleton in TipTap editor
+- "Foundations Approved" button
+
+**Key Behaviors:**
+- Auto-expands when status reaches `skeleton`
+- Skeleton is editable (user can modify structure)
+- Main ArtifactEditor is **hidden** until writing completes
 
 ---
 
 ## Data Flow
 
-### Request Processing Flow
+### Request Processing Flow (Phase 4)
 
 ```mermaid
 sequenceDiagram
@@ -551,177 +456,111 @@ sequenceDiagram
     participant API
     participant Agent
     participant Intent
+    participant Pipeline
     participant Tools
     participant DB
 
-    User->>Frontend: Types message
+    User->>Frontend: Types "Create content"
     Frontend->>Frontend: Get screen context
-    Frontend->>API: POST /api/content-agent/execute
-    API->>API: Auth + Rate Limit + Ownership
+    Frontend->>API: POST /api/content-agent/chat
     API->>Agent: processRequest(message, context)
 
-    Agent->>Agent: Check session timeout
-    alt Session timed out
-        Agent->>Agent: Reset session
-    end
-
     Agent->>Intent: detectIntent(message, context)
-    Intent->>Intent: Try regex patterns
-    alt No high-confidence match
-        Intent->>Intent: Call Claude Haiku
-    end
-    Intent-->>Agent: IntentDetectionResult
+    Intent-->>Agent: FULL_PIPELINE (0.95)
 
-    alt Clarification needed
-        Agent-->>User: Ask clarification question
-    else Execute intent
-        Agent->>Tools: Execute appropriate tool(s)
-        Tools->>DB: Read/Write artifact data
-        DB-->>Tools: Results
-        Tools-->>Agent: ToolOutput
-        Agent->>Agent: Update conversation history
-        Agent-->>User: Success response
-    end
-```
+    Agent->>Pipeline: execute(artifactId)
 
-### Token Budget Allocation Flow
+    Pipeline->>Tools: conductDeepResearch
+    Tools->>DB: INSERT artifact_research
+    Tools-->>Pipeline: Success
 
-```mermaid
-flowchart TB
-    A[Request arrives] --> B[Calculate total context size]
-    B --> C{Within 200K limit?}
-    C -->|Yes| D[Proceed normally]
-    C -->|No| E[Apply truncation priority]
-    E --> F[Truncate research data first]
-    F --> G{Still over limit?}
-    G -->|Yes| H[Summarize conversation history]
-    H --> I{Still over limit?}
-    I -->|Yes| J[Truncate screen context]
-    J --> K[Generate response]
-    I -->|No| K
-    G -->|No| K
-    D --> K
+    Pipeline->>Tools: analyzeWritingCharacteristics
+    Tools->>DB: SELECT user_writing_examples
+    Tools->>DB: SELECT user_context
+    Tools->>DB: INSERT artifact_writing_characteristics
+    Tools-->>Pipeline: Success
+
+    Pipeline->>Tools: generateContentSkeleton
+    Tools->>DB: UPDATE content = skeleton
+    Tools-->>Pipeline: Success
+
+    Note over Pipeline: PAUSES FOR APPROVAL
+
+    Pipeline-->>Agent: Paused at skeleton
+    Agent-->>Frontend: "Foundations complete! Review skeleton..."
+
+    Note over User,Frontend: User reviews, edits, approves
+
+    User->>Frontend: Click "Foundations Approved"
+    Frontend->>API: POST /api/artifact/:id/approve-foundations
+    API->>Pipeline: executeSingleTool('writeFullContent')
+
+    Pipeline->>Tools: writeFullContent (with characteristics)
+    Tools->>DB: UPDATE content = full_content
+    Tools-->>Pipeline: Success
+
+    Pipeline->>Tools: identifyImageNeeds
+    Tools->>DB: Upload images
+    Tools->>DB: UPDATE status = 'ready'
+    Tools-->>Pipeline: Success
+
+    Pipeline-->>Agent: Complete
+    Agent-->>Frontend: "Content ready!"
 ```
 
 ---
 
 ## Usage Examples
 
-### Example 1: Full Pipeline Execution
+### Example 1: Full Pipeline with Approval Gate
 
 ```typescript
 import { createContentAgent } from '@/services/ai/ContentAgent';
 
 const agent = createContentAgent();
 
-// User creates a new artifact and requests content generation
+// Step 1: User requests content creation
 const response = await agent.processRequest(
-  "Create content for my blog post about prompt engineering best practices",
+  "Create content for my blog post about AI in product management",
   {
     currentPage: 'artifact',
     artifactId: 'blog-001',
     artifactType: 'blog',
-    artifactTitle: 'Prompt Engineering Best Practices for Product Teams',
     artifactStatus: 'draft'
   }
 );
 
-console.log(response);
-// {
-//   text: "I'll run the full content creation pipeline: research → skeleton → write → humanize → visuals. This may take a few minutes.",
-//   sessionState: { sessionId: 'session-1706284800000-a7b3c4d', ... },
-//   intentDetected: 'FULL_PIPELINE',
-//   clarificationNeeded: false
-// }
+// Pipeline executes: research → foundations → skeleton
+// Pipeline PAUSES at skeleton status
+// Response: "Foundations complete! Review the skeleton and click 'Foundations Approved'..."
+
+// Step 2: User reviews skeleton in FoundationsSection
+// User optionally edits the skeleton
+// User clicks "Foundations Approved" button
+
+// Step 3: Frontend calls approval endpoint
+await fetch('/api/artifact/blog-001/approve-foundations', { method: 'POST' });
+
+// Pipeline resumes: writing → creating_visuals → ready
+// Final content with images is generated
 ```
 
-### Example 2: Humanize Existing Content
+### Example 2: Resume from Approval
 
 ```typescript
-// User has content in creating_visuals status and wants humanization
-const response = await agent.processRequest(
-  "Make the content sound more natural and less AI-generated",
-  {
-    currentPage: 'artifact',
-    artifactId: 'blog-002',
-    artifactType: 'blog',
-    artifactStatus: 'creating_visuals'
-  }
-);
+// User has artifact in 'skeleton' status
+// FoundationsSection shows skeleton and approval button
 
-console.log(response);
-// {
-//   text: "I'll humanize your content to remove AI patterns and make it sound more natural.",
-//   intentDetected: 'HUMANIZE_CONTENT',
-//   clarificationNeeded: false
-// }
+// Frontend detects status and shows approval UI
+if (artifact.status === 'skeleton' || artifact.status === 'foundations_approval') {
+  // Show FoundationsSection with approval button
+}
 
-// Agent executes ONLY applyHumanityCheck tool
-// Status transition: creating_visuals → ready
-```
-
-### Example 3: Clarification Flow
-
-```typescript
-// Ambiguous user message
-const response = await agent.processRequest(
-  "fix it",
-  {
-    currentPage: 'artifact',
-    artifactId: 'blog-003',
-    artifactStatus: 'ready'
-  }
-);
-
-console.log(response);
-// {
-//   text: "I'm not sure what you'd like me to fix. Could you clarify your request?",
-//   intentDetected: 'UNCLEAR',
-//   clarificationNeeded: true,
-//   suggestedClarification: "I'm not sure what you'd like me to fix. Could you clarify your request?"
-// }
-```
-
-### Example 4: Status Check
-
-```typescript
-const response = await agent.processRequest(
-  "What's the status of my content?",
-  {
-    currentPage: 'artifact',
-    artifactId: 'blog-004',
-    artifactTitle: 'My Blog Post',
-    artifactStatus: 'skeleton'
-  }
-);
-
-console.log(response);
-// {
-//   text: "Your content \"My Blog Post\" is currently in status: skeleton",
-//   intentDetected: 'STATUS_CHECK',
-//   clarificationNeeded: false
-// }
-```
-
-### Example 5: Session Management
-
-```typescript
-const agent = createContentAgent();
-
-// First request
-await agent.processRequest("Create content", { artifactId: 'abc' });
-
-// ... 31 minutes later ...
-
-// Next request triggers automatic session reset
-await agent.processRequest("What's the status?", { artifactId: 'abc' });
-
-// Check conversation history (will be empty after reset)
-const history = agent.getConversationHistory();
-console.log(history.length); // 1 (only latest message)
-
-// Manual session clear
-agent.clearSession();
+// User clicks approval
+const approveFoundations = async () => {
+  await api.post(`/api/artifact/${artifactId}/approve-foundations`);
+  // Pipeline continues automatically
+};
 ```
 
 ---
@@ -730,11 +569,10 @@ agent.clearSession();
 
 ### Environment Variables
 
-No environment variables specific to ContentAgent. Configuration is hardcoded for MVP.
-
-**Dependencies:**
-
-- `ANTHROPIC_API_KEY` - For Claude Haiku intent classification (inherited from AI SDK)
+**Required:**
+- `ANTHROPIC_API_KEY` - For Claude API (characteristics analysis, skeleton, writing)
+- `OPENAI_API_KEY` - For DALL-E 3 image generation
+- `TAVILY_API_KEY` - For deep research
 
 ### Constants
 
@@ -745,39 +583,12 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 // Max conversation turns to keep in history
 const MAX_CONVERSATION_TURNS = 10;
 
-// Token budget allocation (see Token Budget Management section)
-const TOKEN_BUDGET = {
-  max: 200000,
-  reserved: { systemPrompt: 3000, toolDefinitions: 8000, ... }
-};
+// Processing states (for polling)
+const PROCESSING_STATES = ['research', 'foundations', 'writing', 'creating_visuals'];
 
-// Confidence thresholds for intent detection
-const CONFIDENCE_THRESHOLD = {
-  HIGH: 0.9,    // Execute immediately
-  MEDIUM: 0.7,  // Proceed with caution
-  LOW: 0.5,     // Ask for clarification
-  UNCLEAR: 0.0  // Must clarify
-};
+// NON-processing states (no polling)
+const NON_PROCESSING_STATES = ['draft', 'skeleton', 'foundations_approval', 'ready', 'published'];
 ```
-
-### Logging
-
-All operations logged via centralized logger:
-
-```typescript
-import { logger } from '@/lib/logger';
-
-logger.info('ContentAgent', 'Initialized', { sessionId });
-logger.debug('ContentAgent', 'Intent detected', { intent, confidence });
-logger.error('ContentAgent', error, { message });
-```
-
-**Log Levels:**
-
-- **INFO:** Session lifecycle, intent detection results
-- **DEBUG:** Regex matches, token budget calculations
-- **WARN:** Token budget overages, session timeouts
-- **ERROR:** Tool execution failures, API errors
 
 ---
 
@@ -785,40 +596,41 @@ logger.error('ContentAgent', error, { message });
 
 ### Core Documentation
 
-- **[System Prompt Specification](./system-prompt-specification.md)** - Complete system prompt and behavior rules
-- **[Core Tools Reference](./core-tools-reference.md)** - All 6 core tools with schemas and examples
-- **[Context Tools Reference](./context-tools-reference.md)** - Ad-hoc context fetchers
-- **[Intent Detection Guide](./intent-detection-guide.md)** - Deep dive into hybrid intent detection
-- **[Pipeline Execution Flow](./pipeline-execution-flow.md)** - Complete 4-step pipeline with checkpoints
+- **[Pipeline Execution Flow](./pipeline-execution-flow.md)** - Complete 6-step pipeline with approval gate
+- **[Core Tools Reference](./core-tools-reference.md)** - All 7 core tools with schemas
+- **[Intent Detection Guide](./intent-detection-guide.md)** - Hybrid intent detection
+- **[System Prompt Specification](./system-prompt-specification.md)** - System prompt and behavior
+
+### Status Reference
+
+- **[STATUS_VALUES_REFERENCE.md](../artifact-statuses/STATUS_VALUES_REFERENCE.md)** - Complete 9-status definitions
+- **[Status Flow Reference](../artifact-statuses/status-flow-reference.md)** - Status transitions and UI
 
 ### API Documentation
 
-- **[Content Agent Endpoints](../api/content-agent-endpoints.md)** - REST API reference
-- **[Authentication & Security](../api/authentication-and-security.md)** - Security layers and validation
-- **[Error Handling Reference](../api/error-handling-reference.md)** - All 13 error categories
+- **[Content Agent Endpoints](../api/content-agent-endpoints.md)** - REST API including approval endpoint
 - **[Screen Context Specification](../api/screen-context-specification.md)** - Frontend context integration
 
 ### Architecture Documentation
 
-- **[Backend Architecture](../Architecture/backend/content-agent-architecture.md)** - Complete backend system design
-- **[Security Architecture](../Architecture/backend/security-architecture.md)** - Multi-layered security approach
-- **[Observability Architecture](../Architecture/backend/observability-architecture.md)** - Tracing, metrics, circuit breaker
-- **[Frontend Integration](../Architecture/frontend/screen-context-integration.md)** - useScreenContext hook
+- **[UNIFIED_CONTENT_AGENT_ARCHITECTURE.md](./UNIFIED_CONTENT_AGENT_ARCHITECTURE.md)** - Full system architecture
 
 ### Implementation Files
 
-- **Source Code:** `/backend/src/services/ai/ContentAgent.ts`
-- **Intent Detection:** `/backend/src/services/ai/utils/intentDetection.ts`
-- **Token Budget:** `/backend/src/services/ai/utils/tokenBudget.ts`
+- **ContentAgent:** `/backend/src/services/ai/ContentAgent.ts`
+- **PipelineExecutor:** `/backend/src/services/ai/PipelineExecutor.ts`
+- **Writing Characteristics Tool:** `/backend/src/services/ai/tools/writingCharacteristicsTools.ts`
+- **FoundationsSection:** `/frontend/src/features/portfolio/components/artifact/FoundationsSection.tsx`
 - **Types:** `/backend/src/services/ai/types/contentAgent.ts`
 
 ---
 
 **Version History:**
 
+- **v2.0.0** (2026-01-29) - Phase 4: Foundations approval workflow
+  - Added `analyzeWritingCharacteristics` tool
+  - Added 6-step pipeline with approval gate
+  - Added writing references system
+  - Updated architecture diagram
+  - Added FoundationsSection documentation
 - **v1.0.0** (2026-01-26) - Initial release with Phase 1 MVP
-  - Intent detection (hybrid regex + Haiku)
-  - Session management with 30-minute timeout
-  - Token budget management for 200K context
-  - Basic conversational interface
-  - Placeholder pipeline execution (full implementation in Phase 2)

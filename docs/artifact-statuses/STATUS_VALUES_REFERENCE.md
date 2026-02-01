@@ -1,7 +1,7 @@
 # Artifact Status Values Reference
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-27
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
 **Purpose:** Quick reference for internal values, database values, and user-facing labels
 
 ---
@@ -11,10 +11,12 @@
 | Internal Value (TypeScript) | Database Value | User-Facing Label | Color | Icon | Editor State | Progress |
 |------------------------------|----------------|-------------------|-------|------|--------------|----------|
 | `draft` | `draft` | **Draft** | Gray | FileEdit | Unlocked | 0% |
-| `research` | `research` | **Creating Content** | Blue | Search | Locked | 25% |
-| `skeleton` | `skeleton` | **Creating Content** | Blue | Layout | Locked | 50% |
-| `writing` | `writing` | **Creating Content** | Blue | PenLine | Locked | 75% |
-| `creating_visuals` | `creating_visuals` | **Creating Content** | Purple | Image | Locked | 90% |
+| `research` | `research` | **Creating the Foundations** | Blue | Search | Locked | 15% |
+| `foundations` | `foundations` | **Creating the Foundations** | Blue | FileText | Locked | 30% |
+| `skeleton` | `skeleton` | **Creating the Foundations** | Blue | Layout | Locked | 45% |
+| `foundations_approval` | `foundations_approval` | **Foundations Approval** | Amber | CheckCircle | Skeleton Editable | 50% |
+| `writing` | `writing` | **Writing Content** | Blue | PenLine | Locked | 70% |
+| `creating_visuals` | `creating_visuals` | **Creating Visuals** | Purple | Image | Locked | 90% |
 | `ready` | `ready` | **Content Ready** | Green | CheckCircle | Unlocked | 100% |
 | `published` | `published` | **Published** | Emerald | Send | Unlocked | 100% |
 
@@ -23,21 +25,32 @@
 ## Key Principles
 
 ### 1. Internal = Database
-All 7 status values are **identical** in:
+All 9 status values are **identical** in:
 - TypeScript types (`backend/src/types/portfolio.ts`)
 - Database constraint (`artifacts_status_check`)
 - No mapping or transformation needed
 
 ### 2. User-Facing Consolidation
 Multiple internal statuses display as the same label to simplify UX:
-- `research`, `skeleton`, `writing`, `creating_visuals` → **"Creating Content"**
-- This creates a simple 3-label system for users: Draft → Creating Content → Content Ready → Published
+- `research`, `foundations`, `skeleton` → **"Creating the Foundations"**
+- `foundations_approval` → **"Foundations Approval"** (user approval gate)
+- `writing` → **"Writing Content"**
+- `creating_visuals` → **"Creating Visuals"**
 
-### 3. Processing States
-These 4 statuses lock the editor while AI is working:
+### 3. Processing States (4 states)
+These statuses lock the main editor while AI is working (polling enabled):
 ```typescript
-const PROCESSING_STATES = ['research', 'skeleton', 'writing', 'creating_visuals']
+const PROCESSING_STATES = ['research', 'foundations', 'writing', 'creating_visuals']
 ```
+
+**Note:** `skeleton` is NOT a processing state - it transitions quickly to `foundations_approval`.
+
+### 4. Phase 4: Foundations Approval Workflow
+The `foundations_approval` status is special:
+- Main editor is locked
+- Skeleton is EDITABLE in FoundationsSection
+- User reviews writing characteristics and skeleton
+- User clicks "Foundations Approved" button to continue pipeline
 
 ---
 
@@ -50,35 +63,46 @@ User can edit content:
 - `published` - Published content (editing → ready)
 
 ### Processing States (4)
-Editor locked, AI actively working:
-- `research` - AI researching from multiple sources
-- `skeleton` - AI generating structure (H1 + H2 headings)
-- `writing` - AI writing full content
-- `creating_visuals` - AI generating cover image
+Editor locked, AI actively working, polling enabled:
+- `research` - AI researching from multiple sources (15%)
+- `foundations` - AI analyzing writing characteristics (30%)
+- `writing` - AI writing full content (70%)
+- `creating_visuals` - AI generating cover image (90%)
+
+### Approval States (1) - Phase 4
+Pipeline paused, waiting for user action:
+- `foundations_approval` - User reviews and approves skeleton + characteristics (50%)
+
+### Transition States (1)
+Brief processing, not polling:
+- `skeleton` - AI generating structure (45%), transitions quickly to `foundations_approval`
 
 ---
 
-## Database Constraint
+## Database Constraint (Phase 4 - 9 statuses)
 
 ```sql
+ALTER TABLE artifacts DROP CONSTRAINT IF EXISTS artifacts_status_check;
+
 ALTER TABLE artifacts ADD CONSTRAINT artifacts_status_check
   CHECK (status IN (
-    'draft',              -- Initial state, editable
-    'research',           -- AI researching (user-facing: Creating Content)
-    'skeleton',           -- AI creating structure (user-facing: Creating Content)
-    'writing',            -- AI writing content (user-facing: Creating Content)
-    'creating_visuals',   -- AI generating images (user-facing: Creating Content)
-    'ready',              -- Content ready (user-facing: Content Ready)
-    'published',          -- Published, editable
-    'archived'            -- Archived (kept for backward compatibility)
+    'draft',                -- Initial state, editable
+    'research',             -- AI researching (user-facing: Creating the Foundations)
+    'foundations',          -- AI analyzing characteristics (user-facing: Creating the Foundations) - Phase 4
+    'skeleton',             -- AI creating structure (user-facing: Creating the Foundations)
+    'foundations_approval', -- User approval gate (user-facing: Foundations Approval) - Phase 4
+    'writing',              -- AI writing content (user-facing: Writing Content)
+    'creating_visuals',     -- AI generating images (user-facing: Creating Visuals)
+    'ready',                -- Content ready (user-facing: Content Ready)
+    'published'             -- Published, editable
   ));
 ```
 
-**Note:** `archived` is kept for backward compatibility but not actively used in the 7-status workflow.
+**Note:** `archived` was removed in Phase 4. The workflow now has 9 active statuses.
 
 ---
 
-## Frontend Implementation
+## Frontend Implementation (Phase 4 - 9 statuses)
 
 ### Status Labels
 Located in: `frontend/src/features/portfolio/validators/stateMachine.ts`
@@ -86,10 +110,12 @@ Located in: `frontend/src/features/portfolio/validators/stateMachine.ts`
 ```typescript
 export const STATUS_LABELS: Record<ArtifactStatus, string> = {
   draft: 'Draft',
-  research: 'Creating Content',
-  skeleton: 'Creating Content',
-  writing: 'Creating Content',
-  creating_visuals: 'Creating Content',
+  research: 'Creating the Foundations',
+  foundations: 'Creating the Foundations',
+  skeleton: 'Creating the Foundations',
+  foundations_approval: 'Foundations Approval',
+  writing: 'Writing Content',
+  creating_visuals: 'Creating Visuals',
   ready: 'Content Ready',
   published: 'Published',
 }
@@ -100,7 +126,9 @@ export const STATUS_LABELS: Record<ArtifactStatus, string> = {
 export const STATUS_COLORS: Record<ArtifactStatus, string> = {
   draft: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
   research: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  foundations: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   skeleton: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  foundations_approval: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   writing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   creating_visuals: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
   ready: 'bg-green-500/10 text-green-400 border-green-500/20',
@@ -110,17 +138,19 @@ export const STATUS_COLORS: Record<ArtifactStatus, string> = {
 
 ---
 
-## Backend Implementation
+## Backend Implementation (Phase 4 - 9 statuses)
 
 ### TypeScript Types
 Located in: `backend/src/types/portfolio.ts`
 
 ```typescript
-// Unified Content Agent Architecture: 7-status linear workflow (no approval gates)
+// Phase 4: 9-status linear workflow with approval gate
 export type ArtifactStatus =
   | 'draft'                 // Initial state, editable
   | 'research'              // AI researching, editor locked
+  | 'foundations'           // AI analyzing characteristics, editor locked (Phase 4)
   | 'skeleton'              // AI creating structure, editor locked
+  | 'foundations_approval'  // User approval gate, skeleton editable (Phase 4)
   | 'writing'               // AI writing content, editor locked
   | 'creating_visuals'      // AI generating images, editor locked
   | 'ready'                 // Content ready, editable, can publish
@@ -138,20 +168,28 @@ const PIPELINE_STEPS: PipelineStep[] = [
     expectedStatusAfter: 'research',
   },
   {
-    toolName: 'generateContentSkeleton',
+    toolName: 'analyzeWritingCharacteristics', // Phase 4 NEW
     expectedStatusBefore: 'research',
-    expectedStatusAfter: 'skeleton',
+    expectedStatusAfter: 'foundations',
   },
   {
+    toolName: 'generateContentSkeleton',
+    expectedStatusBefore: 'foundations',
+    expectedStatusAfter: 'skeleton',
+    pauseForApproval: true,  // Phase 4: Pipeline pauses here
+  },
+  // PIPELINE PAUSES at 'foundations_approval' - User must click "Foundations Approved"
+  {
     toolName: 'writeFullContent',
-    expectedStatusBefore: 'skeleton',
+    expectedStatusBefore: 'foundations_approval',  // Phase 4: Resumes from approval
     expectedStatusAfter: 'writing',
   },
   {
-    toolName: 'generateContentVisuals',
-    expectedStatusBefore: 'creating_visuals',
-    expectedStatusAfter: 'ready',
+    toolName: 'identifyImageNeeds',
+    expectedStatusBefore: 'writing',
+    expectedStatusAfter: 'creating_visuals',
   },
+  // Pipeline completes at 'ready'
 ]
 ```
 
@@ -159,11 +197,11 @@ const PIPELINE_STEPS: PipelineStep[] = [
 
 ## Status Transition Flow
 
-### Linear Workflow
+### Phase 4 Workflow (with Foundations Approval)
 ```
-draft → research → skeleton → writing → creating_visuals → ready → published
-                                                                      ↓
-                                                                   ready (on edit)
+draft → research → foundations → skeleton → foundations_approval → [UI BUTTON] → writing → creating_visuals → ready → published
+                                                                                                                      ↓
+                                                                                                                   ready (on edit)
 ```
 
 ### Valid Transitions
@@ -171,12 +209,20 @@ draft → research → skeleton → writing → creating_visuals → ready → p
 | From | To | Trigger | Auto/Manual |
 |------|----|---------| ------------|
 | `draft` | `research` | User clicks "Create Content" | Manual |
-| `research` | `skeleton` | Research completes | Auto |
-| `skeleton` | `writing` | Skeleton completes | Auto |
+| `research` | `foundations` | Research completes, characteristics analysis starts | Auto |
+| `foundations` | `skeleton` | Characteristics analysis completes | Auto |
+| `skeleton` | `foundations_approval` | Skeleton generated, pipeline pauses | Auto |
+| `foundations_approval` | `writing` | User clicks "Foundations Approved" button | **Manual (UI)** |
 | `writing` | `creating_visuals` | Writing completes | Auto |
 | `creating_visuals` | `ready` | Visuals complete | Auto |
 | `ready` | `published` | User clicks "Mark as Published" | Manual |
 | `published` | `ready` | User edits content | Auto |
+
+### Key Phase 4 Changes
+1. **New `foundations` status**: AI analyzes writing characteristics after research
+2. **New `foundations_approval` status**: Pipeline PAUSES for user review
+3. **Editable skeleton**: User can edit skeleton in FoundationsSection during `foundations_approval`
+4. **UI button approval**: User clicks "Foundations Approved" button (not chat-based)
 
 ---
 
@@ -203,14 +249,16 @@ import { STATUS_COLORS } from '@/features/portfolio/validators'
 const colorClasses = STATUS_COLORS[artifact.status]
 ```
 
-### Determine Progress Percentage
+### Determine Progress Percentage (Phase 4 - 9 statuses)
 ```typescript
 function getProgressPercentage(status: ArtifactStatus): number {
   const percentages = {
     draft: 0,
-    research: 25,
-    skeleton: 50,
-    writing: 75,
+    research: 15,
+    foundations: 30,
+    skeleton: 45,
+    foundations_approval: 50,
+    writing: 70,
     creating_visuals: 90,
     ready: 100,
     published: 100
@@ -218,6 +266,36 @@ function getProgressPercentage(status: ArtifactStatus): number {
   return percentages[status] ?? 0
 }
 ```
+
+---
+
+## Quick Lookup (Phase 4 - 9 statuses)
+
+### "What status should I use when...?"
+
+| Scenario | Status | Label | Progress |
+|----------|--------|-------|----------|
+| User creates new artifact | `draft` | Draft | 0% |
+| AI starts researching | `research` | Creating the Foundations | 15% |
+| AI analyzes writing style | `foundations` | Creating the Foundations | 30% |
+| AI generates outline | `skeleton` | Creating the Foundations | 45% |
+| User reviews and approves | `foundations_approval` | Foundations Approval | 50% |
+| AI writes full content | `writing` | Writing Content | 70% |
+| AI generates images | `creating_visuals` | Creating Visuals | 90% |
+| Content ready for review | `ready` | Content Ready | 100% |
+| User publishes content | `published` | Published | 100% |
+
+### "What label displays for...?"
+
+| Status(es) | User-Facing Label |
+|-----------|-------------------|
+| `draft` | Draft |
+| `research`, `foundations`, `skeleton` | Creating the Foundations |
+| `foundations_approval` | Foundations Approval |
+| `writing` | Writing Content |
+| `creating_visuals` | Creating Visuals |
+| `ready` | Content Ready |
+| `published` | Published |
 
 ---
 
@@ -231,41 +309,35 @@ function getProgressPercentage(status: ArtifactStatus): number {
   - `generateContentSkeleton` - Now uses `skeleton` (was `skeleton_ready`)
   - `writeFullContent` - Now uses `writing` (unchanged)
 
+### 2026-01-29: Phase 4 Status Update
+- **Migration:** `007_phase4_new_statuses.sql`
+- **Change:** Updated database CHECK constraint from 7 to 9 statuses
+- **New Statuses:**
+  - `foundations` - AI analyzing writing characteristics
+  - `foundations_approval` - User approval gate
+- **New Tool:**
+  - `analyzeWritingCharacteristics` - Analyzes user's writing style
+- **Pipeline Change:**
+  - Pipeline now pauses at `foundations_approval`
+  - User must click "Foundations Approved" button to continue
+
 ---
 
 ## Related Documentation
 
-- **[7-status-workflow-specification.md](./7-status-workflow-specification.md)** - Complete workflow specification
-- **[status-flow-reference.md](./status-flow-reference.md)** - Detailed status reference
-- **[pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md)** - Pipeline execution details
-- **[artifact-schema-and-workflow.md](../Architecture/database/artifact-schema-and-workflow.md)** - Database schema
-
----
-
-## Quick Lookup
-
-### "What status should I use when...?"
-
-| Scenario | Status | Label |
-|----------|--------|-------|
-| User creates new artifact | `draft` | Draft |
-| AI starts researching | `research` | Creating Content |
-| AI generates outline | `skeleton` | Creating Content |
-| AI writes full content | `writing` | Creating Content |
-| AI generates images | `creating_visuals` | Creating Content |
-| Content ready for review | `ready` | Content Ready |
-| User publishes content | `published` | Published |
-
-### "What label displays for...?"
-
-| Status(es) | User-Facing Label |
-|-----------|-------------------|
-| `draft` | Draft |
-| `research`, `skeleton`, `writing`, `creating_visuals` | Creating Content |
-| `ready` | Content Ready |
-| `published` | Published |
+- **[7-status-workflow-specification.md](./7-status-workflow-specification.md)** - Complete 9-status workflow specification (v3.0.0)
+- **[status-flow-reference.md](./status-flow-reference.md)** - Detailed 9-status reference (v3.0.0)
+- **[pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md)** - Pipeline execution details (v2.0.0)
+- **[artifact-schema-and-workflow.md](../Architecture/database/artifact-schema-and-workflow.md)** - Database schema (v2.0.0)
+- **[core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md)** - Tool documentation (v2.0.0)
 
 ---
 
 **Version History:**
+- **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
+  - Updated from 7-status to 9-status workflow
+  - Added `foundations` and `foundations_approval` statuses
+  - Fixed inconsistencies in processing states, database constraint, frontend/backend implementations
+  - Updated progress percentages for new statuses
+  - Updated quick lookup tables
 - **1.0.0** (2026-01-27) - Initial consolidated status reference

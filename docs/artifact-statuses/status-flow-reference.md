@@ -1,14 +1,14 @@
 # Artifact Status Flow Reference
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-25
-**Status:** Active
+**Version:** 3.0.0
+**Last Updated:** 2026-01-29
+**Status:** Active (Phase 4 Foundations Approval)
 
 ---
 
 ## Overview
 
-The artifact status system implements a simplified **7-status linear workflow** from creation to publication. The flow is designed to be automatic during AI processing phases with minimal user intervention.
+The artifact status system implements a **9-status workflow** with a **user approval gate** between skeleton generation and content writing. This allows users to review the content structure and writing characteristics before full content generation begins.
 
 ### Status Flow Diagram
 
@@ -23,9 +23,25 @@ The artifact status system implements a simplified **7-status linear workflow** 
 └────┬─────┘
      │ Auto-transition
      ▼
+┌─────────────┐
+│ foundations │ ← AI: analyzeWritingCharacteristics (automatic)
+└────┬────────┘
+     │ Auto-transition
+     ▼
 ┌──────────┐
-│ skeleton │ ← AI: generateContentSkeleton (automatic)
+│ skeleton │ ← AI: generateContentSkeleton
 └────┬─────┘
+     │                    ╔══════════════════════════════╗
+     │                    ║  APPROVAL GATE               ║
+     │                    ║  Pipeline PAUSES here        ║
+     │                    ║  User reviews skeleton       ║
+     │                    ║  User edits if needed        ║
+     │                    ╚══════════════════════════════╝
+     │ User clicks "Foundations Approved"
+     ▼
+┌───────────────────────┐
+│ foundations_approval  │ ← Brief transition state
+└────┬──────────────────┘
      │ Auto-transition
      ▼
 ┌─────────┐
@@ -34,7 +50,7 @@ The artifact status system implements a simplified **7-status linear workflow** 
      │ Auto-transition
      ▼
 ┌──────────────────┐
-│ creating_visuals │ ← AI: generateContentImages (automatic)
+│ creating_visuals │ ← AI: identifyImageNeeds (automatic)
 └────┬─────────────┘
      │ Auto-transition
      ▼
@@ -66,16 +82,7 @@ The artifact status system implements a simplified **7-status linear workflow** 
 **Processing:** No
 
 **Available CTAs:**
-- ✅ "Create Content" - Triggers AI workflow
-
-**Backend Actions:**
-- Create artifact with `status = 'draft'`
-- Store user-provided title and type
-
-**Frontend Actions:**
-- Render editable editor
-- Show "Create Content" button
-- No polling active
+- "Create Content" - Triggers AI workflow
 
 **Triggers:**
 - **Entry:** User clicks "Save as Draft" in create modal
@@ -85,25 +92,26 @@ The artifact status system implements a simplified **7-status linear workflow** 
 - Status Badge: "Draft" (gray)
 - Editor: Unlocked
 - WritingProgress: Hidden
+- FoundationsSection: Hidden
 - CTAs: "Create Content" button visible
 
 ---
 
 ### 2. research
 
-**User-Facing Label:** "Creating Content"
+**User-Facing Label:** "Creating the Foundations"
 **Description:** AI conducting deep research on the artifact topic
 **Editor State:** Locked
-**Processing:** Yes (25% progress)
+**Processing:** Yes (20% progress)
 
 **Available CTAs:**
-- ❌ No action buttons during processing
+- No action buttons during processing
 
 **Backend Actions:**
 - Update `status = 'research'`
 - AI calls `conductDeepResearch` tool
-- Store research results in `research_data` table
-- Auto-transition to `skeleton` when complete
+- Store research results in `artifact_research` table
+- Auto-transition to `foundations` when complete
 
 **Frontend Actions:**
 - Lock editor with overlay
@@ -113,14 +121,7 @@ The artifact status system implements a simplified **7-status linear workflow** 
 
 **Triggers:**
 - **Entry:** User clicks "Create Content" OR AI Assistant sends research message
-- **Exit:** `conductDeepResearch` completes → auto-transitions to `skeleton`
-
-**UI Components:**
-- Status Badge: "Creating Content" (blue)
-- Editor: Locked with overlay message "Content is being generated..."
-- WritingProgress: Visible, showing step 1/4 (Researching) with spinner
-- Progress Bar: 25%
-- CTAs: No buttons visible
+- **Exit:** `conductDeepResearch` completes → auto-transitions to `foundations`
 
 **Polling:**
 - Artifact query: Every 2 seconds
@@ -128,137 +129,204 @@ The artifact status system implements a simplified **7-status linear workflow** 
 
 ---
 
-### 3. skeleton
+### 3. foundations [NEW IN PHASE 4]
 
-**User-Facing Label:** "Creating Content"
-**Description:** AI generating content structure (headings, sections)
+**User-Facing Label:** "Creating the Foundations"
+**Description:** AI analyzing writing characteristics based on user's writing examples and context
 **Editor State:** Locked
-**Processing:** Yes (50% progress)
+**Processing:** Yes (40% progress)
 
 **Available CTAs:**
-- ❌ No action buttons during processing
+- No action buttons during processing
 
 **Backend Actions:**
-- Update `status = 'skeleton'`
-- AI calls `generateContentSkeleton` tool
-- Store skeleton structure in `content` field (markdown with H2 sections)
-- Auto-transition to `writing` when complete
+- Update `status = 'foundations'`
+- AI calls `analyzeWritingCharacteristics` tool
+- Fetch user writing examples from `user_writing_examples` table
+- Fetch user context from `user_context` table
+- Store characteristics in `artifact_writing_characteristics` table
+- Auto-transition to `skeleton` when complete
 
 **Frontend Actions:**
 - Keep editor locked
-- Update WritingProgress to step 2
+- Update WritingProgress to show "Analyzing Writing Style"
 - Continue polling (every 2 seconds)
-- Show "Creating Structure" step with spinner
 - Mark "Researching" as complete (checkmark)
 
 **Triggers:**
 - **Entry:** `conductDeepResearch` completes (automatic)
-- **Exit:** `generateContentSkeleton` completes → auto-transitions to `writing`
+- **Exit:** `analyzeWritingCharacteristics` completes → auto-transitions to `skeleton`
 
 **UI Components:**
-- Status Badge: "Creating Content" (blue)
+- Status Badge: "Creating the Foundations" (blue)
 - Editor: Locked
-- WritingProgress: Visible, showing step 2/4 (Creating Structure) with spinner
-- Progress Bar: 50%
-- Steps: Researching (✓), Creating Structure (⟳), Writing Content (○), Generating Images (○)
-- CTAs: No buttons visible
+- WritingProgress: Visible, showing "Analyzing Writing Style" with spinner
+- Progress Bar: 40%
+- FoundationsSection: May start appearing with loading state
 
-**Polling:**
-- Artifact query: Every 2 seconds
-- Research query: Stopped (data already loaded)
+**Data Written:**
+- `artifact_writing_characteristics.characteristics` (JSONB)
+- `artifact_writing_characteristics.summary` (TEXT)
+- `artifact_writing_characteristics.recommendations` (TEXT)
 
 ---
 
-### 4. writing
+### 4. skeleton
+
+**User-Facing Label:** "Creating the Foundations"
+**Description:** AI has generated content skeleton, **PIPELINE PAUSED for user approval**
+**Editor State:** Locked (main editor), **Unlocked in FoundationsSection**
+**Processing:** No (waiting for user)
+
+**Available CTAs:**
+- "Foundations Approved" - Resumes pipeline
+
+**Backend Actions:**
+- Update `status = 'skeleton'`
+- Skeleton stored in `artifact.content` field
+- **Pipeline PAUSES** - waiting for user approval
+
+**Frontend Actions:**
+- Keep main editor locked (but show hidden/collapsed)
+- **FoundationsSection auto-expands**
+- Display writing characteristics
+- Display **editable** skeleton in TipTap editor within FoundationsSection
+- Show "Foundations Approved" button
+- **STOP polling** (not a processing state)
+
+**Triggers:**
+- **Entry:** `generateContentSkeleton` completes (automatic)
+- **Exit:** User clicks "Foundations Approved" → transitions to `foundations_approval`
+
+**UI Components:**
+- Status Badge: "Foundations Approval" (amber)
+- Main Editor: Hidden/Collapsed (no content yet)
+- FoundationsSection: **Expanded**, showing:
+  - WritingCharacteristicsDisplay (grouped by source)
+  - **Editable** skeleton in TipTap editor
+  - "Foundations Approved" button (prominent, full-width)
+- "NEEDS APPROVAL" badge visible in collapsed state
+
+**CRITICAL:** This status does NOT trigger polling. The pipeline is paused waiting for user action.
+
+---
+
+### 5. foundations_approval [NEW IN PHASE 4]
+
+**User-Facing Label:** "Foundations Approval"
+**Description:** User has approved foundations, pipeline resuming
+**Editor State:** Locked
+**Processing:** Brief transition state
+
+**Available CTAs:**
+- No buttons (brief transition)
+
+**Backend Actions:**
+- User clicked "Foundations Approved"
+- API call: `POST /api/artifact/:id/approve-foundations`
+- Backend calls `pipelineExecutor.executeSingleTool('writeFullContent', artifactId)`
+- Auto-transition to `writing` almost immediately
+
+**Frontend Actions:**
+- Brief loading state
+- Transition to `writing` status quickly
+
+**Triggers:**
+- **Entry:** User clicks "Foundations Approved" button
+- **Exit:** `writeFullContent` starts → auto-transitions to `writing`
+
+**UI Components:**
+- Status Badge: "Starting Writing..." (blue)
+- Brief loading indicator
+
+**Note:** This is a very brief transition state. Users will see `writing` status within seconds.
+
+---
+
+### 6. writing
 
 **User-Facing Label:** "Creating Content"
 **Description:** AI writing full content for each section
 **Editor State:** Locked
-**Processing:** Yes (75% progress)
+**Processing:** Yes (60% progress)
 
 **Available CTAs:**
-- ❌ No action buttons during processing
+- No action buttons during processing
 
 **Backend Actions:**
 - Update `status = 'writing'`
 - AI calls `writeFullContent` tool
+- Uses writing characteristics for tone, voice, pacing
 - Writes content section by section
 - Updates `content` field with full HTML/markdown
 - Auto-transition to `creating_visuals` when complete
 
 **Frontend Actions:**
 - Keep editor locked
-- Update WritingProgress to step 3
+- Update WritingProgress to step 4
 - Continue polling (every 2 seconds)
 - Show "Writing Content" step with spinner
-- Display section details if skeleton has H2 sections
 - Mark previous steps as complete (checkmarks)
+- FoundationsSection collapses (user can still expand to review)
 
 **Triggers:**
-- **Entry:** `generateContentSkeleton` completes (automatic)
+- **Entry:** User approved foundations → `writeFullContent` starts
 - **Exit:** `writeFullContent` completes → auto-transitions to `creating_visuals`
 
 **UI Components:**
 - Status Badge: "Creating Content" (blue)
-- Editor: Locked
-- WritingProgress: Visible, showing step 3/4 (Writing Content) with spinner
-- Progress Bar: 75%
-- Steps: Researching (✓), Creating Structure (✓), Writing Content (⟳), Generating Images (○)
-- Section Details: If skeleton has sections, show list of H2 headings being written
-- CTAs: No buttons visible
+- Editor: Locked with overlay
+- WritingProgress: Visible, showing "Writing Content" with spinner
+- Progress Bar: 60%
+- FoundationsSection: Collapsed (can be expanded to review)
 
 **Polling:**
 - Artifact query: Every 2 seconds
 
-**Special Features:**
-- **Section Tracking:** If `content` has H2 sections, WritingProgress displays "Writing Sections" with list of section titles
-
 ---
 
-### 5. creating_visuals
+### 7. creating_visuals
 
 **User-Facing Label:** "Creating Content"
-**Description:** AI generating images for placeholders (MVP: stub, immediately completes)
+**Description:** AI generating images for placeholders using DALL-E 3 / Gemini Imagen 4
 **Editor State:** Locked
-**Processing:** Yes (100% progress)
+**Processing:** Yes (80% progress)
 
 **Available CTAs:**
-- ❌ No action buttons during processing
+- No action buttons during processing
 
 **Backend Actions:**
 - Update `status = 'creating_visuals'`
-- AI calls `generateContentImages` tool (MVP: stub that immediately completes)
+- AI calls `identifyImageNeeds` tool
+- Extracts `[IMAGE: description]` placeholders
+- Generates images using DALL-E 3 (primary) or Gemini Imagen 4 (fallback)
+- Uploads images to Supabase storage
+- Embeds images in content as markdown
 - Auto-transition to `ready` when complete
 
 **Frontend Actions:**
 - Keep editor locked
-- Update WritingProgress to step 4
+- Update WritingProgress to step 5
 - Continue polling (every 2 seconds)
 - Show "Generating Images" step with spinner
 - Mark all previous steps as complete
 
 **Triggers:**
 - **Entry:** `writeFullContent` completes (automatic)
-- **Exit:** `generateContentImages` completes → auto-transitions to `ready`
+- **Exit:** `identifyImageNeeds` completes → auto-transitions to `ready`
 
 **UI Components:**
 - Status Badge: "Creating Content" (purple)
 - Editor: Locked
-- WritingProgress: Visible, showing step 4/4 (Generating Images) with spinner
-- Progress Bar: 100%
-- Steps: Researching (✓), Creating Structure (✓), Writing Content (✓), Generating Images (⟳)
-- CTAs: No buttons visible
+- WritingProgress: Visible, showing "Generating Images" with spinner
+- Progress Bar: 80-100%
 
 **Polling:**
 - Artifact query: Every 2 seconds
 
-**MVP Note:**
-- Image generation is currently stubbed - it immediately transitions to `ready`
-- Future implementation will actually generate images for `![alt](placeholder)` tags
-
 ---
 
-### 6. ready
+### 8. ready
 
 **User-Facing Label:** "Content Ready"
 **Description:** AI content generation complete, ready for user review and publication
@@ -266,43 +334,39 @@ The artifact status system implements a simplified **7-status linear workflow** 
 **Processing:** No
 
 **Available CTAs:**
-- ✅ "Mark as Published" - Transitions to `published` status
+- "Mark as Published" - Transitions to `published` status
 
 **Backend Actions:**
 - Update `status = 'ready'`
-- Content populated with AI-generated text
+- Content populated with AI-generated text and images
 - No further automatic transitions
 
 **Frontend Actions:**
-- Unlock editor
+- Unlock main editor
+- **Show final content in ArtifactEditor**
 - Hide WritingProgress component
 - Stop polling
 - Show "Mark as Published" button
 - Allow user to edit content
+- FoundationsSection collapsed (but accessible for reference)
 
 **Triggers:**
-- **Entry:** `generateContentImages` completes (automatic) OR user edits `published` artifact
+- **Entry:** `identifyImageNeeds` completes (automatic) OR user edits `published` artifact
 - **Exit:** User clicks "Mark as Published" → transitions to `published`
 
 **UI Components:**
 - Status Badge: "Content Ready" (green)
-- Editor: Unlocked, user can edit
+- Editor: **Unlocked**, showing final generated content
 - WritingProgress: Hidden
+- FoundationsSection: Collapsed (can expand to review characteristics)
 - CTAs: "Mark as Published" button visible
 
 **Polling:**
 - All polling stopped
 
-**User Actions:**
-- User can edit content freely
-- User can click "Mark as Published" to publish
-
-**Special Behavior:**
-- If user edits a `published` artifact, status auto-transitions back to `ready`
-
 ---
 
-### 7. published
+### 9. published
 
 **User-Facing Label:** "Published"
 **Description:** Content marked as final and published
@@ -310,11 +374,11 @@ The artifact status system implements a simplified **7-status linear workflow** 
 **Processing:** No
 
 **Available CTAs:**
-- ❌ No action buttons (content is published)
+- No action buttons (content is published)
 
 **Backend Actions:**
 - Update `status = 'published'`
-- Track `published_at` timestamp (optional future enhancement)
+- Track `published_at` timestamp
 
 **Frontend Actions:**
 - Keep editor unlocked
@@ -333,69 +397,162 @@ The artifact status system implements a simplified **7-status linear workflow** 
 - WritingProgress: Hidden
 - CTAs: No buttons visible
 
-**Polling:**
-- No polling
-
 **Special Behavior:**
 - **Edit Detection:** When user modifies content, status automatically changes to `ready`
-- This allows republishing workflow without manual status management
 
 ---
 
 ## CTA Visibility Matrix
 
-| Status | Create Content | Mark as Published | Editor | Polling |
-|--------|---------------|-------------------|--------|---------|
-| draft | ✅ Visible | ❌ Hidden | Unlocked | No |
-| research | ❌ Hidden | ❌ Hidden | Locked | Yes (2s) |
-| skeleton | ❌ Hidden | ❌ Hidden | Locked | Yes (2s) |
-| writing | ❌ Hidden | ❌ Hidden | Locked | Yes (2s) |
-| creating_visuals | ❌ Hidden | ❌ Hidden | Locked | Yes (2s) |
-| ready | ❌ Hidden | ✅ Visible | Unlocked | No |
-| published | ❌ Hidden | ❌ Hidden | Unlocked | No |
+| Status | Create Content | Foundations Approved | Mark as Published | Editor | Polling |
+|--------|---------------|---------------------|-------------------|--------|---------|
+| draft | Visible | Hidden | Hidden | Unlocked | No |
+| research | Hidden | Hidden | Hidden | Locked | Yes (2s) |
+| foundations | Hidden | Hidden | Hidden | Locked | Yes (2s) |
+| skeleton | Hidden | **Visible** | Hidden | Locked* | **No** |
+| foundations_approval | Hidden | Hidden | Hidden | Locked | No |
+| writing | Hidden | Hidden | Hidden | Locked | Yes (2s) |
+| creating_visuals | Hidden | Hidden | Hidden | Locked | Yes (2s) |
+| ready | Hidden | Hidden | Visible | Unlocked | No |
+| published | Hidden | Hidden | Hidden | Unlocked | No |
+
+*Note: In `skeleton` status, main editor is locked but FoundationsSection has an **editable** TipTap editor for skeleton editing.
+
+---
+
+## Processing States vs Non-Processing States
+
+### Processing States (Polling Enabled)
+
+```typescript
+const processingStates = ['research', 'foundations', 'writing', 'creating_visuals'];
+```
+
+These states indicate AI is actively working. Frontend polls every 2 seconds.
+
+### Non-Processing States (No Polling)
+
+```typescript
+const nonProcessingStates = ['draft', 'skeleton', 'foundations_approval', 'ready', 'published'];
+```
+
+These states are:
+- `draft` - Waiting for user to start content creation
+- `skeleton` - **Waiting for user approval** (pipeline paused)
+- `foundations_approval` - Brief transition state
+- `ready` - Content complete, user reviewing
+- `published` - Final state
+
+**CRITICAL:** `skeleton` and `foundations_approval` are NOT processing states. The pipeline is paused waiting for user action.
+
+---
+
+## UI State by Status
+
+### FoundationsSection Visibility
+
+| Status | FoundationsSection | State |
+|--------|-------------------|-------|
+| draft | Hidden | - |
+| research | Hidden | - |
+| foundations | Visible (loading) | Characteristics loading |
+| skeleton | **Visible (expanded)** | Editable skeleton, approval button |
+| foundations_approval | Visible (collapsed) | Brief transition |
+| writing | Visible (collapsed) | Reference only |
+| creating_visuals | Visible (collapsed) | Reference only |
+| ready | Visible (collapsed) | Reference only |
+| published | Visible (collapsed) | Reference only |
+
+### ArtifactEditor Visibility
+
+| Status | ArtifactEditor | Content |
+|--------|----------------|---------|
+| draft | Visible | Empty or user input |
+| research | Locked overlay | "Content being generated..." |
+| foundations | **Hidden** | Skeleton not yet generated |
+| skeleton | **Hidden** | Skeleton in FoundationsSection |
+| foundations_approval | **Hidden** | Brief transition |
+| writing | Locked overlay | Writing in progress |
+| creating_visuals | Locked overlay | Images being generated |
+| ready | **Visible, Unlocked** | Final content with images |
+| published | **Visible, Unlocked** | Published content |
+
+---
+
+## State Machine Configuration
+
+### Allowed Transitions
+
+```typescript
+export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
+  draft: ['research'],
+  research: ['foundations'],
+  foundations: ['skeleton'],
+  skeleton: ['foundations_approval'],  // User approval required
+  foundations_approval: ['writing'],
+  writing: ['creating_visuals'],
+  creating_visuals: ['ready'],
+  ready: ['published'],
+  published: ['ready'],  // Edit triggers return to ready
+}
+```
+
+### Status Labels
+
+```typescript
+export const STATUS_LABELS: Record<ArtifactStatus, string> = {
+  draft: 'Draft',
+  research: 'Creating the Foundations',
+  foundations: 'Creating the Foundations',
+  skeleton: 'Creating the Foundations',  // Same label, but awaiting approval
+  foundations_approval: 'Foundations Approval',
+  writing: 'Creating Content',
+  creating_visuals: 'Creating Content',
+  ready: 'Content Ready',
+  published: 'Published',
+}
+```
 
 ---
 
 ## Backend Responsibilities
 
-### Service: `ArtifactService`
-
-**Status Change Methods:**
-```typescript
-// Manual status changes
-async updateStatus(artifactId: string, status: ArtifactStatus): Promise<void>
-
-// Status validation
-validateStatusTransition(currentStatus: ArtifactStatus, newStatus: ArtifactStatus): boolean
-```
-
-**Business Logic:**
-- Validate status transitions follow allowed paths
-- Update database with new status
-- Handle timestamps (created_at, updated_at, published_at)
-
-### AI Tools
+### AI Tools (Phase 4)
 
 **Research Tool:** `conductDeepResearch`
 - Changes status from `draft` to `research`
-- Performs deep research
+- Performs deep research via Tavily API
+- Auto-transitions to `foundations` when complete
+
+**Characteristics Tool:** `analyzeWritingCharacteristics` [NEW]
+- Changes status from `research` to `foundations`
+- Fetches user writing examples and context
+- Analyzes with Claude API
+- Stores in `artifact_writing_characteristics` table
 - Auto-transitions to `skeleton` when complete
 
 **Skeleton Tool:** `generateContentSkeleton`
-- Expects status `research` or `skeleton`
-- Generates H2 section structure
-- Auto-transitions to `writing` when complete
+- Changes status from `foundations` to `skeleton`
+- Uses writing characteristics for structure
+- **Pipeline PAUSES after this tool**
 
 **Writing Tool:** `writeFullContent`
-- Expects status `skeleton` or `writing`
-- Writes full content for all sections
-- Includes humanity check (integrated, no separate status)
+- Changes status from `foundations_approval` to `writing`
+- Uses writing characteristics for tone, voice, pacing
 - Auto-transitions to `creating_visuals` when complete
 
-**Image Tool:** `generateContentImages` (MVP: stub)
-- Expects status `writing` or `creating_visuals`
-- MVP: Immediately completes
+**Image Tool:** `identifyImageNeeds`
+- Changes status from `writing` to `creating_visuals`
+- Generates images with DALL-E 3 / Gemini Imagen 4
 - Auto-transitions to `ready` when complete
+
+### Approval Endpoint
+
+```typescript
+// POST /api/artifact/:id/approve-foundations
+// Called when user clicks "Foundations Approved" button
+// Changes status to foundations_approval and resumes pipeline
+```
 
 ---
 
@@ -407,7 +564,8 @@ validateStatusTransition(currentStatus: ArtifactStatus, newStatus: ArtifactStatu
 ```typescript
 refetchInterval: (query) => {
   const artifact = query.state.data
-  const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
+  // CRITICAL: skeleton and foundations_approval are NOT processing states
+  const processingStates = ['research', 'foundations', 'writing', 'creating_visuals']
   if (processingStates.includes(artifact?.status)) {
     return 2000 // Poll every 2 seconds
   }
@@ -415,327 +573,92 @@ refetchInterval: (query) => {
 }
 ```
 
-### Hooks: `useResearch.ts`
-
-**Research Polling:**
-```typescript
-// Poll for research data when status is processing OR when research not loaded yet
-const isInProcessingState = ['research', 'skeleton', 'writing', 'creating_visuals'].includes(status)
-const shouldPollResearch = isInProcessingState || (status === 'ready' && !researchData)
-```
-
 ### Components: `ArtifactPage.tsx`
 
-**Editor Lock Logic:**
+**Editor Visibility:**
 ```typescript
-import { isProcessingState } from '../validators/stateMachine'
-
-const isEditorLocked = artifact ? isProcessingState(artifact.status) : false
-
-<ArtifactEditor
-  editable={!isEditorLocked}
-  // ... other props
-/>
-```
-
-**CTA Display Logic:**
-```typescript
-// Create Content button (draft only)
-{artifact.status === 'draft' && (
-  <Button onClick={handleCreateContent}>
-    <Sparkles className="h-4 w-4" />
-    Create Content
-  </Button>
-)}
-
-// Mark as Published button (ready only)
-{artifact.status === 'ready' && (
-  <Button onClick={handleMarkAsPublished}>
-    <CheckCircle className="h-4 w-4" />
-    Mark as Published
-  </Button>
+// Hide editor during skeleton workflow (content is in FoundationsSection)
+{!['foundations', 'skeleton', 'foundations_approval'].includes(artifact.status) && (
+  <ArtifactEditor ... />
 )}
 ```
 
-**Auto-Transition: Published → Ready**
+### Components: `FoundationsSection.tsx`
+
+**Auto-Expand Logic:**
 ```typescript
-const handleContentChange = useCallback(
-  async (newContent: string) => {
-    setLocalContent(newContent)
-    setHasUnsavedChanges(true)
-
-    // Auto-transition published → ready on edit
-    if (artifact?.status === 'published') {
-      await updateArtifact.mutateAsync({
-        id: artifact.id,
-        updates: { status: 'ready' },
-      })
-    }
-  },
-  [artifact?.id, artifact?.status, updateArtifact]
-)
-```
-
-### Components: `WritingProgress.tsx`
-
-**4-Step Progress Indicator:**
-```typescript
-const PROGRESS_STEPS = [
-  { status: 'research', label: 'Researching', icon: Search, percent: 25 },
-  { status: 'skeleton', label: 'Creating Structure', icon: Layout, percent: 50 },
-  { status: 'writing', label: 'Writing Content', icon: PenLine, percent: 75 },
-  { status: 'creating_visuals', label: 'Generating Images', icon: Image, percent: 100 },
-]
-```
-
-**Display Logic:**
-- Only shown when status is in `['research', 'skeleton', 'writing', 'creating_visuals']`
-- Current step shows spinner icon
-- Completed steps show checkmark icon
-- Pending steps show circle icon
-- Progress bar shows percentage based on current step
-
----
-
-## Status Validation
-
-### State Machine: `stateMachine.ts`
-
-**Allowed Transitions:**
-```typescript
-export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
-  draft: ['research'],
-  research: ['skeleton'],
-  skeleton: ['writing'],
-  writing: ['creating_visuals'],
-  creating_visuals: ['ready'],
-  ready: ['published'],
-  published: ['ready'],  // Edit triggers return to ready
-}
-```
-
-**Processing State Detection:**
-```typescript
-export const PROCESSING_STATES: ArtifactStatus[] = [
-  'research', 'skeleton', 'writing', 'creating_visuals'
-]
-
-export const isProcessingState = (status: ArtifactStatus): boolean =>
-  PROCESSING_STATES.includes(status)
-```
-
----
-
-## URL Parameters
-
-### `startCreation=true`
-
-**Purpose:** Automatically trigger AI content creation when navigating to artifact page
-**Usage:** Added when user clicks "Create Content" in modal
-**Behavior:**
-1. Create artifact with status `draft`
-2. Navigate to `/portfolio/artifacts/{id}?startCreation=true`
-3. ArtifactPage detects param, opens AI Assistant, sends research message
-4. Param removed from URL after triggering
-
-**Implementation:**
-```typescript
+// Auto-expand when status reaches approval stage
 useEffect(() => {
-  const startCreation = searchParams.get('startCreation')
-
-  if (startCreation === 'true' && artifact?.title && artifact.status === 'draft') {
-    const researchMessage = `Research and create skeleton for artifact ${artifact.id}: "${artifact.title}"`
-    setInitialResearchMessage(researchMessage)
-    setIsAIAssistantOpen(true)
-    setSearchParams({}, { replace: true }) // Remove param
+  if (['skeleton', 'foundations_approval'].includes(status) && isCollapsed && !hasBeenViewed) {
+    setIsCollapsed(false)
   }
-}, [searchParams, artifact])
+}, [status, isCollapsed, hasBeenViewed])
 ```
 
----
-
-## Polling Behavior
-
-### When Polling is Active
-
-**Artifact Query:**
-- ✅ Active during: `research`, `skeleton`, `writing`, `creating_visuals`
-- ❌ Inactive during: `draft`, `ready`, `published`
-- **Interval:** 2 seconds
-- **Purpose:** Detect status changes and content updates
-
-**Research Query:**
-- ✅ Active during: Processing states OR when research not loaded yet
-- ❌ Inactive when: Research data loaded AND status is `ready` or `published`
-- **Interval:** 2 seconds
-- **Purpose:** Load research data for display in ResearchArea
-
-### Polling Stop Conditions
-
-**Artifact Polling Stops When:**
-- Status transitions to `ready` (content complete)
-- Status transitions to `published`
-- User navigates away from page
-
-**Research Polling Stops When:**
-- Research data loaded successfully
-- Status transitions to `ready` or `published`
-- User navigates away from page
-
----
-
-## Edge Cases & Special Handling
-
-### 1. Published → Ready Auto-Transition
-
-**Scenario:** User edits content of a published artifact
-**Behavior:**
-- Frontend detects content change
-- Automatically updates status to `ready`
-- "Mark as Published" button reappears
-- User can re-publish after edits
-
-**Implementation:**
+**Approval Button:**
 ```typescript
-const handleContentChange = async (newContent: string) => {
-  if (artifact?.status === 'published') {
-    await updateArtifact.mutateAsync({
-      id: artifact.id,
-      updates: { status: 'ready' },
-    })
-  }
-}
+// Show approval button when skeleton is ready
+const showApprovalButton = status === 'skeleton' || status === 'foundations_approval'
+
+{showApprovalButton && onApprove && (
+  <FoundationsApprovedButton onClick={onApprove} loading={approvalLoading} />
+)}
 ```
-
-### 2. Browser Refresh During Processing
-
-**Scenario:** User refreshes page while status is `writing`
-**Behavior:**
-- Page reloads
-- Artifact query fetches current status
-- WritingProgress renders correct step
-- Editor remains locked
-- Polling resumes automatically
-
-**Implementation:**
-- No special handling needed
-- React Query refetches on mount
-- Polling restarts based on status
-
-### 3. Direct URL Access to Processing Artifact
-
-**Scenario:** User navigates directly to `/portfolio/artifacts/{id}` where artifact is in `skeleton` status
-**Behavior:**
-- Page loads
-- Detects status is `skeleton`
-- Renders WritingProgress at step 2
-- Editor locked
-- Polling starts
-
-**Implementation:**
-- Standard page load behavior
-- Status-based rendering logic handles all cases
-
-### 4. Network Disconnect During Processing
-
-**Scenario:** Network connection lost while artifact is in `research` status
-**Behavior:**
-- Polling fails silently
-- React Query retries with exponential backoff
-- When connection restored, polling resumes
-- Status catches up to current state
-
-**Implementation:**
-- React Query handles retry logic
-- No manual intervention needed
-
-### 5. AI Service Failure
-
-**Scenario:** `conductDeepResearch` tool throws error
-**Behavior:**
-- Error logged in backend
-- Artifact remains in `research` status
-- Frontend continues polling
-- User may need to manually retry or cancel
-
-**Implementation:**
-- Backend catches errors, doesn't transition status
-- Frontend shows persistent processing state
-- Manual intervention may be required
-
----
-
-## Testing Considerations
-
-### Test Data Requirements
-
-**For Status-Specific Tests:**
-- Need artifacts in each status (`draft`, `research`, `skeleton`, `writing`, `creating_visuals`, `ready`, `published`)
-- Need artifact with multi-section skeleton (for section tracking in `writing`)
-- Need artifact with research data (for research polling tests)
-
-**Setup Methods:**
-1. **UI Creation:** Create via modal, wait for transitions (slow, E2E)
-2. **MCP Tools:** Use `mcp__supabase__execute_sql` to insert test data
-3. **API Endpoints:** Create test data endpoints for E2E tests
-4. **AI Service Mock:** Mock AI tools to control transitions
-
-### E2E Test Scenarios
-
-**Critical Paths:**
-1. Create draft → Create Content → Wait for all transitions → Mark as Published
-2. Create draft → Save as Draft → Edit → Create Content → Transitions → Publish
-3. Published artifact → Edit content → Auto-transition to ready → Re-publish
-
-**Edge Cases:**
-1. Refresh during processing → Maintains state
-2. Direct URL to processing artifact → Renders correctly
-3. Network disconnect → Recovers gracefully
 
 ---
 
 ## Migration Notes
 
-### From 12-Status to 7-Status System
+### From 7-Status to 9-Status System (Phase 4)
 
-**Removed Statuses:**
-- `skeleton_ready` → Merged into automatic `skeleton` transition
-- `skeleton_approved` → Removed (no approval gate)
-- `review_ready` → Merged into automatic `writing` transition
-- `content_approved` → Removed (no approval gate)
-- `humanity_checking` → Integrated into `writeFullContent` tool
-- `researching` → Renamed to `research`
-- `in_progress` → Split into specific processing statuses
+**New Statuses:**
+- `foundations` - Writing characteristics analysis
+- `foundations_approval` - User approval transition
 
 **Database Migration:**
 ```sql
-UPDATE artifacts
-SET status = 'draft'
-WHERE status IN ('skeleton_ready', 'skeleton_approved', 'review_ready', 'content_approved', 'humanity_checking', 'researching', 'in_progress');
+-- Add new statuses to artifact_status enum
+ALTER TYPE artifact_status ADD VALUE IF NOT EXISTS 'foundations';
+ALTER TYPE artifact_status ADD VALUE IF NOT EXISTS 'foundations_approval';
+
+-- Create artifact_writing_characteristics table
+CREATE TABLE artifact_writing_characteristics (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  artifact_id UUID REFERENCES artifacts(id) ON DELETE CASCADE UNIQUE,
+  characteristics JSONB NOT NULL,
+  summary TEXT,
+  recommendations TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_awc_artifact_id ON artifact_writing_characteristics(artifact_id);
 ```
 
 **Frontend Changes:**
-- Removed approval button components
-- Simplified status badge logic
-- Updated polling conditions
-- Removed approval workflow UI
+- Added FoundationsSection component
+- Added WritingCharacteristicsDisplay component
+- Added FoundationsApprovedButton component
+- Updated processingStates to exclude `skeleton` and `foundations_approval`
+- Added conditional rendering to hide editor during skeleton workflow
 
 **Backend Changes:**
-- Removed approval endpoints
-- Updated AI tools to auto-transition
-- Simplified status validation
-- Integrated humanity check into writing tool
+- Added `analyzeWritingCharacteristics` tool
+- Updated PipelineExecutor with pause mechanism
+- Added `/api/artifact/:id/approve-foundations` endpoint
 
 ---
 
 ## Related Documentation
 
-📖 **Testing Plan:** `/testing/playwright/status-flow-testing-plan.md`
-📖 **State Machine:** `/frontend/src/features/portfolio/validators/stateMachine.ts`
-📖 **Type Definitions:** `/frontend/src/features/portfolio/types/portfolio.ts`
-📖 **Implementation Plan:** `/.claude/plans/wondrous-petting-rabin.md`
+- **Pipeline Execution:** [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md)
+- **Status Values:** [STATUS_VALUES_REFERENCE.md](./STATUS_VALUES_REFERENCE.md)
+- **Core Tools:** [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md)
+- **Frontend Types:** `/frontend/src/features/portfolio/types/portfolio.ts`
+- **State Machine:** `/frontend/src/features/portfolio/validators/stateMachine.ts`
 
 ---
 
 **Document Version History:**
-- v2.0.0 (2026-01-25): Initial comprehensive documentation for 7-status system
+- v3.0.0 (2026-01-29): Phase 4 - Added foundations approval workflow with 9-status system
+- v2.0.0 (2026-01-25): 7-status linear workflow

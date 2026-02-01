@@ -79,9 +79,9 @@ test.describe('@tier1 UI Interaction Tests', () => {
     expect(messages).toBeGreaterThan(1); // User message + AI response
     console.log(`✅ AI responded (${messages} messages total)`);
 
-    // Step 9: Close sheet
+    // Step 9: Close sheet using the sheet close button
     console.log('\n❌ Closing AI Assistant...');
-    const closeButton = page.locator('[aria-label="Close"]').first();
+    const closeButton = page.locator('[data-testid="sheet-close-button"]');
     await expect(closeButton).toBeVisible({ timeout: 5000 });
     await closeButton.click();
     await page.waitForTimeout(1000);
@@ -100,6 +100,9 @@ test.describe('@tier1 UI Interaction Tests', () => {
    * T1.5: Research Area Toggle
    */
   test('@tier1 T1.5: Research Area Toggle', async ({ page }) => {
+    // Set longer timeout for this test since it involves AI processing
+    test.setTimeout(120000); // 2 minutes
+
     console.log('='.repeat(80));
     console.log('🔍 T1.5: Research Area Toggle');
     console.log('='.repeat(80));
@@ -109,7 +112,7 @@ test.describe('@tier1 UI Interaction Tests', () => {
 
     // Wait for some processing (don't wait for full completion)
     console.log('\n⏳ Waiting for research to start...');
-    await page.waitForTimeout(30000); // Wait 30 seconds for research to begin
+    await page.waitForTimeout(20000); // Wait 20 seconds for research to begin
 
     // Step 1: Verify research area in loading or loaded state
     const researchLoading = page.locator('[data-testid="research-state-loading"]');

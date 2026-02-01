@@ -1,8 +1,10 @@
 # Frontend Screen Context Integration
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
-**Status:** Complete
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
+**Status:** Complete (Phase 4 Writing Quality Enhancement)
+
+> **⚠️ IMPORTANT UPDATE**: This document has been updated for Phase 4 with 9-status workflow and foundations approval integration.
 
 ## Overview
 
@@ -309,12 +311,14 @@ export function useArtifact(id: string | null) {
       return data as Artifact
     },
     enabled: !!id,
-    // Poll every 2 seconds during processing states
+    // Poll every 2 seconds during processing states (Phase 4: 4 states)
     refetchInterval: (query) => {
       const artifact = query.state.data
       if (!artifact) return false
 
-      const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
+      // Phase 4: 'foundations' replaces 'skeleton' as processing state
+      // 'skeleton' transitions quickly to 'foundations_approval' (not polled)
+      const processingStates = ['research', 'foundations', 'writing', 'creating_visuals']
       return processingStates.includes(artifact.status) ? 2000 : false
     }
   })
@@ -542,17 +546,24 @@ function detectIntent(message: string, screenContext: ScreenContext): IntentResu
 }
 ```
 
-**Status-Based Valid Operations:**
+**Status-Based Valid Operations (Phase 4 - 9 Statuses):**
 
 | Status | Valid Operations | Invalid Operations |
 |--------|-----------------|-------------------|
 | `draft` | Research, Edit | Write, Humanize, Publish |
 | `research` | Wait | Edit, Write, Humanize |
-| `skeleton` | Write, Edit | Research, Humanize |
+| `foundations` | Wait | Edit, Write, Humanize |
+| `skeleton` | Wait | Edit, Write, Humanize |
+| `foundations_approval` | Approve, Edit Skeleton | Research, Write, Humanize |
 | `writing` | Wait | Edit, Research, Humanize |
 | `creating_visuals` | Humanize, Wait | Edit, Research, Write |
 | `ready` | Humanize, Edit, Publish | Research, Write |
 | `published` | Edit (→ ready) | Research, Write, Humanize |
+
+**Phase 4 Key Changes:**
+- **`foundations`**: AI analyzing writing characteristics (processing state, polling enabled)
+- **`foundations_approval`**: Pipeline PAUSED - user reviews skeleton + characteristics, clicks "Foundations Approved"
+- **`skeleton`**: Brief transition state, quickly moves to `foundations_approval` (not polled)
 
 ---
 
@@ -745,4 +756,9 @@ interface ScreenContextPayload {
 ---
 
 **Version History:**
+- **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
+  - Updated processing states from 4 to 4 (replaced `skeleton` with `foundations`)
+  - Added `foundations` and `foundations_approval` to Status-Based Valid Operations table
+  - Updated useArtifact hook example with Phase 4 processing states
+  - Added Phase 4 key changes documentation
 - **1.0.0** (2026-01-26) - Initial frontend screen context integration documentation

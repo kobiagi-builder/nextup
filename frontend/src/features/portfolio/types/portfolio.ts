@@ -30,15 +30,17 @@ export type DateString = string
 /** Supported artifact types */
 export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 
-/** Artifact status workflow - simplified linear flow (7 statuses) */
+/** Artifact status workflow - Phase 4 workflow with foundations approval gate (9 statuses) */
 export type ArtifactStatus =
-  | 'draft'             // Initial state, editable
-  | 'research'          // AI researching, editor locked
-  | 'skeleton'          // AI creating structure, editor locked
-  | 'writing'           // AI writing content, editor locked
-  | 'creating_visuals'  // AI generating images, editor locked
-  | 'ready'             // Content ready, editable, can publish
-  | 'published'         // Published, editable (editing → ready)
+  | 'draft'                 // Initial state, editable
+  | 'research'              // AI researching, editor locked
+  | 'foundations'           // AI analyzing writing characteristics
+  | 'skeleton'              // AI creating structure, editor locked
+  | 'foundations_approval'  // Skeleton ready, waiting for user approval
+  | 'writing'               // AI writing content, editor locked
+  | 'creating_visuals'      // AI generating images, editor locked
+  | 'ready'                 // Content ready, editable, can publish
+  | 'published'             // Published, editable (editing → ready)
 
 /** Tone options for content generation - Phase 1 */
 export type ToneOption =
@@ -157,6 +159,69 @@ export interface ArtifactResearch {
   excerpt: string
   relevance_score: number
   created_at: DateString
+}
+
+// =============================================================================
+// Writing Characteristics Types (Phase 4)
+// =============================================================================
+
+/** Flexible writing characteristic value with confidence and reasoning */
+export interface WritingCharacteristicValue {
+  value: string | number | boolean | string[]
+  confidence: number // 0-1 scale
+  source: 'artifact' | 'examples' | 'mix' | 'default'
+  reasoning?: string
+}
+
+/**
+ * Flexible writing characteristics - AI can add any characteristic
+ * Common examples: tone, voice, sentence_structure, vocabulary_complexity,
+ * pacing, use_of_evidence, cta_style, formatting_preferences, etc.
+ */
+export type WritingCharacteristics = Record<string, WritingCharacteristicValue>
+
+/** Stored writing characteristics for an artifact */
+export interface ArtifactWritingCharacteristics {
+  id: UUID
+  artifact_id: UUID
+  characteristics: WritingCharacteristics
+  summary?: string
+  recommendations?: string
+  created_at: DateString
+  updated_at: DateString
+}
+
+/** Source type for user writing examples */
+export type WritingExampleSourceType = 'pasted' | 'file_upload' | 'artifact' | 'url'
+
+/** User-provided writing example for style analysis */
+export interface UserWritingExample {
+  id: UUID
+  user_id: UUID
+  name: string
+  source_type: WritingExampleSourceType
+  content: string
+  word_count: number
+  source_reference?: string
+  analyzed_characteristics: WritingCharacteristics
+  is_active: boolean
+  created_at: DateString
+  updated_at: DateString
+}
+
+/** Create writing example input */
+export interface CreateWritingExampleInput {
+  name: string
+  content: string
+  source_type?: WritingExampleSourceType
+  source_reference?: string
+}
+
+/** Update writing example input */
+export interface UpdateWritingExampleInput {
+  name?: string
+  content?: string
+  is_active?: boolean
 }
 
 // =============================================================================
@@ -419,11 +484,13 @@ export interface UpdatePreferencesInput {
 // State Machine Types
 // =============================================================================
 
-/** Valid artifact status transitions - linear flow (no approval gates) */
+/** Valid artifact status transitions - Phase 4 flow with foundations approval gate */
 export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
   draft: ['research'],
-  research: ['skeleton'],
-  skeleton: ['writing'],
+  research: ['foundations'],           // Phase 4: Research → Foundations
+  foundations: ['skeleton'],           // Phase 4: Foundations analysis → Skeleton
+  skeleton: ['foundations_approval'],  // Phase 4: Skeleton → Awaiting approval
+  foundations_approval: ['writing'],   // Phase 4: User approves → Writing begins
   writing: ['creating_visuals'],
   creating_visuals: ['ready'],
   ready: ['published'],
@@ -491,11 +558,13 @@ export interface StatusInfo {
   color: string // Tailwind color class
 }
 
-/** Artifact status configurations - simplified 7 statuses */
+/** Artifact status configurations - Phase 4 with 9 statuses */
 export const ARTIFACT_STATUS_INFO: Record<ArtifactStatus, StatusInfo> = {
   draft: { id: 'draft', label: 'Draft', color: 'status-draft' },
-  research: { id: 'research', label: 'Creating Content', color: 'status-processing' },
-  skeleton: { id: 'skeleton', label: 'Creating Content', color: 'status-processing' },
+  research: { id: 'research', label: 'Creating Foundations', color: 'status-processing' },
+  foundations: { id: 'foundations', label: 'Creating Foundations', color: 'status-processing' },
+  skeleton: { id: 'skeleton', label: 'Creating Foundations', color: 'status-processing' },
+  foundations_approval: { id: 'foundations_approval', label: 'Foundations Approval', color: 'status-approval' },
   writing: { id: 'writing', label: 'Creating Content', color: 'status-processing' },
   creating_visuals: { id: 'creating_visuals', label: 'Creating Content', color: 'status-processing' },
   ready: { id: 'ready', label: 'Content Ready', color: 'status-ready' },

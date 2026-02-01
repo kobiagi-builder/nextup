@@ -24,6 +24,7 @@ import * as contentWritingTools from './tools/contentWritingTools.js'
 import * as humanityCheckTools from './tools/humanityCheckTools.js'
 import * as visualsCreatorTool from './tools/visualsCreatorTool.js'
 import * as imageNeedsTools from './tools/imageNeedsTools.js'
+import { pipelineExecutor } from './PipelineExecutor.js'
 import type { UserContext } from '../../types/portfolio.js'
 
 // =============================================================================
@@ -171,6 +172,76 @@ export class AIService {
         messageCount: messages.length,
       })
 
+      // Check if this is a content creation request
+      const lastMessage = messages[messages.length - 1]?.content || ''
+      const isContentCreation = lastMessage.toLowerCase().includes('create content') ||
+                                lastMessage.toLowerCase().includes('create the content')
+      const artifactId = screenContext?.artifactId
+
+      // If this is a content creation request with a valid artifact ID, trigger the pipeline
+      if (isContentCreation && artifactId) {
+        logger.info('AIService', 'Mock mode: Triggering pipeline for content creation', {
+          artifactId,
+          messagePreview: lastMessage.substring(0, 50),
+        })
+
+        // Trigger pipeline execution asynchronously (don't await)
+        pipelineExecutor.execute(artifactId).catch((error) => {
+          logger.error('AIService', error, {
+            sourceCode: 'AIService.streamChat.mockPipelineTrigger',
+            artifactId,
+          })
+        })
+
+        // Return a mock response indicating content creation started
+        const pipelineResponse = {
+          text: `I'll start creating the content now. The AI pipeline is processing your request for "${lastMessage.replace('Create content: "', '').replace('"', '')}". You'll see the status update as the content is being generated.`,
+          usage: { promptTokens: 100, completionTokens: 50 },
+          finishReason: 'stop' as const,
+          toolCalls: [],
+          toolResults: [],
+        }
+
+        const mockTextStream = simulateReadableStream({
+          chunks: pipelineResponse.text.split(' ').map(word => word + ' '),
+          initialDelayInMs: 100,
+          chunkDelayInMs: 50,
+        })
+
+        onFinish?.({
+          text: pipelineResponse.text,
+          usage: { input: pipelineResponse.usage.promptTokens, output: pipelineResponse.usage.completionTokens },
+        })
+
+        return {
+          textStream: mockTextStream,
+          text: Promise.resolve(pipelineResponse.text),
+          usage: Promise.resolve(pipelineResponse.usage),
+          finishReason: Promise.resolve(pipelineResponse.finishReason),
+          toolCalls: Promise.resolve(pipelineResponse.toolCalls),
+          toolResults: Promise.resolve(pipelineResponse.toolResults),
+          pipeUIMessageStreamToResponse: (res: any) => {
+            // Use Vercel AI SDK Data Stream Protocol format
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+            res.setHeader('Cache-Control', 'no-cache')
+            res.setHeader('Connection', 'keep-alive')
+            res.setHeader('X-Vercel-AI-Data-Stream', 'v1')
+
+            // Stream text in chunks using protocol: 0:JSON.stringify(text)\n
+            const words = pipelineResponse.text.split(' ')
+            for (const word of words) {
+              res.write(`0:${JSON.stringify(word + ' ')}\n`)
+            }
+
+            // Send finish metadata using protocol: d:metadata\n
+            res.write(`d:${JSON.stringify({ finishReason: 'stop' })}\n`)
+
+            res.end()
+          },
+        }
+      }
+
+      // Default mock response for non-content-creation messages
       const mockResponse = await mockService.getMockResponse<AIServiceResponse>(
         'streamChat',
         'default',
@@ -186,19 +257,40 @@ export class AIService {
         },
       })
 
-      // Return a mock stream-like result
+      // Return a mock stream-like result that matches Vercel AI SDK interface
       // Note: This is a simplified mock that works for basic streaming scenarios
+      const mockTextStream = simulateReadableStream({
+        chunks: mockResponse.text.split(' ').map(word => word + ' '),
+        initialDelayInMs: 100,
+        chunkDelayInMs: 50,
+      })
+
       return {
-        textStream: simulateReadableStream({
-          chunks: mockResponse.text.split(' ').map(word => word + ' '),
-          initialDelayInMs: 100,
-          chunkDelayInMs: 50,
-        }),
+        textStream: mockTextStream,
         text: Promise.resolve(mockResponse.text),
         usage: Promise.resolve(mockResponse.usage),
         finishReason: Promise.resolve(mockResponse.finishReason),
         toolCalls: Promise.resolve(mockResponse.toolCalls || []),
         toolResults: Promise.resolve(mockResponse.toolResults || []),
+        // Mock the pipeUIMessageStreamToResponse method for controller compatibility
+        // Uses Vercel AI SDK Data Stream Protocol format
+        pipeUIMessageStreamToResponse: (res: any) => {
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.setHeader('Cache-Control', 'no-cache')
+          res.setHeader('Connection', 'keep-alive')
+          res.setHeader('X-Vercel-AI-Data-Stream', 'v1')
+
+          // Stream text in chunks using protocol: 0:JSON.stringify(text)\n
+          const words = mockResponse.text.split(' ')
+          for (const word of words) {
+            res.write(`0:${JSON.stringify(word + ' ')}\n`)
+          }
+
+          // Send finish metadata using protocol: d:metadata\n
+          res.write(`d:${JSON.stringify({ finishReason: 'stop' })}\n`)
+
+          res.end()
+        },
       }
     }
 
@@ -228,6 +320,17 @@ export class AIService {
       logToFile(`  [${i}] ${msg.role}`, msg.content)
     })
     logToFile('='.repeat(80))
+
+    // [AI Agent] - message sent (user message to agent)
+    const lastUserMessage = messages.filter(m => m.role === 'user').pop()
+    if (lastUserMessage) {
+      logger.info('[AI Agent] message sent', {
+        artifactId: screenContext?.artifactId || null,
+        title: screenContext?.artifactTitle || 'Unknown',
+        currentStatus: screenContext?.artifactStatus || 'unknown',
+        message: lastUserMessage.content,
+      })
+    }
 
     // Log screen context if provided
     if (screenContext) {
@@ -279,6 +382,15 @@ export class AIService {
           stepResult.toolCalls.forEach((tc, i) => {
             logToFile(`    [${i}] Tool: ${tc.toolName}`)
             logToFile(`        Args: ${JSON.stringify(tc.args, null, 2)}`)
+
+            // [AI Agent] - tool called
+            logger.info('[AI Agent] tool called', {
+              artifactId: screenContext?.artifactId || null,
+              title: screenContext?.artifactTitle || 'Unknown',
+              currentStatus: screenContext?.artifactStatus || 'unknown',
+              toolUsed: tc.toolName,
+              toolPrompt: JSON.stringify(tc.args),
+            })
           })
         } else {
           logToFile('  🔧 Tool calls: NONE')
@@ -326,6 +438,17 @@ export class AIService {
           usage: finishResult.usage,
           stepCount,
         })
+
+        // [AI Agent] - message received (agent response to user)
+        if (finishResult.text) {
+          logger.info('[AI Agent] message received', {
+            artifactId: screenContext?.artifactId || null,
+            title: screenContext?.artifactTitle || 'Unknown',
+            currentStatus: screenContext?.artifactStatus || 'unknown',
+            message: finishResult.text,
+          })
+        }
+
         onFinish?.({
           text: finishResult.text,
           usage: {

@@ -1,0 +1,974 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main-content"
+        - text: Skip to main content
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CT
+        - navigation:
+          - link:
+            - /url: /
+            - img
+          - link:
+            - /url: /portfolio
+            - img
+        - navigation:
+          - link:
+            - /url: /profile
+            - img
+          - link:
+            - /url: /settings
+            - img
+          - button:
+            - img
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - heading [level=1]: Portfolio
+              - generic:
+                - button:
+                  - img
+                  - text: AI Research
+                - button:
+                  - img
+                  - text: New
+            - generic:
+              - generic:
+                - button: All
+                - button: Posts
+                - button: Blogs
+                - button: Showcases
+              - combobox
+              - generic:
+                - img
+                - textbox:
+                  - /placeholder: Search content...
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Education
+                - paragraph: Blog post about AI for students...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: just now
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: just now
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: just now
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "&lt;h1&gt;Test Blog Post&lt;/h1&gt;&lt;p&gt;Initial content for testing.&lt;/p&gt;..."
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 16m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 17m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 17m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 17m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "&lt;h1&gt;Test Blog Post&lt;/h1&gt;&lt;p&gt;Initial content for testing.&lt;/p&gt;..."
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 20m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - img
+                  - generic: 20m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Education
+                - paragraph: Blog post about AI for students...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 21m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 21m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 21m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI-Powered Portfolio Platform
+                - paragraph: "# AI Portfolio Optimizer: Intelligent Asset Management Platform [IMAGE: Hero image - Clean dashboard interface showing ..."
+                - generic:
+                  - img
+                  - generic: 33m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "&lt;h1&gt;Test Blog Post&lt;/h1&gt;&lt;p&gt;Initial content for testing.&lt;/p&gt;..."
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 43m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "# AI-Powered Product Management: The Complete 2026 Playbook for Strategic Leaders ## Hook [Write engaging hook here] - ..."
+                - generic:
+                  - img
+                  - generic: 43m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "# AI Product Management 2026: How Smart Tools Are Reshaping the PM Role ## Hook [Write engaging hook here] - Product ma..."
+                - generic:
+                  - img
+                  - generic: 44m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Education
+                - paragraph: "**Title:** How AI is Transforming Education: Personalized Learning, Enhanced Teaching, and the Future of Classrooms **H..."
+                - generic:
+                  - img
+                  - generic: 44m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 44m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Education
+                - paragraph: "# AI in Education: Transforming Learning Without Replacing Teachers **Hook:** [Write engaging hook about AI revolutioni..."
+                - generic:
+                  - img
+                  - generic: 44m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - img
+                  - generic: 45m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "**Title:** The AI Product Manager Revolution: How 2026 is Redefining the Role Beyond Recognition **Hook:** [Write engag..."
+                - generic:
+                  - img
+                  - generic: 45m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 45m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "&lt;h1&gt;Test Blog Post&lt;/h1&gt;&lt;p&gt;Initial content for testing.&lt;/p&gt;..."
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 46m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "# AI-Powered Product Management in 2026: How Smart Tools Are Reshaping the PM Role **Hook:** [Write engaging hook about..."
+                - generic:
+                  - img
+                  - generic: 47m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: "**Title:** AI Product Management in 2026: From Feature Factories to Strategic AI Partners **Hook:** [Write engaging hoo..."
+                - generic:
+                  - img
+                  - generic: 47m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 47m ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 3h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 3h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 3h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 3h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 4h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation....
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 4h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "LinkedIn Post: Announcing Fractional PM Superpowers Blog"
+                - paragraph: "After shipping products that drove 760% growth at Tipalti and 12x LTV growth at PayEm, I had a realization: The best PM..."
+                - generic:
+                  - generic: product_management
+                  - generic: ai_automation
+                  - generic: fractional_pm
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 16h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Building a Fractional PM Assistant: How I Solved Context Switching with AI Architecture"
+                - paragraph: "# Building a Fractional PM Assistant: How I Solved Context Switching with AI Architecture As a fractional Product Manag..."
+                - generic:
+                  - generic: product management
+                  - generic: AI assistant
+                  - generic: fractional PM
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 17h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Creating Foundations
+                    - button:
+                      - img
+                - heading [level=3]: "The Magic of Human-AI Collaboration: How My Product Consultancy Agent Transforms Solo Work into Team Success"
+                - paragraph: "# The Magic of Human-AI Collaboration: How My Product Consultancy Agent Transforms Solo Work into Team Success **Hook:*..."
+                - generic:
+                  - generic: AI collaboration
+                  - generic: product management
+                  - generic: consultancy
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 19h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "The Fractional Executive's AI Playbook: Claude Code Applications That Actually Move the Needle"
+                - paragraph: "# The Fractional Executive's AI Playbook: Claude Code Applications That Actually Move the Needle Three months ago, I wa..."
+                - generic:
+                  - generic: Fractional Executive
+                  - generic: AI Strategy
+                  - generic: Business Impact
+                  - generic: "+1"
+                - generic:
+                  - img
+                  - generic: 19h ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: Image Gen Test 1769551896033
+                - paragraph: Google's new image generation model just dropped on LMArena, and honestly? It's making other AI art tools look like fing...
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: Phase 3 Test - AI Productivity
+                - paragraph: Most teams are still stuck using AI tools like fancy calculators. The real winners? They're building entire workflows th...
+                - generic:
+                  - img
+                  - generic: 1d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: AI in Product Management 2026
+                - paragraph: Product managers who don't embrace AI by 2026 will be replaced by those who do. Here's what the AI-powered PM landscape...
+                - generic:
+                  - img
+                  - generic: 2d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Real-Time Payment Rails: How The Clearing House's RTP Network Transformed B2B Payments"
+                - paragraph: The Clearing House's RTP Network changed how B2B payments work—and most businesses haven't caught up yet. Here's what a...
+                - generic:
+                  - img
+                  - generic: 2d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Open Banking API Revolution: How Plaid Enabled $6.7T in Transactions Across 12,000+ Financial Institutions"
+                - paragraph: Plaid just processed $6.7 trillion in transactions across 12,000+ financial institutions. That's a staggering amount of ...
+                - generic:
+                  - img
+                  - generic: 2d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "AP Automation Platform: How Tipalti Bills Drove 760% Remittance Volume Growth"
+                - paragraph: "# Tipalti Bills: AP Automation Platform Transformation [IMAGE: Hero dashboard screenshot showing Tipalti Bills interfac..."
+                - generic:
+                  - generic: ap-automation
+                  - generic: tipalti
+                  - generic: payment-processing
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Embedded Lending Platform: How Square Capital Disbursed $10B+ to SMBs"
+                - paragraph: "# Square Capital: Embedded Lending Platform Case Study [IMAGE: Hero image - Square Capital dashboard showing loan appro..."
+                - generic:
+                  - generic: embedded-lending
+                  - generic: square-capital
+                  - generic: smb-financing
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Buy Now, Pay Later Revolution: How Klarna Achieved 150M Active Users Through Embedded Finance"
+                - paragraph: "# Klarna BNPL Platform: Embedded Finance Revolution Case Study [IMAGE: Hero image - Klarna's checkout interface integra..."
+                - generic:
+                  - generic: bnpl
+                  - generic: embedded-finance
+                  - generic: merchant-integrations
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Cross-Border Payments: How Wise Reduced Transfer Costs by 80% and Scaled to 16M Customers"
+                - paragraph: "# Wise Cross-Border Payment Revolution: 80% Cost Reduction Case Study [IMAGE: Hero image - Wise mobile app interface sh..."
+                - generic:
+                  - generic: cross-border-payments
+                  - generic: fintech-disruption
+                  - generic: pricing-strategy
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Digital Banking Transformation: How a Regional Bank Increased Digital Adoption by 300%"
+                - paragraph: "# Digital Banking Transformation: Regional Bank's 300% Adoption Surge [IMAGE: Hero image - Modern mobile banking app in..."
+                - generic:
+                  - generic: digital-banking
+                  - generic: fintech-transformation
+                  - generic: customer-adoption
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "Tipalti Bills: 760% Remittance Volume Growth Through Product-Led Expansion"
+                - paragraph: No content yet
+                - generic:
+                  - generic: tipalti
+                  - generic: ap-automation
+                  - generic: product-strategy
+                  - generic: "+2"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Case Study
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "Ginzi: Customer Discovery to First Paying Customers"
+                - paragraph: No content yet
+                - generic:
+                  - generic: customer-discovery
+                  - generic: early-stage
+                  - generic: market-research
+                  - generic: "+2"
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Blog Post
+                  - generic:
+                    - generic: Content Ready
+                    - button:
+                      - img
+                - heading [level=3]: "Fintech Product Strategy: Navigating Compliance, Security, and Growth"
+                - paragraph: "# Blog Skeleton: Fintech Product Strategy ## Title: The Fintech Balancing Act: How to Scale Products While Managing Co..."
+                - generic:
+                  - generic: fintech
+                  - generic: product strategy
+                  - generic: compliance
+                  - generic: "+2"
+                - generic:
+                  - img
+                  - generic: 4d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: "The 90-Day Reality: What Fractional PMs Can (and Can't) Accomplish"
+                - paragraph: A realistic breakdown of the impact timeline for fractional product management - what you can fix quickly, what takes lo...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 5d ago
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - generic: Social Post
+                  - generic:
+                    - generic: Draft
+                    - button:
+                      - img
+                - heading [level=3]: Why Fractional PMs See Red Flags That Full-Time PMs Miss
+                - paragraph: An honest comparison of perspective differences - how outside consultants spot systemic issues that internal teams becom...
+                - generic:
+                  - button:
+                    - img
+                    - text: Create Content
+                - generic:
+                  - img
+                  - generic: 5d ago
+    - list
+  - dialog "Create New Content" [ref=e2]:
+    - heading "Create New Content" [level=2] [ref=e4]
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - text: Type
+        - combobox [active] [ref=e7] [cursor=pointer]:
+          - generic:
+            - generic:
+              - img
+              - text: Blog Post
+          - img [ref=e8]
+        - combobox [ref=e10]
+      - generic [ref=e11]:
+        - text: Tone
+        - combobox "Tone" [ref=e12] [cursor=pointer]:
+          - generic [ref=e13]: Professional
+          - img [ref=e14]
+        - combobox [ref=e16]
+      - generic [ref=e17]:
+        - text: Title
+        - textbox "Title" [ref=e18]:
+          - /placeholder: Enter a title...
+          - text: AI in Product Management 2026
+      - generic [ref=e19]:
+        - text: Content (optional)
+        - textbox "Content (optional)" [ref=e20]:
+          - /placeholder: Start writing...
+      - generic [ref=e21]:
+        - text: Tags
+        - textbox "Type a tag and press Enter..." [ref=e22]
+      - generic [ref=e23]:
+        - button "Cancel" [ref=e24] [cursor=pointer]
+        - button "Save as Draft" [ref=e25] [cursor=pointer]:
+          - img
+          - text: Save as Draft
+        - button "Create Content" [ref=e26] [cursor=pointer]:
+          - img
+          - text: Create Content
+    - button "Close" [ref=e27] [cursor=pointer]:
+      - img [ref=e28]
+      - generic [ref=e31]: Close
+```

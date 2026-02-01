@@ -211,3 +211,26 @@ export const DEFAULT_RETRY_POLICY: RetryPolicy = {
 export function isRetryable(category: ErrorCategory, policy: RetryPolicy = DEFAULT_RETRY_POLICY): boolean {
   return policy.retryableCategories.includes(category);
 }
+
+// =============================================================================
+// Tool Error Factory
+// =============================================================================
+
+export interface ToolError extends Error {
+  category: ErrorCategory;
+  recoverable: boolean;
+}
+
+/**
+ * Create a tool error for pipeline execution
+ */
+export function createToolError(
+  category: ErrorCategory,
+  message: string,
+  recoverable: boolean = true
+): ToolError {
+  const error = new Error(message) as ToolError;
+  error.category = category;
+  error.recoverable = recoverable;
+  return error;
+}

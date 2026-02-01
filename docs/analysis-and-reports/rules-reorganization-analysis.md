@@ -8,6 +8,7 @@
 ## Current Problem
 
 The global rules folder (`/Users/kobiagi/.claude/rules/`) contains a mix of:
+
 - ✅ Universal patterns that apply to ALL projects
 - ❌ Project-specific rules for LaunchLee/Product Consultant Helper
 - ❌ Project shortcuts and references to specific classes/services
@@ -23,17 +24,20 @@ This creates confusion and pollutes the global namespace with project-specific c
 **Purpose:** Universal patterns that apply to ANY project, regardless of tech stack specifics
 
 #### Frontend Patterns (Universal)
+
 - ✅ `frontend/patterns/component-standards.md` - React component patterns (BaseTextField, BaseTextArea, portals)
 - ✅ `frontend/critical/portaled-components-pattern.md` - Portal click-outside pattern
 
 **Reasoning:** These are React best practices that apply to any React project
 
 #### Security & Logging (Universal)
+
 - ✅ `security/production-logging-security.md` - GDPR/SOC2 logging patterns, PII protection
 
 **Reasoning:** GDPR compliance and secure logging apply to all projects
 
 #### Debugging Patterns (Universal)
+
 - ✅ `debugging/use-debugging-skill.md` - Evidence-based debugging approach
 - ✅ `debugging/multi-system-flow-tracing.md` - Multi-system debugging pattern
 - ✅ `debugging/auto-peer-review-on-persistent-issues.md` - Peer review pattern
@@ -41,18 +45,21 @@ This creates confusion and pollutes the global namespace with project-specific c
 **Reasoning:** Systematic debugging approaches apply universally
 
 #### Workflow Patterns (Universal)
+
 - ✅ `workflows/feature-development-process.md` - Structured feature development
 - ✅ `workflows/mandatory-code-review-after-plan.md` - Code review workflow
 
 **Reasoning:** Development workflows apply to any project
 
 #### Code Search & Removal (Universal)
+
 - ✅ `backend/patterns/lsp-first-code-search.md` - LSP before grep pattern
 - ✅ `backend/patterns/obsolete-code-removal.md` - Safe code removal workflow
 
 **Reasoning:** These apply to any TypeScript project
 
 #### Testing (Universal)
+
 - ✅ `backend/testing/testing-methodology.md` - Testing pyramid, build-first verification
 - ✅ `testing.md` - Testing standards
 
@@ -67,6 +74,7 @@ This creates confusion and pollutes the global namespace with project-specific c
 **Target Location:** `/Users/kobiagi/Desktop/Development/Product_Consultant_Helper/.claude/rules/`
 
 #### Backend Critical (Project-Specific)
+
 - ❌ `backend/critical/logger-service-import.md`
   - **Why move:** References `LoggerService` class specifically
   - **Universal alternative:** Keep logging security pattern globally, move service reference to project
@@ -87,10 +95,12 @@ This creates confusion and pollutes the global namespace with project-specific c
   - **Recommendation:** KEEP GLOBAL (Supabase MCP pattern applies to any Supabase project)
 
 #### Backend Workflows (Project-Specific)
+
 - ❌ `backend/workflows/action-item-execution-flow.md`
   - **Why move:** 100% LaunchLee-specific (action items, n8n workflows, specific flow)
 
 #### Backend Patterns (Project-Specific)
+
 - ❌ `backend/patterns/file-organization.md`
   - **Why move:** References specific project directories (migrations, reports, Scripts)
   - **Universal alternative:** Could generalize to "keep root clean" pattern
@@ -100,11 +110,13 @@ This creates confusion and pollutes the global namespace with project-specific c
   - **Universal alternative:** Could generalize to "test AI prompts" pattern
 
 #### n8n (Project-Specific)
+
 - ❌ `n8n/fetch-from-cloud.md`
   - **Why move:** Assumes n8n usage, references specific workflows
   - **Universal alternative:** Could keep if made generic "fetch workflows from cloud"
 
 #### Shortcut Files (Project-Specific)
+
 - ❌ `backend.md`
   - **Why move:** Project-specific shortcuts (LoggerService, action item types)
 
@@ -119,15 +131,16 @@ This creates confusion and pollutes the global namespace with project-specific c
 
 Some project-specific rules contain universal patterns buried inside:
 
-| Current Rule | Could Extract Universal Pattern | Keep Specific Implementation |
-|--------------|----------------------------------|------------------------------|
-| `logger-service-import.md` | "Use structured logging service" | LoggerService references → project |
-| `feature-flag-pattern.md` | "Use feature flags for rollouts" | FeatureFlagService → project |
-| `file-organization.md` | "Keep project root clean" | Specific directories → project |
-| `product-ownership-validation.md` | "Validate resource ownership" | Products/users specifics → project |
-| `ai-prompt-testing.md` | "Test AI prompts with live APIs" | n8n specifics → project |
+| Current Rule                      | Could Extract Universal Pattern  | Keep Specific Implementation       |
+| --------------------------------- | -------------------------------- | ---------------------------------- |
+| `logger-service-import.md`        | "Use structured logging service" | LoggerService references → project |
+| `feature-flag-pattern.md`         | "Use feature flags for rollouts" | FeatureFlagService → project       |
+| `file-organization.md`            | "Keep project root clean"        | Specific directories → project     |
+| `product-ownership-validation.md` | "Validate resource ownership"    | Products/users specifics → project |
+| `ai-prompt-testing.md`            | "Test AI prompts with live APIs" | n8n specifics → project            |
 
 **Your decision:**
+
 - [ ] Extract universal patterns to global, keep specifics in project
 - [ ] Move entire rules to project (simpler, less abstraction)
 
@@ -136,16 +149,19 @@ Some project-specific rules contain universal patterns buried inside:
 `backend/critical/mcp-first-database.md` references Supabase MCP tools.
 
 **Options:**
+
 - [ ] Keep GLOBAL - Pattern applies to any Supabase project
 - [ ] Move to project - Assumes specific MCP server setup
 
 ### 3. README Files
 
 **Global README** (`/Users/kobiagi/.claude/rules/README.md`):
+
 - Currently lists 20 rules (mix of global + project-specific)
 - Should list only universal rules after reorganization
 
 **Project README** (new file to create):
+
 - Should list project-specific rules
 - Reference global rules as "also applies"
 
@@ -190,6 +206,7 @@ Please review and provide instructions for:
 5. **README strategy:** How detailed should project README be?
 
 Once you provide instructions, I'll:
+
 - Create project `.claude/rules/` structure
 - Move/reorganize files
 - Update both README files
@@ -202,6 +219,7 @@ Once you provide instructions, I'll:
 ### LaunchLee vs Product Consultant Helper
 
 Some rules reference "LaunchLee" but this project is "Product Consultant Helper". This suggests:
+
 - Rules may have been copied from another project
 - Need to verify which rules actually apply to THIS project
 - May need to adapt LaunchLee-specific rules for this project's architecture
@@ -211,3 +229,38 @@ Some rules reference "LaunchLee" but this project is "Product Consultant Helper"
 The global rules README references `/Users/kobiagi/Documents/LaunchLee_App/CLAUDE.md` which is a different project.
 
 **Should update to:** Reference this project's CLAUDE.md at `/Users/kobiagi/Desktop/Development/Product_Consultant_Helper/CLAUDE.md`
+
+## Expacted Rules structure:
+
+### Global (all projects)
+
+- ✅ `frontend/patterns/component-standards.md` - React component patterns (BaseTextField, BaseTextArea, portals) >> need to adjust it by removing specific LaunchLee code and instructions
+- ✅ `frontend/critical/portaled-components-pattern.md` - Portal click-outside pattern
+- ✅ `security/production-logging-security.md` - GDPR/SOC2 logging patterns, PII protection >> need to separate to two rule files: global (security related topics) and LaunchLee specific (log patterns, enum etc)
+- ✅ `debugging/use-debugging-skill.md` - Evidence-based debugging approach
+- ✅ `debugging/auto-peer-review-on-persistent-issues.md` - Peer review pattern
+- ✅ `workflows/feature-development-process.md` - Structured feature development
+- ✅ `workflows/mandatory-code-review-after-plan.md` - Code review workflow
+- ✅ `backend/patterns/lsp-first-code-search.md` - LSP before grep pattern
+- ✅ `backend/patterns/obsolete-code-removal.md` - Safe code removal workflow
+- ✅ `backend/testing/testing-methodology.md` - Testing pyramid, build-first verification
+- ✅ `testing.md` - Testing standards >> need to merge it into `backend/testing/testing-methodology.md` and then remove it
+- ❌ `backend/critical/mcp-first-database.md`
+
+### LaunchLee project specific
+
+- ✅ `debugging/multi-system-flow-tracing.md`
+- ❌ `backend/critical/logger-service-import.md`
+- ❌ `backend/critical/product-ownership-validation.md`
+- ❌ `backend/critical/action-item-shared-types.md`
+- ❌ `backend/critical/feature-flag-pattern.md`
+- ❌ `backend/workflows/action-item-execution-flow.md`
+- ❌ `backend/patterns/file-organization.md`
+- ❌ `backend/patterns/ai-prompt-testing.md`
+- ❌ `n8n/fetch-from-cloud.md`
+- ❌ `backend.md`
+- ❌ `frontend.md`
+
+### Product_Consultant_Helper project specific
+
+none

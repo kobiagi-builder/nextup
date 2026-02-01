@@ -1,15 +1,19 @@
 # Database Artifact Schema and Workflow
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
-**Status:** Complete
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
+**Status:** Complete (Phase 4 Writing Quality Enhancement)
+
+> **⚠️ IMPORTANT UPDATE**: This document has been updated from 7-status to 9-status workflow as of Phase 4. The new workflow introduces `foundations` and `foundations_approval` statuses with a user approval gate for writing quality enhancement.
 
 ## Overview
 
-The artifacts table stores all user-generated content (social posts, blogs, showcases) with a 7-status linear workflow. The schema supports AI-driven content creation with research storage, tone customization, and type-specific metadata in JSONB fields.
+The artifacts table stores all user-generated content (social posts, blogs, showcases) with a **9-status linear workflow**. The schema supports AI-driven content creation with research storage, **writing characteristics analysis**, tone customization, and type-specific metadata in JSONB fields.
 
 **Key Features:**
-- **7-Status Linear Workflow** - draft → research → skeleton → writing → creating_visuals → ready → published
+- **9-Status Linear Workflow (Phase 4)** - draft → research → foundations → skeleton → foundations_approval → writing → creating_visuals → ready → published
+- **Writing Quality Enhancement** - User approval gate with editable skeleton before content writing
+- **Writing Characteristics** - 20+ characteristics analyzed from user's writing examples
 - **Type System** - social_post, blog, showcase with extensible metadata
 - **Research Storage** - Separate artifact_research table for multi-source research
 - **Tone Customization** - 8 tone options for content generation
@@ -33,16 +37,21 @@ CREATE TABLE IF NOT EXISTS artifacts (
   -- Content Type (3 types)
   type VARCHAR(50) NOT NULL CHECK (type IN ('social_post', 'blog', 'showcase')),
 
-  -- Workflow Status (7 statuses)
+  -- Workflow Status (9 statuses - Phase 4)
   status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN (
     'draft',
     'research',
+    'foundations',           -- Phase 4: AI analyzing writing characteristics
     'skeleton',
+    'foundations_approval',  -- Phase 4: User approval gate
     'writing',
     'creating_visuals',
     'ready',
     'published'
   )),
+
+  -- Skeleton Content (Phase 4: Stored separately for editing during approval)
+  skeleton_content TEXT,
 
   -- Content Fields
   title VARCHAR(500),                 -- Artifact title (required)
@@ -88,7 +97,7 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_updated_at ON artifacts(updated_at DESC
 
 ---
 
-## 7-Status Linear Workflow
+## 9-Status Linear Workflow (Phase 4)
 
 ### Status Definitions
 
@@ -96,11 +105,12 @@ CREATE INDEX IF NOT EXISTS idx_artifacts_updated_at ON artifacts(updated_at DESC
 stateDiagram-v2
     [*] --> draft
     draft --> research: conductDeepResearch
-    research --> skeleton: generateContentSkeleton
-    skeleton --> writing: writeFullContent (start)
+    research --> foundations: analyzeWritingCharacteristics
+    foundations --> skeleton: generateContentSkeleton
+    skeleton --> foundations_approval: Pipeline PAUSES
+    foundations_approval --> writing: User clicks "Foundations Approved"
     writing --> creating_visuals: writeFullContent (complete)
     creating_visuals --> ready: generateContentVisuals
-    creating_visuals --> ready: applyHumanityCheck
     ready --> published: Manual publish
     published --> ready: User edits content
     ready --> [*]
@@ -112,22 +122,33 @@ stateDiagram-v2
     end note
 
     note right of research
-        Locked
+        Locked (Processing)
         AI is researching
     end note
 
+    note right of foundations
+        Locked (Processing)
+        AI analyzing characteristics
+    end note
+
     note right of skeleton
-        Locked
+        Locked (Processing)
         AI creating structure
     end note
 
+    note right of foundations_approval
+        APPROVAL GATE
+        Skeleton EDITABLE
+        User must approve
+    end note
+
     note right of writing
-        Locked
+        Locked (Processing)
         AI writing content
     end note
 
     note right of creating_visuals
-        Locked
+        Locked (Processing)
         AI generating images
     end note
 
@@ -142,26 +163,28 @@ stateDiagram-v2
     end note
 ```
 
-| Status | Description | Editor State | User Actions | AI Operations |
-|--------|-------------|--------------|--------------|---------------|
-| **draft** | Initial state after creation | Editable | Edit content, Research | conductDeepResearch |
-| **research** | AI researching topic from multiple sources | Locked | Wait | Tavily API queries |
-| **skeleton** | AI creating H1 title + H2 section headings | Locked | Wait | Claude Sonnet 4 generation |
-| **writing** | AI writing full content for each section | Locked | Wait | Gemini 2.0 Flash generation |
-| **creating_visuals** | AI generating cover image/visuals | Locked | Wait, Humanize | DALL-E 3 generation |
-| **ready** | Content ready to publish | Editable | Edit, Humanize, Publish | applyHumanityCheck (optional) |
-| **published** | Content published to platform | Editable | Edit (→ ready) | None |
+| Status | Description | Editor State | Progress | User Actions | AI Operations |
+|--------|-------------|--------------|----------|--------------|---------------|
+| **draft** | Initial state after creation | Editable | 0% | Edit content, Create Content | conductDeepResearch |
+| **research** | AI researching topic from multiple sources | Locked | 15% | Wait | Tavily API queries |
+| **foundations** | AI analyzing writing style (Phase 4) | Locked | 30% | Wait | analyzeWritingCharacteristics |
+| **skeleton** | AI creating H1 title + H2 section headings | Locked | 45% | Wait | generateContentSkeleton |
+| **foundations_approval** | User reviews and approves (Phase 4) | Skeleton Editable | 50% | Edit skeleton, Approve | None (waiting) |
+| **writing** | AI writing full content for each section | Locked | 70% | Wait | writeFullContent |
+| **creating_visuals** | AI generating cover image/visuals | Locked | 90% | Wait, Humanize | identifyImageNeeds |
+| **ready** | Content ready to publish | Editable | 100% | Edit, Humanize, Publish | applyHumanityCheck (optional) |
+| **published** | Content published to platform | Editable | 100% | Edit (→ ready) | None |
 
-### Processing States
+### Processing States (4 states)
 
-States where editor is locked (user cannot edit content):
+States where editor is locked and polling is active:
 
 ```typescript
 const PROCESSING_STATES: ArtifactStatus[] = [
-  'research',
-  'skeleton',
-  'writing',
-  'creating_visuals'
+  'research',        // AI researching topic
+  'foundations',     // AI analyzing writing characteristics (Phase 4)
+  'writing',         // AI writing full content
+  'creating_visuals' // AI generating images
 ]
 
 function isProcessingState(status: ArtifactStatus): boolean {
@@ -169,9 +192,30 @@ function isProcessingState(status: ArtifactStatus): boolean {
 }
 ```
 
-### Editable States
+### Approval States (Phase 4)
 
-States where editor is unlocked (user can edit content):
+States where pipeline is paused waiting for user action:
+
+```typescript
+const APPROVAL_STATES: ArtifactStatus[] = [
+  'foundations_approval' // User must click "Foundations Approved" button
+]
+
+function isApprovalState(status: ArtifactStatus): boolean {
+  return APPROVAL_STATES.includes(status)
+}
+```
+
+**Key Characteristics of `foundations_approval`:**
+- Main editor is LOCKED
+- Skeleton is EDITABLE in FoundationsSection
+- WritingCharacteristicsDisplay shows style profile
+- "Foundations Approved" button is enabled
+- No polling (pipeline paused)
+
+### Editable States (3 states)
+
+States where editor is unlocked:
 
 ```typescript
 const EDITABLE_STATES: ArtifactStatus[] = [
@@ -187,20 +231,28 @@ function isEditableState(status: ArtifactStatus): boolean {
 
 ---
 
-## Status Transitions
+## Status Transitions (Phase 4 - 9 statuses)
 
 ### Valid Transitions Matrix
 
-| From Status | To Status | Trigger | Tool/Service |
-|------------|-----------|---------|--------------|
-| `draft` | `research` | User clicks "Create Content" | conductDeepResearch |
-| `research` | `skeleton` | Research completes | generateContentSkeleton |
-| `skeleton` | `writing` | Skeleton generation starts | writeFullContent (start) |
-| `writing` | `creating_visuals` | Content writing completes | writeFullContent (complete) |
-| `creating_visuals` | `ready` | Visuals generated | generateContentVisuals |
-| `creating_visuals` | `ready` | Humanity check applied | applyHumanityCheck |
-| `ready` | `published` | User clicks "Publish" | Manual action |
-| `published` | `ready` | User edits content | Automatic (auto-transition) |
+| From Status | To Status | Trigger | Auto/Manual | Tool/Service |
+|------------|-----------|---------|-------------|--------------|
+| `draft` | `research` | User clicks "Create Content" | Manual | conductDeepResearch |
+| `research` | `foundations` | Research completes | Auto | analyzeWritingCharacteristics |
+| `foundations` | `skeleton` | Characteristics analysis completes | Auto | generateContentSkeleton |
+| `skeleton` | `foundations_approval` | Skeleton generation completes | Auto | (pipeline pauses) |
+| `foundations_approval` | `writing` | User clicks "Foundations Approved" | **Manual (UI)** | writeFullContent |
+| `writing` | `creating_visuals` | Content writing completes | Auto | identifyImageNeeds |
+| `creating_visuals` | `ready` | Visuals generated | Auto | (automatic) |
+| `ready` | `published` | User clicks "Mark as Published" | Manual | (manual action) |
+| `published` | `ready` | User edits content | Auto | (auto-transition) |
+
+### Phase 4 Key Changes
+
+1. **New `foundations` status**: AI analyzes writing characteristics from user's examples
+2. **New `foundations_approval` status**: Pipeline PAUSES for user review
+3. **Editable skeleton**: User can edit skeleton in FoundationsSection during `foundations_approval`
+4. **UI button approval**: User clicks "Foundations Approved" to continue (not chat-based)
 
 ### Invalid Transitions
 
@@ -208,19 +260,29 @@ function isEditableState(status: ArtifactStatus): boolean {
 // Examples of invalid transitions (enforced by backend):
 
 // Cannot skip research step
-draft → skeleton  ❌ Must research first
+draft → foundations  ❌ Must research first
+draft → skeleton    ❌ Must research first
 
-// Cannot skip skeleton step
-research → writing  ❌ Must create skeleton first
+// Cannot skip foundations (Phase 4)
+research → skeleton  ❌ Must analyze characteristics first
+research → writing   ❌ Must analyze characteristics first
 
-// Cannot write before skeleton
-draft → writing  ❌ Must research + skeleton first
+// Cannot skip skeleton
+foundations → writing  ❌ Must create skeleton first
+foundations → foundations_approval  ❌ Must create skeleton first
 
-// Cannot humanize before visuals
+// Cannot skip approval gate (Phase 4)
+skeleton → writing  ❌ Must wait for user approval
+
+// Cannot skip writing
+foundations_approval → creating_visuals  ❌ Must write content first
+
+// Cannot skip visuals
 writing → ready  ❌ Must complete visuals first
 
 // Cannot go backwards (except published → ready)
-ready → skeleton  ❌ One-way flow
+ready → writing  ❌ One-way flow
+foundations_approval → skeleton  ❌ One-way flow
 ```
 
 ### Auto-Transition: Published → Ready
@@ -385,6 +447,111 @@ SELECT source_type, COUNT(*) as count
 FROM artifact_research
 WHERE artifact_id = 'abc-123'
 GROUP BY source_type;
+```
+
+---
+
+## Phase 4: Writing Characteristics Tables
+
+### artifact_writing_characteristics Table
+
+Stores AI-analyzed writing characteristics for each artifact:
+
+```sql
+-- Migration: 008_artifact_writing_characteristics.sql
+CREATE TABLE artifact_writing_characteristics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  artifact_id UUID NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+  characteristics JSONB NOT NULL DEFAULT '{}',
+  summary TEXT,
+  recommendations TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT artifact_writing_characteristics_artifact_id_key UNIQUE (artifact_id)
+);
+
+CREATE INDEX idx_artifact_writing_characteristics_artifact_id
+  ON artifact_writing_characteristics(artifact_id);
+```
+
+### characteristics JSONB Structure
+
+```typescript
+interface WritingCharacteristics {
+  tone?: WritingCharacteristicValue;
+  voice?: WritingCharacteristicValue;
+  sentence_structure?: WritingCharacteristicValue;
+  vocabulary_complexity?: WritingCharacteristicValue;
+  pacing?: WritingCharacteristicValue;
+  use_of_evidence?: WritingCharacteristicValue;
+  use_of_examples?: WritingCharacteristicValue;
+  cta_style?: WritingCharacteristicValue;
+  formatting_preferences?: WritingCharacteristicValue;
+  emotional_appeal?: WritingCharacteristicValue;
+  audience_assumption?: WritingCharacteristicValue;
+  structure_preference?: WritingCharacteristicValue;
+  depth?: WritingCharacteristicValue;
+  length_preference?: WritingCharacteristicValue;
+  use_of_visuals?: WritingCharacteristicValue;
+  // Additional characteristics can be added dynamically
+}
+
+interface WritingCharacteristicValue {
+  value: string | number | boolean | string[];
+  confidence: number;  // 0.0 to 1.0
+  source: 'artifact' | 'examples' | 'mix' | 'default';
+  reasoning?: string;
+}
+```
+
+### user_writing_examples Table
+
+Stores user's writing examples for style analysis:
+
+```sql
+-- Migration: 009_user_writing_examples.sql
+CREATE TABLE user_writing_examples (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  word_count INTEGER NOT NULL CHECK (word_count >= 500),
+  source_type VARCHAR(50) DEFAULT 'manual' CHECK (source_type IN (
+    'manual',      -- User pasted text
+    'file',        -- User uploaded file
+    'artifact'     -- Imported from existing artifact
+  )),
+  analyzed_characteristics JSONB,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_writing_examples_user_id ON user_writing_examples(user_id);
+CREATE INDEX idx_user_writing_examples_active ON user_writing_examples(user_id, is_active);
+```
+
+### Query Examples
+
+```sql
+-- Get writing characteristics for artifact
+SELECT * FROM artifact_writing_characteristics
+WHERE artifact_id = 'abc-123';
+
+-- Get active writing examples for user
+SELECT * FROM user_writing_examples
+WHERE user_id = '00000000-0000-0000-0000-000000000001'
+  AND is_active = TRUE
+ORDER BY created_at DESC;
+
+-- Get artifacts with writing characteristics
+SELECT
+  a.*,
+  wc.summary as writing_summary,
+  wc.characteristics->>'tone' as tone_analysis
+FROM artifacts a
+LEFT JOIN artifact_writing_characteristics wc ON wc.artifact_id = a.id
+WHERE a.status IN ('foundations_approval', 'writing', 'ready', 'published');
 ```
 
 ---
@@ -650,6 +817,27 @@ Created initial artifacts table with 5 statuses:
 **Added:**
 - Visuals metadata fields for DALL-E 3 integration
 
+### 007_phase4_new_statuses.sql (Phase 4)
+
+**Added:**
+- `foundations` status for writing characteristics analysis
+- `foundations_approval` status for user approval gate
+- Updated status constraint to 9 statuses
+
+### 008_artifact_writing_characteristics.sql (Phase 4)
+
+**Added:**
+- `artifact_writing_characteristics` table for style analysis
+- JSONB `characteristics` field for 20+ writing traits
+- Summary and recommendations text fields
+
+### 009_user_writing_examples.sql (Phase 4)
+
+**Added:**
+- `user_writing_examples` table for user's writing samples
+- Word count constraint (minimum 500 words)
+- Source type tracking (manual, file, artifact)
+
 ---
 
 ## Database Constraints
@@ -660,11 +848,13 @@ Created initial artifacts table with 5 statuses:
 -- Type constraint (3 valid types)
 CHECK (type IN ('social_post', 'blog', 'showcase'))
 
--- Status constraint (7 valid statuses)
+-- Status constraint (9 valid statuses - Phase 4)
 CHECK (status IN (
   'draft',
   'research',
+  'foundations',           -- Phase 4 NEW
   'skeleton',
+  'foundations_approval',  -- Phase 4 NEW
   'writing',
   'creating_visuals',
   'ready',
@@ -685,6 +875,9 @@ CHECK (tone IN (
 
 -- Relevance score constraint (0.0 to 1.0)
 CHECK (relevance_score >= 0 AND relevance_score <= 1)
+
+-- Word count constraint for writing examples (Phase 4)
+CHECK (word_count >= 500)
 ```
 
 ### Foreign Key Constraints
@@ -733,11 +926,21 @@ Supabase provides automatic daily backups:
 
 ## Related Documentation
 
-- [7-status-workflow-specification.md](../../artifact-statuses/7-status-workflow-specification.md) - Complete workflow specification
+- [7-status-workflow-specification.md](../../artifact-statuses/7-status-workflow-specification.md) - Complete 9-status workflow specification (v3.0.0)
+- [STATUS_VALUES_REFERENCE.md](../../artifact-statuses/STATUS_VALUES_REFERENCE.md) - Quick status values reference
 - [content-agent-architecture.md](../backend/content-agent-architecture.md) - How Content Agent interacts with database
 - [screen-context-specification.md](../../api/screen-context-specification.md) - How frontend sends artifact metadata
+- [core-tools-reference.md](../../ai-agents-and-prompts/core-tools-reference.md) - Tool documentation (v2.0.0)
 
 ---
 
 **Version History:**
+- **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
+  - Updated from 7-status to 9-status workflow
+  - Added `foundations` and `foundations_approval` statuses
+  - Added `skeleton_content` field to artifacts table
+  - Added `artifact_writing_characteristics` table documentation
+  - Added `user_writing_examples` table documentation
+  - Updated status transitions for 9-status flow
+  - Added Phase 4 migration history
 - **1.0.0** (2026-01-26) - Initial database schema and workflow documentation

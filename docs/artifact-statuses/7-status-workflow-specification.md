@@ -1,31 +1,42 @@
-# 7-Status Workflow Specification
+# 9-Status Workflow Specification
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-28
-**Status:** Complete (Phase 3 Image Generation)
+**Version:** 3.0.0
+**Last Updated:** 2026-01-29
+**Status:** Complete (Phase 4 Writing Quality Enhancement)
+
+> **⚠️ IMPORTANT UPDATE**: This document has been updated from 7-status to 9-status workflow as of Phase 4. The new workflow introduces `foundations` and `foundations_approval` statuses with a user approval gate for writing quality enhancement.
+>
+> **See Also**: [status-flow-reference.md](./status-flow-reference.md) (v3.0.0) for the detailed 9-status reference.
 
 ## Overview
 
-The 7-status workflow is a linear, AI-driven content creation pipeline that guides artifacts from draft to publication. The workflow eliminates approval gates and branching paths, creating a streamlined experience where AI handles all content generation phases automatically.
+The 9-status workflow is a linear, AI-driven content creation pipeline that guides artifacts from draft to publication. **Phase 4 introduced a user approval gate** after skeleton generation, where users review writing characteristics and the content skeleton before continuing to content writing.
 
 **Key Characteristics:**
-- **Linear Progression** - No branching, single path from draft to published
-- **Auto-Transitions** - AI automatically advances between processing states
-- **Editor Locking** - Editor locked during AI processing (research, skeleton, writing, creating_visuals)
-- **Two Editable States** - Users can edit in draft, ready, and published states
+- **Linear Progression** - Single path from draft to published with one approval gate
+- **Approval Gate** - User reviews foundations (skeleton + characteristics) before writing
+- **Auto-Transitions** - AI automatically advances between processing states (except at approval)
+- **Editor Locking** - Editor locked during AI processing (research, foundations, writing, creating_visuals)
+- **Skeleton Editing** - Skeleton is EDITABLE in FoundationsSection during `foundations_approval` status
+- **Three Editable States** - Users can edit in draft, ready, and published states
 - **Auto-Revert** - Editing published content automatically reverts to ready
 
 ---
 
 ## Status Overview
 
-### Complete Workflow
+### Complete Workflow (Phase 4)
 
 ```
-draft → research → skeleton → writing → creating_visuals → ready → published
-                                                                      ↓
-                                                                   ready (on edit)
+draft → research → foundations → skeleton → foundations_approval → [UI BUTTON] → writing → creating_visuals → ready → published
+                                                                                                                          ↓
+                                                                                                                       ready (on edit)
 ```
+
+**Phase 4 Approval Gate**: After skeleton generation, the status changes to `foundations_approval` and the pipeline PAUSES. User reviews:
+1. Writing characteristics (tone, voice, structure, etc.)
+2. Content skeleton (editable in FoundationsSection)
+3. Clicks "Foundations Approved" button to continue
 
 ### Status Categories
 
@@ -34,11 +45,15 @@ draft → research → skeleton → writing → creating_visuals → ready → p
 - `ready` - Content complete, user can edit and review
 - `published` - Published content, editable (reverts to ready on edit)
 
-**Processing States** (4 states):
-- `research` - AI researching topic from multiple sources
-- `skeleton` - AI generating H1 title + H2 section headings
-- `writing` - AI writing full content for each section
-- `creating_visuals` - AI generating cover image/visuals
+**Processing States** (4 states) - Editor locked, AI working:
+- `research` - AI researching topic from multiple sources (15% progress)
+- `foundations` - AI analyzing writing characteristics (30% progress)
+- `writing` - AI writing full content for each section (70% progress)
+- `creating_visuals` - AI generating cover image/visuals (90% progress)
+
+**Approval States** (2 states) - Pipeline paused:
+- `skeleton` - AI generating H1 title + H2 section headings (45% progress)
+- `foundations_approval` - User reviews skeleton + characteristics (50% progress, **REQUIRES USER APPROVAL**)
 
 ---
 
@@ -87,7 +102,7 @@ await conductDeepResearch({ artifactId: id, minRequired: 5 })
 
 ### 2. research
 
-**User-Facing Label:** "Creating Content" (25% progress)
+**User-Facing Label:** "Creating the Foundations" (15% progress)
 
 **Description:**
 - AI conducting deep research on the artifact topic
@@ -97,7 +112,7 @@ await conductDeepResearch({ artifactId: id, minRequired: 5 })
 
 **Editor State:** Locked (read-only)
 
-**Processing:** Yes (AI active, 25% progress)
+**Processing:** Yes (AI active, 15% progress)
 
 **Available User Actions:**
 - None (wait for completion)
@@ -116,21 +131,22 @@ const result = await conductDeepResearch.execute({
 // - Extract top 5-7 sources
 // - Store in artifact_research table
 
-// Status transitions automatically on completion
-await updateArtifact({ id, status: 'skeleton' })
+// Status transitions automatically on completion (Phase 4)
+await updateArtifact({ id, status: 'foundations' })  // NOT 'skeleton'
+await analyzeWritingCharacteristics({ artifactId: id })
 ```
 
 **Frontend Behavior:**
 - Editor locked (no editing)
-- WritingProgress visible (25% complete)
+- WritingProgress visible (15% complete)
 - ResearchArea shows loading state
 - Polling active (every 2 seconds)
 
 **Transition Out:**
 ```typescript
-// Auto-transition when research completes
-await updateArtifact({ id, status: 'skeleton' })
-await generateContentSkeleton({ artifactId: id })
+// Auto-transition when research completes (Phase 4)
+await updateArtifact({ id, status: 'foundations' })
+await analyzeWritingCharacteristics({ artifactId: id })
 ```
 
 **Transition In:**
@@ -138,18 +154,80 @@ await generateContentSkeleton({ artifactId: id })
 
 ---
 
-### 3. skeleton
+### 3. foundations (Phase 4 NEW)
 
-**User-Facing Label:** "Creating Content" (50% progress)
+**User-Facing Label:** "Creating the Foundations" (30% progress)
 
 **Description:**
-- AI generating content structure (H1 title + H2 section headings)
-- Creating estimated word counts per section
-- Storing skeleton as markdown in artifact.content
+- AI analyzing writing style from user's writing examples
+- Extracting 20+ writing characteristics (tone, voice, pacing, structure, etc.)
+- Creating style profile for content generation
+- Storing characteristics in artifact_writing_characteristics table
 
 **Editor State:** Locked (read-only)
 
-**Processing:** Yes (AI active, 50% progress)
+**Processing:** Yes (AI active, 30% progress)
+
+**Available User Actions:**
+- None (wait for completion)
+
+**Backend Operations:**
+```typescript
+// Tool: analyzeWritingCharacteristics
+const result = await analyzeWritingCharacteristics.execute({
+  artifactId,
+  artifactType
+})
+
+// Claude analyzes:
+// - User's writing examples (500+ words each)
+// - User context (profession, goals, audience)
+// - Research context
+// - Returns 20+ writing characteristics
+
+// Store in artifact_writing_characteristics table
+await supabase.from('artifact_writing_characteristics').upsert({
+  artifact_id: artifactId,
+  characteristics,
+  summary,
+  recommendations
+})
+
+// Status transitions automatically on completion
+await updateArtifact({ id, status: 'skeleton' })
+await generateContentSkeleton({ artifactId: id, characteristics })
+```
+
+**Frontend Behavior:**
+- Editor locked (no editing)
+- WritingProgress visible (30% complete)
+- Polling active (every 2 seconds)
+
+**Transition Out:**
+```typescript
+// Auto-transition when characteristics analysis completes
+await updateArtifact({ id, status: 'skeleton' })
+await generateContentSkeleton({ artifactId: id })
+```
+
+**Transition In:**
+- From `research` (automatic after research completes)
+
+---
+
+### 4. skeleton
+
+**User-Facing Label:** "Creating the Foundations" (45% progress)
+
+**Description:**
+- AI generating content structure (H1 title + H2 section headings)
+- Using writing characteristics to guide structure
+- Creating estimated word counts per section
+- Storing skeleton in skeleton_content or artifact.content
+
+**Editor State:** Locked (read-only)
+
+**Processing:** Yes (AI active, 45% progress)
 
 **Available User Actions:**
 - None (wait for completion)
@@ -159,10 +237,12 @@ await generateContentSkeleton({ artifactId: id })
 // Tool: generateContentSkeleton
 const result = await generateContentSkeleton.execute({
   artifactId,
-  researchResults  // From artifact_research table
+  tone,
+  // Phase 4: Uses writing characteristics for structure
+  characteristics: await fetchWritingCharacteristics(artifactId)
 })
 
-// Claude Sonnet 4 generates:
+// Claude Sonnet generates:
 // # Main Title (H1)
 // ## Section 1 (H2)
 // [Estimated: 300 words]
@@ -171,33 +251,86 @@ const result = await generateContentSkeleton.execute({
 // ## Section 3 (H2)
 // [Estimated: 300 words]
 
-// Store skeleton in artifact.content
-await updateArtifact({ id, content: skeleton })
+// Store skeleton in artifact (Phase 4: skeleton_content field)
+await updateArtifact({ id, skeleton_content: skeleton })
 
-// Status transitions automatically on completion
-await updateArtifact({ id, status: 'writing' })
+// Status transitions to foundations_approval (Phase 4: PAUSE FOR USER)
+await updateArtifact({ id, status: 'foundations_approval' })
 ```
 
 **Frontend Behavior:**
 - Editor locked (shows skeleton as it's generated)
-- WritingProgress visible (50% complete, sections list)
+- WritingProgress visible (45% complete, sections list)
 - Polling active (every 2 seconds)
 
 **Transition Out:**
 ```typescript
-// Auto-transition when skeleton completes
-await updateArtifact({ id, status: 'writing' })
-await writeFullContent({ artifactId: id })
+// Auto-transition to foundations_approval (NOT writing)
+await updateArtifact({ id, status: 'foundations_approval' })
+// PIPELINE PAUSES - User must approve
 ```
 
 **Transition In:**
-- From `research` (automatic after research completes)
+- From `foundations` (automatic after characteristics analysis)
 
 ---
 
-### 4. writing
+### 5. foundations_approval (Phase 4 NEW)
 
-**User-Facing Label:** "Creating Content" (75% progress)
+**User-Facing Label:** "Foundations Approval" (50% progress)
+
+**Description:**
+- Pipeline PAUSED - waiting for user approval
+- User reviews writing characteristics display
+- User can EDIT skeleton in FoundationsSection (TipTap editor)
+- User clicks "Foundations Approved" button to continue
+
+**Editor State:** Main editor locked, **Skeleton EDITABLE in FoundationsSection**
+
+**Processing:** No (waiting for user)
+
+**Available User Actions:**
+- Review writing characteristics
+- **Edit skeleton content** (in FoundationsSection)
+- Click "Foundations Approved" button to continue
+- Cancel and return to draft (if implemented)
+
+**Backend Operations:**
+```typescript
+// No automatic operations
+// User edits skeleton via API:
+// PUT /api/artifacts/:id { skeleton_content: editedSkeleton }
+
+// User clicks "Foundations Approved" button:
+// POST /api/artifacts/:id/approve-foundations
+const result = await pipelineExecutor.resumeFromApproval(artifactId)
+// Status changes: foundations_approval → writing
+```
+
+**Frontend Behavior:**
+- FoundationsSection auto-expanded
+- WritingCharacteristicsDisplay shows style profile
+- TipTap editor in FoundationsSection is EDITABLE
+- "Foundations Approved" button visible and enabled
+- No polling (pipeline paused)
+- Main ArtifactEditor hidden or locked
+
+**Transition Out:**
+```typescript
+// User clicks "Foundations Approved" button
+await api.post(`/api/artifacts/${id}/approve-foundations`)
+// Backend resumes pipeline: foundations_approval → writing
+await writeFullContent({ artifactId: id, characteristics })
+```
+
+**Transition In:**
+- From `skeleton` (automatic after skeleton generation)
+
+---
+
+### 6. writing
+
+**User-Facing Label:** "Writing Content" (70% progress)
 
 **Description:**
 - AI writing full content for each section
@@ -254,9 +387,9 @@ await generateContentVisuals({ artifactId: id })
 
 ---
 
-### 5. creating_visuals
+### 7. creating_visuals
 
-**User-Facing Label:** "Creating Content" (90% progress)
+**User-Facing Label:** "Creating Visuals" (90% progress)
 
 **Description:**
 - AI extracting `[IMAGE: description]` placeholders from content
@@ -362,9 +495,9 @@ await updateArtifact({ id, status: 'ready' })
 
 ---
 
-### 6. ready
+### 8. ready
 
-**User-Facing Label:** "Ready to Publish"
+**User-Facing Label:** "Content Ready" (100% progress)
 
 **Description:**
 - Content fully generated and ready for review
@@ -407,9 +540,9 @@ await updateArtifact({ id, status: 'published', published_at: new Date() })
 
 ---
 
-### 7. published
+### 9. published
 
-**User-Facing Label:** "Published"
+**User-Facing Label:** "Published" (100% progress)
 
 **Description:**
 - Content published to target platform
@@ -453,30 +586,47 @@ await updateArtifact({ id, status: 'ready' })
 
 ## Status Transition Rules
 
-### Valid Transitions
+### Valid Transitions (Phase 4 - 9 Status Workflow)
 
-| From | To | Trigger | Tool/Operation |
-|------|----|---------| --------------|
-| `draft` | `research` | User clicks "Create Content" | conductDeepResearch |
-| `research` | `skeleton` | Research completes | generateContentSkeleton |
-| `skeleton` | `writing` | Skeleton completes | writeFullContent |
-| `writing` | `creating_visuals` | Writing completes | generateContentVisuals |
-| `creating_visuals` | `ready` | Visuals complete | (automatic) |
-| `creating_visuals` | `ready` | Humanity check applied | applyHumanityCheck |
-| `ready` | `published` | User clicks "Mark as Published" | (manual) |
-| `published` | `ready` | User edits content | (automatic) |
+| From | To | Trigger | Auto/Manual | Tool/Operation |
+|------|----|---------| ------------|----------------|
+| `draft` | `research` | User clicks "Create Content" | Manual | conductDeepResearch |
+| `research` | `foundations` | Research completes | Auto | analyzeWritingCharacteristics |
+| `foundations` | `skeleton` | Characteristics analysis completes | Auto | generateContentSkeleton |
+| `skeleton` | `foundations_approval` | Skeleton generated | Auto | (pipeline pauses) |
+| `foundations_approval` | `writing` | User clicks "Foundations Approved" | **Manual (UI)** | writeFullContent |
+| `writing` | `creating_visuals` | Writing completes | Auto | identifyImageNeeds |
+| `creating_visuals` | `ready` | Visuals complete | Auto | (automatic) |
+| `ready` | `published` | User clicks "Mark as Published" | Manual | (manual) |
+| `published` | `ready` | User edits content | Auto | (automatic) |
+
+### Phase 4 Key Changes
+
+1. **New `foundations` status**: AI analyzes writing characteristics after research
+2. **New `foundations_approval` status**: Pipeline PAUSES for user review
+3. **Editable skeleton**: User can edit skeleton in FoundationsSection during `foundations_approval`
+4. **UI button approval**: User clicks "Foundations Approved" button to continue (not chat-based)
 
 ### Invalid Transitions
 
 ```typescript
 // Cannot skip research
+draft → foundations  ❌
 draft → skeleton  ❌
 
-// Cannot skip skeleton
+// Cannot skip foundations (Phase 4)
+research → skeleton  ❌
 research → writing  ❌
 
+// Cannot skip skeleton
+foundations → writing  ❌
+foundations → foundations_approval  ❌
+
+// Cannot skip approval gate (Phase 4)
+skeleton → writing  ❌
+
 // Cannot skip writing
-skeleton → ready  ❌
+foundations_approval → creating_visuals  ❌
 
 // Cannot skip visuals
 writing → ready  ❌
@@ -485,6 +635,7 @@ writing → ready  ❌
 ready → writing  ❌
 skeleton → research  ❌
 writing → skeleton  ❌
+foundations_approval → skeleton  ❌
 ```
 
 ### Transition Validation
@@ -496,8 +647,10 @@ function isValidTransition(
 ): boolean {
   const validTransitions: Record<ArtifactStatus, ArtifactStatus[]> = {
     draft: ['research'],
-    research: ['skeleton'],
-    skeleton: ['writing'],
+    research: ['foundations'],
+    foundations: ['skeleton'],
+    skeleton: ['foundations_approval'],
+    foundations_approval: ['writing'],
     writing: ['creating_visuals'],
     creating_visuals: ['ready'],
     ready: ['published'],
@@ -514,13 +667,13 @@ function isValidTransition(
 
 ### Processing States (4 states)
 
-Editor locked, AI actively processing:
+Editor locked, AI actively processing, **polling enabled**:
 ```typescript
 const PROCESSING_STATES: ArtifactStatus[] = [
-  'research',
-  'skeleton',
-  'writing',
-  'creating_visuals'
+  'research',      // AI researching topic
+  'foundations',   // AI analyzing writing characteristics (Phase 4)
+  'writing',       // AI writing full content
+  'creating_visuals' // AI generating images
 ]
 
 function isProcessingState(status: ArtifactStatus): boolean {
@@ -534,6 +687,21 @@ function isProcessingState(status: ArtifactStatus): boolean {
 - ✅ Polling active (every 2 seconds)
 - ✅ Auto-transitions when AI completes
 - ❌ No user action buttons
+
+### Non-Processing States (5 states)
+
+States where AI is NOT actively processing, **no polling**:
+```typescript
+const NON_PROCESSING_STATES: ArtifactStatus[] = [
+  'draft',               // User can edit, no AI active
+  'skeleton',            // AI generating skeleton (brief, transitions quickly)
+  'foundations_approval', // Pipeline PAUSED, waiting for user approval
+  'ready',               // Content complete, user can edit
+  'published'            // Published, user can edit (reverts to ready)
+]
+```
+
+**Note on `skeleton` status**: Although AI is generating the skeleton, it transitions quickly to `foundations_approval`. Polling is technically active but brief.
 
 ### Editable States (3 states)
 
@@ -557,43 +725,72 @@ function isEditableState(status: ArtifactStatus): boolean {
 - ❌ No polling
 - ✅ Manual transitions only (except published → ready auto-revert)
 
+### Approval States (Phase 4)
+
+States where pipeline is paused waiting for user action:
+```typescript
+const APPROVAL_STATES: ArtifactStatus[] = [
+  'foundations_approval' // User must click "Foundations Approved" button
+]
+
+function isApprovalState(status: ArtifactStatus): boolean {
+  return APPROVAL_STATES.includes(status)
+}
+```
+
+**Characteristics:**
+- ✅ Main editor locked
+- ✅ Skeleton EDITABLE in FoundationsSection
+- ✅ WritingCharacteristicsDisplay visible
+- ✅ "Foundations Approved" button enabled
+- ❌ No polling (pipeline paused)
+- ✅ Manual transition via UI button
+
 ---
 
 ## Frontend UI Behavior
 
-### Status Badge
+### Status Badge (Phase 4 - 9 statuses)
 
 ```typescript
 function getStatusBadge(status: ArtifactStatus): {
   label: string
-  color: 'gray' | 'blue' | 'green' | 'purple'
+  color: 'gray' | 'blue' | 'amber' | 'green' | 'purple' | 'emerald'
 } {
   const badgeMap = {
     draft: { label: 'Draft', color: 'gray' },
-    research: { label: 'Creating Content', color: 'blue' },
-    skeleton: { label: 'Creating Content', color: 'blue' },
-    writing: { label: 'Creating Content', color: 'blue' },
-    creating_visuals: { label: 'Creating Content', color: 'blue' },
-    ready: { label: 'Ready to Publish', color: 'green' },
-    published: { label: 'Published', color: 'purple' }
+    research: { label: 'Creating the Foundations', color: 'blue' },
+    foundations: { label: 'Creating the Foundations', color: 'blue' },
+    skeleton: { label: 'Creating the Foundations', color: 'blue' },
+    foundations_approval: { label: 'Foundations Approval', color: 'amber' }, // Phase 4
+    writing: { label: 'Writing Content', color: 'blue' },
+    creating_visuals: { label: 'Creating Visuals', color: 'purple' },
+    ready: { label: 'Content Ready', color: 'green' },
+    published: { label: 'Published', color: 'emerald' }
   }
   return badgeMap[status]
 }
 ```
 
-### WritingProgress Component
+### WritingProgress Component (Phase 4)
 
 ```typescript
 function shouldShowWritingProgress(status: ArtifactStatus): boolean {
-  return isProcessingState(status)
+  // Show progress for processing states AND approval state
+  return isProcessingState(status) || status === 'foundations_approval'
 }
 
 function getProgressPercentage(status: ArtifactStatus): number {
   const percentages = {
-    research: 25,
-    skeleton: 50,
-    writing: 75,
-    creating_visuals: 90
+    draft: 0,
+    research: 15,
+    foundations: 30,        // Phase 4
+    skeleton: 45,
+    foundations_approval: 50, // Phase 4 - paused
+    writing: 70,
+    creating_visuals: 90,
+    ready: 100,
+    published: 100
   }
   return percentages[status] ?? 0
 }
@@ -716,22 +913,63 @@ if (error.recoverable && retries < 3) {
 
 ## Database Schema
 
-### Status Constraint
+### Status Constraint (Phase 4 - 9 statuses)
 
 ```sql
-CREATE TABLE artifacts (
-  id UUID PRIMARY KEY,
-  status VARCHAR(50) NOT NULL DEFAULT 'draft' CHECK (status IN (
-    'draft',
-    'research',
-    'skeleton',
-    'writing',
-    'creating_visuals',
-    'ready',
-    'published'
-  )),
-  -- ... other fields
+-- Phase 4 Migration: 007_phase4_new_statuses.sql
+-- Add new artifact statuses for writing quality enhancement
+
+ALTER TABLE artifacts
+  DROP CONSTRAINT IF EXISTS artifacts_status_check;
+
+ALTER TABLE artifacts
+  ADD CONSTRAINT artifacts_status_check CHECK (status IN (
+    'draft',                -- Initial state, editable
+    'research',             -- AI researching (processing, polling)
+    'foundations',          -- AI analyzing characteristics (processing, polling) - Phase 4
+    'skeleton',             -- AI creating structure (brief processing)
+    'foundations_approval', -- Pipeline PAUSED, user approval required - Phase 4
+    'writing',              -- AI writing content (processing, polling)
+    'creating_visuals',     -- AI generating images (processing, polling)
+    'ready',                -- Content ready, editable
+    'published'             -- Published, editable (reverts to ready on edit)
+  ));
+```
+
+### Phase 4 New Tables
+
+```sql
+-- 008_artifact_writing_characteristics.sql
+CREATE TABLE artifact_writing_characteristics (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  artifact_id UUID NOT NULL REFERENCES artifacts(id) ON DELETE CASCADE,
+  characteristics JSONB NOT NULL DEFAULT '{}',
+  summary TEXT,
+  recommendations TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT artifact_writing_characteristics_artifact_id_key UNIQUE (artifact_id)
 );
+
+CREATE INDEX idx_artifact_writing_characteristics_artifact_id
+  ON artifact_writing_characteristics(artifact_id);
+
+-- 009_user_writing_examples.sql
+CREATE TABLE user_writing_examples (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR(255) NOT NULL,
+  content TEXT NOT NULL,
+  word_count INTEGER NOT NULL CHECK (word_count >= 500),
+  source_type VARCHAR(50) DEFAULT 'manual',
+  analyzed_characteristics JSONB,
+  is_active BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_user_writing_examples_user_id ON user_writing_examples(user_id);
+CREATE INDEX idx_user_writing_examples_active ON user_writing_examples(user_id, is_active);
 ```
 
 ### Status Index
@@ -744,13 +982,24 @@ CREATE INDEX idx_artifacts_status ON artifacts(status);
 
 ## Related Documentation
 
-- [status-flow-reference.md](./status-flow-reference.md) - Detailed status reference (v2.0.0)
+- [status-flow-reference.md](./status-flow-reference.md) - Detailed 9-status reference (v3.0.0)
+- [STATUS_VALUES_REFERENCE.md](./STATUS_VALUES_REFERENCE.md) - Quick status values reference
 - [content-creation-flow-fix.md](./content-creation-flow-fix.md) - Historical flow fixes
-- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Complete pipeline documentation
+- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Complete pipeline documentation (v2.0.0)
 - [artifact-schema-and-workflow.md](../Architecture/database/artifact-schema-and-workflow.md) - Database schema
+- [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md) - Tool documentation (v2.0.0)
 
 ---
 
 **Version History:**
+- **3.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
+  - Updated from 7-status to 9-status workflow
+  - Added `foundations` status (AI analyzes writing characteristics)
+  - Added `foundations_approval` status (user approval gate)
+  - Added `analyzeWritingCharacteristics` tool documentation
+  - Updated processing states to include `foundations`
+  - Added approval states category
+  - Added Phase 4 database schema (artifact_writing_characteristics, user_writing_examples)
+  - Updated transition rules for 9-status flow
 - **2.0.0** (2026-01-28) - Phase 3 image generation: Updated creating_visuals status with DALL-E 3 / Gemini Imagen implementation, visuals_metadata structure, content embedding
 - **1.0.0** (2026-01-26) - Initial 7-status workflow specification

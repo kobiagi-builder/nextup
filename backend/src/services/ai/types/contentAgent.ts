@@ -16,7 +16,9 @@ export type ArtifactType = 'blog' | 'social_post' | 'showcase';
 export type ArtifactStatus =
   | 'draft'
   | 'research'
+  | 'foundations'           // Phase 4: AI analyzing writing characteristics
   | 'skeleton'
+  | 'foundations_approval'  // Phase 4: Waiting for user to approve foundations
   | 'writing'
   | 'creating_visuals'
   | 'ready'
@@ -40,6 +42,7 @@ export type ToolName =
   // Core content creation tools
   | 'topicsResearch'
   | 'conductDeepResearch'
+  | 'analyzeWritingCharacteristics'  // Phase 4: Analyze writing style
   | 'generateContentSkeleton'
   | 'writeContentSection'
   | 'writeFullContent'
@@ -173,4 +176,25 @@ export interface PipelineExecutionRequest {
     tone?: ToneType;
     includeVisuals?: boolean;
   };
+}
+
+// =============================================================================
+// Phase 4: Writing Characteristics Types
+// =============================================================================
+
+import type { WritingCharacteristics } from '../../../types/portfolio.js';
+
+/** Input for the analyzeWritingCharacteristics tool */
+export interface CharacteristicsAnalysisInput {
+  artifactId: string;
+  artifactType: ArtifactType;
+}
+
+/** Output from the analyzeWritingCharacteristics tool */
+export interface CharacteristicsAnalysisOutput {
+  characteristics: WritingCharacteristics;
+  summary: string;
+  recommendations: string;
+  examplesUsed: number;
+  artifactAnalyzed: boolean;
 }

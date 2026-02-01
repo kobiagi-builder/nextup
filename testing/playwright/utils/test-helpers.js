@@ -327,10 +327,10 @@ export async function createArtifact(page, config, autoCreateContent = false) {
     await createContentButton.click();
     console.log('   ✅ Clicked "Create Content" - AI pipeline will start');
   } else {
-    // Click regular "Create" button (no AI)
-    const createButton = page.locator('[data-testid="artifact-form-submit"]');
-    await createButton.click();
-    console.log('   ✅ Clicked "Create" - Draft created');
+    // Click "Save as Draft" button (no AI, create mode uses save-draft)
+    const saveDraftButton = page.locator('[data-testid="artifact-form-save-draft"]');
+    await saveDraftButton.click();
+    console.log('   ✅ Clicked "Save as Draft" - Draft created');
   }
 
   await page.waitForTimeout(2000);

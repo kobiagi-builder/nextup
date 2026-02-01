@@ -3,6 +3,7 @@ import { healthRouter } from './health.js'
 import { aiRouter } from './ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
 import contentAgentRouter from './contentAgentRoutes.js'
+import writingExamplesRouter from './writingExamples.routes.js'
 import { logFrontend } from '../lib/logger.js'
 
 export const router = Router()
@@ -18,6 +19,9 @@ router.use('/artifacts', artifactResearchRouter)
 
 // Content agent endpoints
 router.use('/content-agent', contentAgentRouter)
+
+// User writing examples endpoints (Phase 4)
+router.use('/user/writing-examples', writingExamplesRouter)
 
 // Frontend logging endpoint - captures all FE logs to the debug file
 router.post('/log', (req, res) => {

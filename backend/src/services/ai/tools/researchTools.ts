@@ -176,13 +176,58 @@ export const conductDeepResearch = tool({
           .update({ status: 'research', updated_at: new Date().toISOString() })
           .eq('id', artifactId);
 
-        const mockResponse = await mockService.getMockResponse<ResearchToolResponse>(
-          'conductDeepResearch',
-          artifactType,
-          { artifactId, topic, artifactType }
-        );
+        // Insert mock research data into database for frontend to display
+        const mockSources: SourceType[] = ['reddit', 'linkedin', 'quora', 'medium', 'substack'];
+        const mockResearchData: ResearchResult[] = mockSources.map((source, index) => ({
+          artifact_id: artifactId,
+          source_type: source,
+          source_name: `Mock ${source.charAt(0).toUpperCase() + source.slice(1)} Research on "${topic.substring(0, 30)}..."`,
+          source_url: `https://example.com/${source}/mock-research-${index}`,
+          excerpt: `This is mock research content from ${source} about "${topic}". It contains relevant insights and perspectives that will help inform the content creation process. Key points include industry trends, user experiences, and expert opinions on the topic.`,
+          relevance_score: 0.8 + (Math.random() * 0.15), // 0.80 - 0.95
+        }));
 
-        return mockResponse;
+        // Insert mock research into database
+        const { error: insertError } = await supabaseAdmin
+          .from('artifact_research')
+          .insert(mockResearchData);
+
+        if (insertError) {
+          logger.warn('ConductDeepResearch', 'Failed to insert mock research', {
+            artifactId,
+            error: insertError.message,
+          });
+        } else {
+          logger.debug('ConductDeepResearch', 'Mock research data inserted', {
+            artifactId,
+            count: mockResearchData.length,
+          });
+        }
+
+        const duration = Date.now() - startTime;
+
+        // Return mock response with actual data
+        return {
+          success: true,
+          traceId,
+          duration,
+          statusTransition: { from: 'draft', to: 'research' },
+          data: {
+            sourceCount: mockResearchData.length,
+            keyInsights: mockResearchData.slice(0, 3).map(r => ({
+              sourceType: r.source_type,
+              sourceName: r.source_name,
+              excerpt: r.excerpt.substring(0, 150) + '...',
+              relevanceScore: r.relevance_score,
+            })),
+            sourcesBreakdown: mockSources.reduce((acc, source) => {
+              acc[source] = 1;
+              return acc;
+            }, {} as Record<string, number>),
+            uniqueSourcesCount: mockSources.length,
+            usedFallback: false,
+          },
+        };
       }
 
       // 0. Update artifact status to 'research' (Phase 1: enables frontend polling)

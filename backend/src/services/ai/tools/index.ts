@@ -56,3 +56,8 @@ export {
   generateFinalImages,
   regenerateImage,
 } from './finalImageTools.js'
+
+// Writing characteristics tools (Phase 4)
+export {
+  analyzeWritingCharacteristics,
+} from './writingCharacteristicsTools.js'

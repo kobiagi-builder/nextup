@@ -1,0 +1,116 @@
+# Page snapshot
+
+```yaml
+- generic:
+  - generic:
+    - generic:
+      - link:
+        - /url: "#main-content"
+        - text: Skip to main content
+      - complementary:
+        - generic:
+          - generic:
+            - generic: CT
+        - navigation:
+          - link:
+            - /url: /
+            - img
+          - link:
+            - /url: /portfolio
+            - img
+        - navigation:
+          - link:
+            - /url: /profile
+            - img
+          - link:
+            - /url: /settings
+            - img
+          - button:
+            - img
+      - main:
+        - generic:
+          - generic:
+            - generic:
+              - button:
+                - img
+              - generic:
+                - heading [level=1]: AI in Product Management 2026
+              - button:
+                - img
+                - text: AI Assistant
+              - button:
+                - img
+                - text: Create Content
+            - generic:
+              - generic:
+                - generic:
+                  - generic:
+                    - img
+                    - heading [level=3]: Research
+                  - button:
+                    - img
+              - generic:
+                - generic:
+                  - generic:
+                    - generic:
+                      - generic: AI in Product Management 2026
+                      - generic: blog
+                    - generic:
+                      - button:
+                        - img
+                  - generic:
+                    - generic:
+                      - generic:
+                        - generic:
+                          - button:
+                            - img
+                          - button [disabled]:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                          - button:
+                            - img
+                        - generic:
+                          - generic:
+                            - generic: "Tone:"
+                            - combobox:
+                              - generic: Professional
+                              - img
+                      - generic:
+                        - generic:
+                          - paragraph: Comprehensive guide on AI tools for product managers including roadmapping, analytics, and automation.
+    - list
+  - dialog "AI Assistant" [ref=e2]:
+    - button "Close" [active] [ref=e3] [cursor=pointer]:
+      - img [ref=e4]
+      - generic [ref=e7]: Close
+    - heading "AI Assistant" [level=2] [ref=e9]:
+      - img [ref=e10]
+      - text: AI Assistant
+    - generic [ref=e14]:
+      - generic [ref=e18]:
+        - generic [ref=e19]:
+          - img [ref=e21]
+          - generic [ref=e26]: "Create content: \"AI in Product Management 2026\""
+        - generic [ref=e27]: "Type validation failed: Value: {\"type\":\"text\",\"text\":\"I'll start creating the content now. The AI pipeline is processing your request for \\\"AI in Product Management 2026\\\". You'll see the status update as the content is being generated.\"}. Error message: [ { \"code\": \"invalid_union\", \"errors\": [ [ { \"code\": \"invalid_value\", \"values\": [ \"text-start\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"text-start\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"text-delta\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"text-delta\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"delta\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"text-end\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"text-end\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"error\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"error\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"errorText\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-input-start\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-input-start\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolName\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-input-delta\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-input-delta\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"inputTextDelta\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-input-available\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-input-available\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolName\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-input-error\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-input-error\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolName\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"errorText\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-approval-request\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-approval-request\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"approvalId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-output-available\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-output-available\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-output-error\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-output-error\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"errorText\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"tool-output-denied\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"tool-output-denied\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"toolCallId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"reasoning-start\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"reasoning-start\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"reasoning-delta\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"reasoning-delta\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"delta\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"reasoning-end\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"reasoning-end\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"id\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"source-url\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"source-url\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"sourceId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"url\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"source-document\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"source-document\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"sourceId\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"mediaType\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"title\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"file\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"file\\\"\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"url\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"expected\": \"string\", \"code\": \"invalid_type\", \"path\": [ \"mediaType\" ], \"message\": \"Invalid input: expected string, received undefined\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"custom\", \"path\": [ \"type\" ], \"message\": \"Type must start with \\\"data-\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"start-step\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"start-step\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"finish-step\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"finish-step\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"start\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"start\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"finish\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"finish\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"abort\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"abort\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ], [ { \"code\": \"invalid_value\", \"values\": [ \"message-metadata\" ], \"path\": [ \"type\" ], \"message\": \"Invalid input: expected \\\"message-metadata\\\"\" }, { \"code\": \"unrecognized_keys\", \"keys\": [ \"text\" ], \"path\": [], \"message\": \"Unrecognized key: \\\"text\\\"\" } ] ], \"path\": [], \"message\": \"Invalid input\" } ]"
+      - generic [ref=e29]:
+        - generic [ref=e30]:
+          - textbox "Let's chat about your content..." [ref=e32]
+          - button [disabled]:
+            - img
+        - paragraph [ref=e33]: Press Enter to send, Shift+Enter for new line
+```

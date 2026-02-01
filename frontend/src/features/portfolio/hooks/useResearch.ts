@@ -41,30 +41,24 @@ export function useResearch(artifactId: string, artifactStatus?: ArtifactStatus)
       }
     },
     enabled: !!artifactId,
-    // Poll intelligently based on artifact status and current research state
+    // Poll only during active processing states
     // Status flow: draft → research → skeleton → writing → creating_visuals → ready → published
-    refetchInterval: (query) => {
-      const currentResearch = query.state.data ?? []
-
+    // Once status is 'ready' or beyond, processing is complete - no need to poll
+    refetchInterval: () => {
       // Processing states that require polling
       const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
       const isInProcessingState = artifactStatus ? processingStates.includes(artifactStatus) : false
 
-      const shouldPoll =
-        isInProcessingState ||
-        (artifactStatus === 'ready' && currentResearch.length === 0)
-
-      if (shouldPoll) {
+      if (isInProcessingState) {
         console.log('[useResearch] Polling enabled:', {
           artifactId,
           artifactStatus,
-          currentResearchCount: currentResearch.length,
-          reason: isInProcessingState ? 'in_processing_state' : 'ready_no_research',
+          reason: 'in_processing_state',
         })
         return 2000 // Poll every 2 seconds
       }
 
-      return false // Stop polling once we have research and not in processing state
+      return false // Stop polling once processing is complete
     },
   })
 }

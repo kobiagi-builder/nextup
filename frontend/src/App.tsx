@@ -28,6 +28,7 @@ import { PortfolioPage } from '@/features/portfolio/pages/PortfolioPage'
 import { ArtifactPage } from '@/features/portfolio/pages/ArtifactPage'
 import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
 import { SettingsPage } from '@/features/portfolio/pages/SettingsPage'
+import { WritingStylePage } from '@/features/portfolio/pages/WritingStylePage'
 
 // Create React Query client with default options
 const queryClient = new QueryClient({
@@ -75,6 +76,9 @@ function App() {
 
                 {/* Settings */}
                 <Route path="/settings" element={<SettingsPage />} />
+
+                {/* Writing Style (Phase 4) */}
+                <Route path="/settings/style" element={<WritingStylePage />} />
               </Route>
             </Routes>
           </BrowserRouter>

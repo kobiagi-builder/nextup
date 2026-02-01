@@ -1,22 +1,23 @@
 # Core Tools Reference
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
-**Status:** Phase 1 MVP
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
+**Status:** Phase 4 (Writing Quality Enhancement)
 
 ---
 
 ## Introduction
 
-This document provides complete reference documentation for the **6 core content creation tools** used by the Content Agent to orchestrate the 7-status workflow. Each tool performs a specific step in the content creation pipeline, from research gathering to visual generation.
+This document provides complete reference documentation for the **7 core content creation tools** used by the Content Agent to orchestrate the 9-status workflow. Each tool performs a specific step in the content creation pipeline, from research gathering to visual generation.
 
 **Core Tools Overview:**
 1. **conductDeepResearch** - Gather research from 5+ sources (draft → research)
-2. **generateContentSkeleton** - Create structured outline (research → skeleton)
-3. **writeContentSection** - Write single section content (skeleton → skeleton)
-4. **writeFullContent** - Write all sections at once (skeleton → writing)
-5. **applyHumanityCheck** - Remove AI patterns (writing → creating_visuals)
-6. **generateContentVisuals** - Generate/detect visual placeholders (creating_visuals → ready)
+2. **analyzeWritingCharacteristics** - Analyze writing style from examples and context (research → foundations)
+3. **generateContentSkeleton** - Create structured outline (foundations → skeleton)
+4. **writeContentSection** - Write single section content (skeleton → skeleton)
+5. **writeFullContent** - Write all sections at once (foundations_approval → writing)
+6. **applyHumanityCheck** - Remove AI patterns (writing → humanity_checking → creating_visuals)
+7. **generateContentVisuals** - Generate/detect visual placeholders (creating_visuals → ready)
 
 **What this document covers:**
 - ToolOutput<T> interface specification
@@ -80,11 +81,15 @@ interface ToolOutput<T> {
 | From Status | To Status | Tool |
 |-------------|-----------|------|
 | `draft` | `research` | conductDeepResearch |
-| `research` | `skeleton` | generateContentSkeleton |
-| `skeleton` | `writing` | writeFullContent |
+| `research` | `foundations` | analyzeWritingCharacteristics |
+| `foundations` | `skeleton` | generateContentSkeleton |
+| `skeleton` | `foundations_approval` | (automatic after skeleton generation) |
+| `foundations_approval` | `writing` | writeFullContent (triggered by user approval) |
 | `skeleton` | `skeleton` | writeContentSection (no status change) |
-| `writing` | `creating_visuals` | applyHumanityCheck |
+| `writing` | `humanity_checking` → `creating_visuals` | applyHumanityCheck |
 | `creating_visuals` | `ready` | generateContentVisuals |
+
+**Phase 4 Workflow Pause**: After skeleton generation, the pipeline pauses at `foundations_approval` status. User must click "Foundations Approved" button in the UI to resume content writing.
 
 ---
 
@@ -248,19 +253,323 @@ const result = await conductDeepResearch.execute({
 
 ### Related Tools
 
-- **Next Tool**: `generateContentSkeleton` (uses research data)
+- **Next Tool**: `analyzeWritingCharacteristics` (uses research data for style analysis)
 - **Context Tool**: `fetchResearch` (retrieve stored research)
 - **Alternative**: Manual research upload (user-provided sources)
 
 ---
 
-## 2. generateContentSkeleton
+## 2. analyzeWritingCharacteristics
 
-**Purpose**: Create structured content outline/skeleton based on research findings and user-selected tone.
+**Purpose**: Analyze writing characteristics from research context and user writing examples to create a comprehensive writing style profile for content generation.
 
 **AI Provider**: Claude (Anthropic API)
 
-**Status Transition**: `research` → `skeleton`
+**Status Transition**: `research` → `foundations`
+
+### Input Schema
+
+```typescript
+{
+  artifactId: string;      // UUID format
+  artifactType: 'blog' | 'social_post' | 'showcase';
+}
+```
+
+**Zod Validation**:
+```typescript
+z.object({
+  artifactId: z.string().uuid().describe('ID of the artifact to analyze writing characteristics for'),
+  artifactType: z.enum(['blog', 'social_post', 'showcase']).describe('Type of artifact being created'),
+})
+```
+
+### Output Schema
+
+```typescript
+ToolOutput<{
+  characteristics: WritingCharacteristics;  // 20+ writing style characteristics
+  summary: string;                          // Human-readable style summary
+  recommendations: string[];                // Style recommendations for this artifact
+  exampleCount: number;                     // Number of writing examples analyzed
+  confidence: number;                       // Overall confidence score (0.0-1.0)
+}>
+```
+
+### WritingCharacteristics Schema
+
+All characteristics use a flexible JSONB structure with 3 core fields:
+
+```typescript
+interface CharacteristicValue {
+  value: string | number;        // The characteristic value
+  confidence: number;            // 0.0-1.0 confidence score
+  source: 'artifact' | 'examples' | 'mixed';  // Where the characteristic was derived from
+}
+
+interface WritingCharacteristics {
+  // Voice & Tone (6 characteristics)
+  tone: CharacteristicValue;                // formal, casual, professional, etc.
+  voice: CharacteristicValue;               // first_person, second_person, third_person
+  formality_level: CharacteristicValue;     // 1-10 scale
+  emotional_register: CharacteristicValue;  // neutral, empathetic, enthusiastic, etc.
+  pacing: CharacteristicValue;              // slow, moderate, fast
+  rhythm: CharacteristicValue;              // varied, consistent, staccato, flowing
+
+  // Structure & Organization (5 characteristics)
+  structure: CharacteristicValue;           // linear, non_linear, hierarchical
+  paragraph_length: CharacteristicValue;    // short, medium, long
+  section_count_preference: CharacteristicValue;  // number
+  use_of_headings: CharacteristicValue;     // minimal, moderate, extensive
+  transition_style: CharacteristicValue;    // explicit, implicit, mixed
+
+  // Evidence & Support (4 characteristics)
+  evidence_style: CharacteristicValue;      // data_heavy, anecdotal, mixed
+  citation_preference: CharacteristicValue; // inline, footnote, none
+  example_frequency: CharacteristicValue;   // few, moderate, many
+  use_of_analogies: CharacteristicValue;    // rare, occasional, frequent
+
+  // Engagement & CTA (3 characteristics)
+  cta_style: CharacteristicValue;           // direct, subtle, none
+  audience_engagement: CharacteristicValue; // low, moderate, high
+  question_usage: CharacteristicValue;      // rhetorical, direct, none
+
+  // Visual & Formatting (2 characteristics)
+  use_of_visuals: CharacteristicValue;      // minimal, moderate, extensive
+  formatting_complexity: CharacteristicValue; // simple, moderate, complex
+}
+```
+
+### Characteristics Analysis Flow
+
+**1. Fetch User Writing Examples**
+```typescript
+// Get user's uploaded writing examples (minimum 500 words each)
+const { data: writingExamples } = await supabase
+  .from('user_writing_examples')
+  .select('*')
+  .eq('user_id', userId)
+  .order('created_at', { ascending: false })
+  .limit(10);  // Max 10 examples for analysis
+```
+
+**2. Fetch Research and User Context**
+```typescript
+// Get research for artifact context
+const research = await fetchResearch({ artifactId });
+
+// Get user context for preferences
+const userContext = await fetchUserContext({ userId });
+```
+
+**3. Build Analysis Prompt**
+```typescript
+const prompt = `You are a writing style analyst. Analyze the provided writing examples and context to extract writing characteristics.
+
+## Writing Examples (${writingExamples.length} examples)
+${writingExamples.map(ex => `
+### Example: ${ex.name}
+${ex.content}
+---
+`).join('\n')}
+
+## User Context
+${userContext.professional_background}
+${userContext.writing_preferences}
+
+## Artifact Context
+Type: ${artifactType}
+Topic: ${research.topic}
+Research Insights: ${research.insights.slice(0, 5).map(i => i.excerpt).join('\n')}
+
+## Task
+Analyze the writing examples and context to extract 20+ writing characteristics.
+For each characteristic, provide:
+1. value: The detected value
+2. confidence: 0.0-1.0 based on consistency across examples
+3. source: 'examples' if from writing samples, 'artifact' if inferred from artifact type/context, 'mixed' if both
+
+Return a JSON object with the characteristics schema.`;
+```
+
+**4. Execute Analysis with Claude**
+```typescript
+const { object: characteristics } = await generateObject({
+  model: anthropic('claude-3-5-sonnet-20241022'),
+  prompt,
+  schema: writingCharacteristicsSchema,
+  temperature: 0.3,  // Low temperature for consistent analysis
+});
+```
+
+**5. Generate Summary and Recommendations**
+```typescript
+const summaryPrompt = `Based on these writing characteristics, create:
+1. A 2-3 sentence human-readable summary of the writing style
+2. 3-5 specific recommendations for applying this style to a ${artifactType}
+
+Characteristics:
+${JSON.stringify(characteristics, null, 2)}`;
+
+const { text: summaryAndRecs } = await generateText({
+  model: anthropic('claude-3-5-sonnet-20241022'),
+  prompt: summaryPrompt,
+  temperature: 0.4,
+});
+```
+
+**6. Store Characteristics and Update Status**
+```typescript
+// Store in artifact_writing_characteristics table
+await supabase
+  .from('artifact_writing_characteristics')
+  .upsert({
+    artifact_id: artifactId,
+    characteristics: characteristics,  // JSONB
+    summary: parsedSummary,
+    recommendations: parsedRecommendations,
+    example_count: writingExamples.length,
+    confidence: calculateOverallConfidence(characteristics),
+    created_at: new Date().toISOString(),
+  });
+
+// Update artifact status to foundations
+await supabase
+  .from('artifacts')
+  .update({ status: 'foundations' })
+  .eq('id', artifactId);
+```
+
+### Default Characteristics
+
+When no writing examples are available, defaults are provided based on artifact type:
+
+| Characteristic | Blog Default | Social Post Default | Showcase Default |
+|----------------|--------------|---------------------|------------------|
+| tone | professional | conversational | professional |
+| voice | third_person | first_person | first_person |
+| formality_level | 6 | 4 | 7 |
+| structure | hierarchical | linear | hierarchical |
+| paragraph_length | medium | short | medium |
+| evidence_style | mixed | anecdotal | data_heavy |
+| cta_style | subtle | direct | subtle |
+
+### Error Scenarios
+
+| Error Category | Condition | Recoverable | Recovery Strategy |
+|----------------|-----------|-------------|-------------------|
+| `INVALID_STATUS` | Artifact not in `research` | Yes | Execute `conductDeepResearch` first |
+| `RESEARCH_NOT_FOUND` | No research data available | Yes | Execute `conductDeepResearch` to gather sources |
+| `TOOL_EXECUTION_FAILED` | Database insert fails | No | Check database connectivity |
+| `AI_PROVIDER_ERROR` | Claude API error (503) | Yes | Retry with exponential backoff (3 attempts) |
+| `AI_RATE_LIMIT` | Claude rate limit exceeded | Yes | Wait + retry (backoff with jitter) |
+
+### Usage Example
+
+```typescript
+// Execute writing characteristics analysis
+const result = await analyzeWritingCharacteristics.execute({
+  artifactId: 'abc-123-def-456',
+  artifactType: 'blog'
+});
+
+// Result (success case with writing examples)
+{
+  success: true,
+  traceId: 'characteristics-1706284532000-a1b2c3',
+  duration: 15234,
+  statusTransition: { from: 'research', to: 'foundations' },
+  data: {
+    characteristics: {
+      tone: { value: 'professional', confidence: 0.92, source: 'examples' },
+      voice: { value: 'first_person', confidence: 0.88, source: 'examples' },
+      formality_level: { value: 6, confidence: 0.85, source: 'examples' },
+      emotional_register: { value: 'empathetic', confidence: 0.78, source: 'examples' },
+      pacing: { value: 'moderate', confidence: 0.82, source: 'examples' },
+      rhythm: { value: 'flowing', confidence: 0.75, source: 'examples' },
+      structure: { value: 'hierarchical', confidence: 0.90, source: 'mixed' },
+      paragraph_length: { value: 'medium', confidence: 0.88, source: 'examples' },
+      section_count_preference: { value: 5, confidence: 0.72, source: 'artifact' },
+      use_of_headings: { value: 'moderate', confidence: 0.85, source: 'examples' },
+      transition_style: { value: 'explicit', confidence: 0.80, source: 'examples' },
+      evidence_style: { value: 'mixed', confidence: 0.83, source: 'examples' },
+      citation_preference: { value: 'inline', confidence: 0.70, source: 'examples' },
+      example_frequency: { value: 'moderate', confidence: 0.78, source: 'examples' },
+      use_of_analogies: { value: 'occasional', confidence: 0.75, source: 'examples' },
+      cta_style: { value: 'subtle', confidence: 0.82, source: 'mixed' },
+      audience_engagement: { value: 'high', confidence: 0.88, source: 'examples' },
+      question_usage: { value: 'rhetorical', confidence: 0.80, source: 'examples' },
+      use_of_visuals: { value: 'moderate', confidence: 0.72, source: 'artifact' },
+      formatting_complexity: { value: 'moderate', confidence: 0.78, source: 'examples' }
+    },
+    summary: 'Your writing style is professional yet approachable, using first-person voice with empathetic emotional register. You favor hierarchical content structure with moderate paragraph lengths and explicit transitions between sections.',
+    recommendations: [
+      'Use a 5-section structure for this blog with clear H2 headings',
+      'Incorporate rhetorical questions to maintain high audience engagement',
+      'Balance data-driven evidence with personal anecdotes',
+      'Include 3-4 inline citations to support key claims',
+      'Add subtle calls-to-action at section transitions'
+    ],
+    exampleCount: 3,
+    confidence: 0.81
+  }
+}
+
+// Result (no writing examples - defaults used)
+{
+  success: true,
+  traceId: 'characteristics-1706284532000-d4e5f6',
+  duration: 8234,
+  statusTransition: { from: 'research', to: 'foundations' },
+  data: {
+    characteristics: {
+      tone: { value: 'professional', confidence: 0.50, source: 'artifact' },
+      voice: { value: 'third_person', confidence: 0.50, source: 'artifact' },
+      // ... other defaults with low confidence
+    },
+    summary: 'Using default professional blog style. Consider uploading writing examples to personalize content generation.',
+    recommendations: [
+      'Upload 2-3 writing samples (500+ words) for personalized style matching',
+      'Using standard blog format with professional tone',
+      'Default 5-section structure will be applied'
+    ],
+    exampleCount: 0,
+    confidence: 0.50
+  }
+}
+```
+
+### Validation Requirements
+
+**Pre-execution**:
+- Artifact must exist in database
+- Artifact status must be `research`
+- Research data must be available (5+ sources)
+
+**Post-execution**:
+- Characteristics stored in `artifact_writing_characteristics` table
+- All 20 characteristics populated (with defaults if needed)
+- Summary generated (2-3 sentences)
+- Recommendations generated (3-5 items)
+- Artifact status updated to `foundations`
+
+### Related Tools
+
+- **Previous Tool**: `conductDeepResearch` (provides research context)
+- **Next Tool**: `generateContentSkeleton` (uses characteristics for structure)
+- **Context Tool**: `fetchWritingCharacteristics` (retrieve stored characteristics)
+
+---
+
+## 3. generateContentSkeleton
+
+**Purpose**: Create structured content outline/skeleton based on research findings, writing characteristics, and user-selected tone.
+
+**AI Provider**: Claude (Anthropic API)
+
+**Status Transition**: `foundations` → `skeleton`
+
+> **Phase 4 Note**: After skeleton generation, the status automatically changes to `foundations_approval` and the pipeline pauses for user review. User must click "Foundations Approved" in the UI to continue to content writing.
 
 ### Input Schema
 
@@ -410,8 +719,9 @@ Medium (4 sources):
 
 | Error Category | Condition | Recoverable | Recovery Strategy |
 |----------------|-----------|-------------|-------------------|
-| `INVALID_STATUS` | Artifact not in `research` | Yes | Execute `conductDeepResearch` first |
+| `INVALID_STATUS` | Artifact not in `foundations` | Yes | Execute `analyzeWritingCharacteristics` first |
 | `RESEARCH_NOT_FOUND` | < 5 research sources found | Yes | Execute `conductDeepResearch` to gather sources |
+| `CHARACTERISTICS_NOT_FOUND` | No writing characteristics | Yes | Execute `analyzeWritingCharacteristics` first |
 | `TOOL_EXECUTION_FAILED` | Database update fails | No | Check database connectivity |
 | `AI_PROVIDER_ERROR` | Claude API error (503) | Yes | Retry with exponential backoff (3 attempts) |
 | `AI_RATE_LIMIT` | Claude rate limit exceeded | Yes | Wait + retry (backoff with jitter) |
@@ -425,6 +735,10 @@ const result = await generateContentSkeleton.execute({
   artifactId: 'abc-123-def-456',
   tone: 'professional'
 });
+
+// After skeleton generation, artifact status changes to 'skeleton' → 'foundations_approval'
+// User reviews skeleton in FoundationsSection UI component
+// User clicks "Foundations Approved" button to continue pipeline
 
 // Result (success case)
 {
@@ -483,26 +797,29 @@ Call to Action: [Encourage readers to explore AI solutions for their practice]`,
 
 **Pre-execution**:
 - Artifact must exist in database
-- Artifact status must be `research`
+- Artifact status must be `foundations`
 - Minimum 5 research sources required
 - Research data must be accessible from `artifact_research` table
+- Writing characteristics must be available in `artifact_writing_characteristics` table
 
 **Post-execution**:
 - Skeleton must contain H1 title
 - Minimum 3 H2 sections (for blog/showcase)
 - At least 1 image placeholder
 - Skeleton stored in `artifact.content` field
-- Artifact status updated to `skeleton`
+- Artifact status updated to `skeleton` → `foundations_approval`
+- Pipeline pauses for user approval
 
 ### Related Tools
 
-- **Previous Tool**: `conductDeepResearch` (provides research data)
-- **Next Tool**: `writeFullContent` or `writeContentSection` (uses skeleton)
+- **Previous Tool**: `analyzeWritingCharacteristics` (provides writing style profile)
+- **Next Tool**: `writeFullContent` (triggered by user approval)
+- **Alternative Tool**: `writeContentSection` (granular, section-by-section)
 - **Context Tool**: `fetchArtifact` (retrieve skeleton for review)
 
 ---
 
-## 3. writeContentSection
+## 4. writeContentSection
 
 **Purpose**: Write content for a single skeleton section using Gemini AI. Used for granular, section-by-section content creation.
 
@@ -682,13 +999,15 @@ The technology leverages advanced machine learning models trained on millions of
 
 ---
 
-## 4. writeFullContent
+## 5. writeFullContent
 
-**Purpose**: Write complete content for all skeleton sections in one pass using Gemini AI. Used for full automation of content writing.
+**Purpose**: Write complete content for all skeleton sections in one pass using Gemini AI. Used for full automation of content writing. Triggered by user clicking "Foundations Approved" button.
 
 **AI Provider**: Gemini 2.0 Flash (Google)
 
-**Status Transition**: `skeleton` → `writing`
+**Status Transition**: `foundations_approval` → `writing`
+
+> **Phase 4 Note**: This tool is triggered when user approves the foundations (skeleton + writing characteristics). The frontend calls `POST /api/artifacts/:id/approve-foundations` which resumes the pipeline from this tool.
 
 ### Input Schema
 
@@ -770,7 +1089,8 @@ await supabaseAdmin
 
 | Error Category | Condition | Recoverable | Recovery Strategy |
 |----------------|-----------|-------------|-------------------|
-| `INVALID_STATUS` | Artifact not in `skeleton` | Yes | Execute `generateContentSkeleton` first |
+| `INVALID_STATUS` | Artifact not in `foundations_approval` | Yes | User must approve foundations first |
+| `CHARACTERISTICS_NOT_FOUND` | No writing characteristics | Yes | Execute `analyzeWritingCharacteristics` |
 | `TOOL_EXECUTION_FAILED` | Database update fails | No | Check database connectivity |
 | `TOOL_TIMEOUT` | Writing exceeds 120 seconds | Yes | Use `writeContentSection` for partial workflow |
 | `AI_PROVIDER_ERROR` | Gemini API error (503) | Yes | Retry with exponential backoff (3 attempts) |
@@ -780,7 +1100,10 @@ await supabaseAdmin
 ### Usage Example
 
 ```typescript
-// Execute full content writing
+// This is typically triggered by the approve-foundations endpoint
+// POST /api/artifacts/:id/approve-foundations
+
+// Or execute directly (for testing)
 const result = await writeFullContent.execute({
   artifactId: 'abc-123-def-456',
   tone: 'conversational'
@@ -810,12 +1133,14 @@ const result = await writeFullContent.execute({
 
 **Pre-execution**:
 - Artifact must exist in database
-- Artifact status must be `skeleton`
+- Artifact status must be `foundations_approval`
 - Skeleton must have 3+ H2 sections (for blog/showcase)
 - Research data must be available (5+ sources)
+- Writing characteristics must be available for style matching
 
 **Post-execution**:
 - All section placeholders replaced with content
+- Content applies writing characteristics (tone, voice, structure, etc.)
 - Total word count within expected range:
   - Blog: 1500-3000 words
   - Social Post: 150-400 words
@@ -826,12 +1151,13 @@ const result = await writeFullContent.execute({
 ### Related Tools
 
 - **Previous Tool**: `generateContentSkeleton` (creates section structure)
+- **Trigger**: User clicks "Foundations Approved" button → `POST /api/artifacts/:id/approve-foundations`
 - **Alternative**: `writeContentSection` (granular, section-by-section)
 - **Next Tool**: `applyHumanityCheck` (remove AI patterns)
 
 ---
 
-## 5. applyHumanityCheck
+## 6. applyHumanityCheck
 
 **Purpose**: Remove AI-detectable writing patterns from content using Claude AI. Applies 24 known AI patterns based on Wikipedia's "Signs of AI writing" guide.
 
@@ -1073,7 +1399,7 @@ const result = await applyHumanityCheck.execute({
 
 ---
 
-## 6. generateContentVisuals (identifyImageNeeds)
+## 7. generateContentVisuals (identifyImageNeeds)
 
 **Purpose**: Generate visual images for content by identifying `[IMAGE: description]` placeholders, generating images using AI, and embedding them into the artifact content.
 
@@ -1580,34 +1906,60 @@ class CircuitBreaker {
 
 ## Tool Integration Patterns
 
-### Full Pipeline Execution
+### Full Pipeline Execution (Phase 4)
 
-**Sequence**: `conductDeepResearch` → `generateContentSkeleton` → `writeFullContent` → `applyHumanityCheck` → `generateContentVisuals`
+**Sequence**: `conductDeepResearch` → `analyzeWritingCharacteristics` → `generateContentSkeleton` → **[USER APPROVAL]** → `writeFullContent` → `applyHumanityCheck` → `generateContentVisuals`
 
 ```typescript
-async function executeFullPipeline(artifactId: string, topic: string, tone: ToneOption) {
+// Phase 4 Pipeline - Automated portion (before approval)
+async function executePreApprovalPipeline(artifactId: string, topic: string, artifactType: ArtifactType) {
   // Step 1: Research (draft → research)
   const researchResult = await conductDeepResearch.execute({
     artifactId,
     topic,
-    artifactType: 'blog'
+    artifactType
   });
 
   if (!researchResult.success) {
     throw new Error(`Research failed: ${researchResult.error?.message}`);
   }
 
-  // Step 2: Skeleton (research → skeleton)
+  // Step 2: Writing Characteristics (research → foundations)
+  const characteristicsResult = await analyzeWritingCharacteristics.execute({
+    artifactId,
+    artifactType
+  });
+
+  if (!characteristicsResult.success) {
+    throw new Error(`Writing characteristics analysis failed: ${characteristicsResult.error?.message}`);
+  }
+
+  // Step 3: Skeleton (foundations → skeleton → foundations_approval)
   const skeletonResult = await generateContentSkeleton.execute({
     artifactId,
-    tone
+    tone: determineToneFromCharacteristics(characteristicsResult.data.characteristics)
   });
 
   if (!skeletonResult.success) {
     throw new Error(`Skeleton generation failed: ${skeletonResult.error?.message}`);
   }
 
-  // Step 3: Write content (skeleton → writing)
+  // PIPELINE PAUSES HERE
+  // Status is now 'foundations_approval'
+  // Agent sends notification message to user via streamText
+  // User reviews skeleton and characteristics in FoundationsSection
+  // User clicks "Foundations Approved" button to continue
+
+  return {
+    phase1Duration: researchResult.duration! + characteristicsResult.duration! + skeletonResult.duration!,
+    status: 'foundations_approval',
+    waitingForUserApproval: true
+  };
+}
+
+// Phase 4 Pipeline - Triggered by user approval (POST /api/artifacts/:id/approve-foundations)
+async function executePostApprovalPipeline(artifactId: string, tone: ToneOption) {
+  // Step 4: Write content (foundations_approval → writing)
   const writingResult = await writeFullContent.execute({
     artifactId,
     tone
@@ -1617,7 +1969,7 @@ async function executeFullPipeline(artifactId: string, topic: string, tone: Tone
     throw new Error(`Content writing failed: ${writingResult.error?.message}`);
   }
 
-  // Step 4: Humanize (writing → creating_visuals)
+  // Step 5: Humanize (writing → humanity_checking → creating_visuals)
   const { data: artifact } = await supabaseAdmin
     .from('artifacts')
     .select('content')
@@ -1634,7 +1986,7 @@ async function executeFullPipeline(artifactId: string, topic: string, tone: Tone
     throw new Error(`Humanity check failed: ${humanityResult.error?.message}`);
   }
 
-  // Step 5: Visuals (creating_visuals → ready)
+  // Step 6: Visuals (creating_visuals → ready)
   const visualsResult = await generateContentVisuals.execute({
     artifactId
   });
@@ -1644,12 +1996,7 @@ async function executeFullPipeline(artifactId: string, topic: string, tone: Tone
   }
 
   return {
-    totalDuration:
-      researchResult.duration! +
-      skeletonResult.duration! +
-      writingResult.duration! +
-      humanityResult.duration! +
-      visualsResult.duration!,
+    phase2Duration: writingResult.duration! + humanityResult.duration! + visualsResult.duration!,
     finalStatus: 'ready'
   };
 }
@@ -1733,6 +2080,37 @@ async function writeSectionBySection(artifactId: string, sections: string[], ton
 
 ## Version History
 
+### v2.0.0 (2026-01-29) - Phase 4 (Writing Quality Enhancement)
+
+**New Tool**:
+- ✅ **analyzeWritingCharacteristics** (Claude, 20+ writing style characteristics)
+  - Analyzes user writing examples (500+ words each)
+  - Creates comprehensive writing style profile
+  - Provides confidence scores and source attribution
+  - Generates style summary and recommendations
+
+**New Statuses**:
+- `foundations` - After characteristics analysis
+- `foundations_approval` - Pipeline pause for user review
+
+**Workflow Enhancement**:
+- Pipeline pauses after skeleton generation
+- User reviews skeleton + characteristics in FoundationsSection UI
+- User clicks "Foundations Approved" to resume pipeline
+- Writing characteristics applied to all subsequent tools
+
+**Updated Tools**:
+- `generateContentSkeleton` - Now uses writing characteristics for structure
+- `writeFullContent` - Applies tone, voice, pacing from characteristics
+- `generateContentVisuals` - Styles images based on characteristics
+
+**API Endpoints**:
+- `POST /api/artifacts/:id/approve-foundations` - Resume pipeline after user approval
+- `GET /api/artifacts/:id/writing-characteristics` - Fetch characteristics
+- `GET /api/user/writing-examples` - CRUD for writing examples
+
+---
+
 ### v1.0.0 (2026-01-26) - Phase 1 MVP
 
 **Tools Implemented**:
@@ -1741,7 +2119,7 @@ async function writeSectionBySection(artifactId: string, sections: string[], ton
 - ✅ writeContentSection (Gemini, granular control)
 - ✅ writeFullContent (Gemini, full automation)
 - ✅ applyHumanityCheck (Claude, 24 AI patterns)
-- ✅ generateContentVisuals (MVP stub, placeholder detection)
+- ✅ generateContentVisuals (DALL-E 3 / Gemini Imagen 4)
 
 **ToolOutput<T> Interface**:
 - Standardized response format
@@ -1755,10 +2133,9 @@ async function writeSectionBySection(artifactId: string, sections: string[], ton
 - Retry strategies (3 attempts)
 - Recoverable vs non-recoverable errors
 
-**Future Enhancements** (Phase 2+):
+**Future Enhancements** (Phase 5+):
 - Real-time progress updates during tool execution
 - Parallel section writing for faster content generation
 - Advanced research source prioritization (ML-based)
-- Actual visual generation (DALL-E, Midjourney, Stable Diffusion)
 - Content caching for repeated operations
 - Multi-language support for content generation

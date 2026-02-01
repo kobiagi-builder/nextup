@@ -1,8 +1,10 @@
 # Content Agent API Endpoints
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
+**Version:** 2.0.0
+**Last Updated:** 2026-01-29
 **Base URL:** `http://localhost:3001` (development) | `https://api.yourapp.com` (production)
+
+> **⚠️ IMPORTANT UPDATE**: This document has been updated for Phase 4 Writing Quality Enhancement. New endpoints added for foundations approval and writing characteristics.
 
 ## Overview
 
@@ -15,6 +17,7 @@ The Content Agent API provides a conversational interface for creating, managing
 - **Screen Context Integration**: Contextual awareness based on current page and artifact
 - **Session Management**: Maintains conversation history across requests
 - **Tool Orchestration**: Coordinates multiple AI tools (Claude, Gemini, Tavily)
+- **Writing Quality Enhancement (Phase 4)**: Writing characteristics analysis and approval gate
 
 ### API Characteristics
 
@@ -83,7 +86,7 @@ Execute a content agent request with natural language message and optional scree
     artifactId?: string;        // UUID of current artifact
     artifactType?: 'blog' | 'social_post' | 'showcase';
     artifactTitle?: string;     // Artifact title
-    artifactStatus?: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published';
+    artifactStatus?: 'draft' | 'research' | 'foundations' | 'skeleton' | 'foundations_approval' | 'writing' | 'creating_visuals' | 'ready' | 'published';  // Phase 4: 9 statuses
   };
 }
 ```
@@ -446,6 +449,294 @@ curl -X GET http://localhost:3001/api/content-agent/history \
 
 ---
 
+### 4. Approve Foundations (Phase 4 NEW)
+
+Resume the content pipeline after user approves the foundations (skeleton + writing characteristics).
+
+**Endpoint**: `POST /api/artifacts/:id/approve-foundations`
+
+**Authentication**: Required
+
+#### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Artifact ID |
+
+#### Request Body
+
+```typescript
+{
+  skeletonContent?: string;     // Optional: Updated skeleton content (if user edited it)
+}
+```
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```typescript
+{
+  success: boolean;             // Always true on success
+  message: string;              // Confirmation message
+  nextStatus: string;           // 'writing'
+  artifactId: string;           // Artifact UUID
+}
+```
+
+#### Example Request
+
+```bash
+curl -X POST http://localhost:3001/api/artifacts/abc-123/approve-foundations \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skeletonContent": "# Updated Title\n\n## Section 1\n..."
+  }'
+```
+
+#### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Foundations approved. Starting content writing.",
+  "nextStatus": "writing",
+  "artifactId": "abc-123"
+}
+```
+
+#### Preconditions
+
+- Artifact must be in `foundations_approval` status
+- User must own the artifact
+
+#### Error Responses
+
+**400 Bad Request** - Invalid artifact status
+
+```json
+{
+  "error": "Invalid status",
+  "message": "Artifact must be in 'foundations_approval' status to approve. Current status: skeleton"
+}
+```
+
+**404 Not Found** - Artifact not found
+
+```json
+{
+  "error": "Not found",
+  "message": "Artifact with ID abc-123 not found"
+}
+```
+
+---
+
+### 5. Get Writing Characteristics (Phase 4 NEW)
+
+Retrieve the AI-analyzed writing characteristics for an artifact.
+
+**Endpoint**: `GET /api/artifacts/:id/writing-characteristics`
+
+**Authentication**: Required
+
+#### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Artifact ID |
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```typescript
+{
+  artifactId: string;
+  characteristics: {
+    tone?: { value: string; confidence: number; source: string; reasoning?: string };
+    voice?: { value: string; confidence: number; source: string; reasoning?: string };
+    sentence_structure?: { value: string; confidence: number; source: string; reasoning?: string };
+    vocabulary_complexity?: { value: string; confidence: number; source: string; reasoning?: string };
+    pacing?: { value: string; confidence: number; source: string; reasoning?: string };
+    use_of_evidence?: { value: string; confidence: number; source: string; reasoning?: string };
+    // ... 20+ additional characteristics
+  };
+  summary: string;              // Human-readable summary
+  recommendations: string;      // Content generation recommendations
+  createdAt: string;           // ISO timestamp
+  updatedAt: string;           // ISO timestamp
+}
+```
+
+#### Example Request
+
+```bash
+curl -X GET http://localhost:3001/api/artifacts/abc-123/writing-characteristics \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+#### Example Response
+
+```json
+{
+  "artifactId": "abc-123",
+  "characteristics": {
+    "tone": {
+      "value": "professional",
+      "confidence": 0.85,
+      "source": "examples",
+      "reasoning": "User's examples consistently use formal language with industry terminology"
+    },
+    "voice": {
+      "value": "first-person-plural",
+      "confidence": 0.70,
+      "source": "mix",
+      "reasoning": "Mix of 'we' statements in examples, appropriate for blog"
+    },
+    "sentence_structure": {
+      "value": "varied",
+      "confidence": 0.75,
+      "source": "examples",
+      "reasoning": "Examples show mix of simple and complex sentences"
+    }
+  },
+  "summary": "Professional, authoritative writing style with moderate technical depth and conversational elements.",
+  "recommendations": "Use industry terminology, maintain professional tone, include data-driven examples, vary sentence length for engagement.",
+  "createdAt": "2026-01-29T10:00:00.000Z",
+  "updatedAt": "2026-01-29T10:00:00.000Z"
+}
+```
+
+#### Error Responses
+
+**404 Not Found** - Characteristics not found
+
+```json
+{
+  "error": "Not found",
+  "message": "Writing characteristics for artifact abc-123 not found. Ensure artifact has passed 'foundations' status."
+}
+```
+
+---
+
+### 6. User Writing Examples CRUD (Phase 4 NEW)
+
+Manage user's writing examples for style analysis.
+
+#### 6a. List Writing Examples
+
+**Endpoint**: `GET /api/user/writing-examples`
+
+**Authentication**: Required
+
+```bash
+curl -X GET http://localhost:3001/api/user/writing-examples \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Response:**
+```json
+{
+  "examples": [
+    {
+      "id": "example-123",
+      "name": "LinkedIn Post - Product Launch",
+      "wordCount": 650,
+      "sourceType": "manual",
+      "isActive": true,
+      "createdAt": "2026-01-28T10:00:00.000Z"
+    }
+  ],
+  "count": 1
+}
+```
+
+#### 6b. Create Writing Example
+
+**Endpoint**: `POST /api/user/writing-examples`
+
+**Authentication**: Required
+
+**Request Body:**
+```typescript
+{
+  name: string;                 // Example name (required)
+  content: string;              // Example content (required, min 500 words)
+  sourceType?: 'manual' | 'file' | 'artifact';  // Optional, defaults to 'manual'
+}
+```
+
+```bash
+curl -X POST http://localhost:3001/api/user/writing-examples \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "LinkedIn Post - Product Launch",
+    "content": "Full text of example (500+ words)...",
+    "sourceType": "manual"
+  }'
+```
+
+**Response:**
+```json
+{
+  "id": "example-123",
+  "name": "LinkedIn Post - Product Launch",
+  "wordCount": 650,
+  "sourceType": "manual",
+  "isActive": true,
+  "createdAt": "2026-01-28T10:00:00.000Z"
+}
+```
+
+**Error - Insufficient Word Count:**
+```json
+{
+  "error": "Validation failed",
+  "message": "Writing example must contain at least 500 words. Current word count: 342"
+}
+```
+
+#### 6c. Update Writing Example
+
+**Endpoint**: `PUT /api/user/writing-examples/:id`
+
+**Authentication**: Required
+
+```bash
+curl -X PUT http://localhost:3001/api/user/writing-examples/example-123 \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Updated Name",
+    "isActive": false
+  }'
+```
+
+#### 6d. Delete Writing Example
+
+**Endpoint**: `DELETE /api/user/writing-examples/:id`
+
+**Authentication**: Required
+
+```bash
+curl -X DELETE http://localhost:3001/api/user/writing-examples/example-123 \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Writing example deleted successfully"
+}
+```
+
+---
+
 ## Error Handling Reference
 
 ### HTTP Status Codes
@@ -699,11 +990,12 @@ async function executeWithRetry(request, maxRetries = 3) {
 - [intent-detection-guide.md](../ai-agents-and-prompts/intent-detection-guide.md) - How user messages are interpreted
 
 ### Tool References
-- [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md) - All 6 core content creation tools
+- [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md) - All 7 core content creation tools (v2.0.0)
 - [context-tools-reference.md](../ai-agents-and-prompts/context-tools-reference.md) - Context fetching tools
 
 ### Workflow Execution
-- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Full pipeline execution with checkpoints
+- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Full pipeline execution with Phase 4 approval gate (v2.0.0)
+- [7-status-workflow-specification.md](../artifact-statuses/7-status-workflow-specification.md) - 9-status workflow specification (v3.0.0)
 
 ### Security & Context
 - [authentication-and-security.md](./authentication-and-security.md) - Authentication flow and security measures
@@ -715,4 +1007,9 @@ async function executeWithRetry(request, maxRetries = 3) {
 ---
 
 **Version History:**
+- **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
+  - Added `POST /api/artifacts/:id/approve-foundations` endpoint
+  - Added `GET /api/artifacts/:id/writing-characteristics` endpoint
+  - Added Writing Examples CRUD endpoints (GET, POST, PUT, DELETE)
+  - Updated `artifactStatus` to include 9 statuses (added `foundations`, `foundations_approval`)
 - **1.0.0** (2026-01-26) - Initial API documentation with all 3 endpoints

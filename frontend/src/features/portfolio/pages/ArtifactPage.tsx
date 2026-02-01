@@ -13,9 +13,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { useArtifact, useUpdateArtifact, artifactKeys } from '../hooks/useArtifacts'
 import { ArtifactEditor } from '../components/editor'
 import { ResearchArea } from '../components/artifact/ResearchArea'
+import { FoundationsSection } from '../components/artifact/FoundationsSection'
 import { isProcessingState } from '../validators/stateMachine'
 import { ChatPanel } from '../components'
 import { useResearch } from '../hooks/useResearch'
+import { useWritingCharacteristics } from '../hooks/useWritingCharacteristics'
+import { useFoundationsApproval } from '../hooks/useFoundationsApproval'
 import { useCallback, useState, useEffect, useRef } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { ToneOption } from '../types/portfolio'
@@ -33,12 +36,26 @@ export function ArtifactPage() {
   const queryClient = useQueryClient()
   const prevStatusRef = useRef<string | undefined>(undefined)
 
-  // Data hooks
-  const { data: artifact, isLoading, error } = useArtifact(id!)
+  // State for enabling draft polling when content creation is triggered
+  // Must be declared before useArtifact which uses it
+  const [isContentCreationTriggered, setIsContentCreationTriggered] = useState(false)
+
+  // Data hooks - enable draft polling when content creation is triggered
+  const { data: artifact, isLoading, error } = useArtifact(id!, isContentCreationTriggered)
   const updateArtifact = useUpdateArtifact()
 
   // Research hook (Phase 1) - pass artifact status for intelligent polling
   const { data: research = [] } = useResearch(id!, artifact?.status)
+
+  // Phase 4: Writing characteristics hook - polls during foundations status
+  const {
+    data: writingCharacteristics,
+    isLoading: characteristicsLoading,
+    error: characteristicsError,
+  } = useWritingCharacteristics(id!, artifact?.status)
+
+  // Phase 4: Foundations approval mutation
+  const foundationsApproval = useFoundationsApproval()
 
   // Phase 6: Screen context for Content Agent
   // IMPORTANT: Use fresh artifact data from useArtifact (which polls during processing)
@@ -71,8 +88,44 @@ export function ArtifactPage() {
   // UI state
   const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
   const [isResearchCollapsed, setIsResearchCollapsed] = useState(true) // Default: collapsed
+  const [isFoundationsCollapsed, setIsFoundationsCollapsed] = useState(true) // Default: collapsed, auto-expands on approval stage
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false) // Default: expanded
   const [initialResearchMessage, setInitialResearchMessage] = useState<string | undefined>(undefined)
+
+  // Phase 4: Local state for skeleton editing in FoundationsSection
+  const [localSkeletonContent, setLocalSkeletonContent] = useState('')
+
+  // Phase 4: Sync skeleton content from artifact when in foundations/skeleton statuses
+  useEffect(() => {
+    if (artifact?.content && ['foundations', 'skeleton', 'foundations_approval'].includes(artifact.status)) {
+      // Only sync if local skeleton is empty (initial load) or status just changed
+      if (!localSkeletonContent) {
+        let contentToSet = artifact.content
+        if (isMarkdown(artifact.content)) {
+          contentToSet = markdownToHTML(artifact.content)
+        }
+        setLocalSkeletonContent(contentToSet)
+        console.log('[ArtifactPage] Phase 4: Synced skeleton content:', {
+          artifactId: artifact.id,
+          status: artifact.status,
+          contentLength: contentToSet.length,
+        })
+      }
+    }
+  }, [artifact?.content, artifact?.status, artifact?.id, localSkeletonContent])
+
+  // Phase 4: Auto-expand FoundationsSection when status reaches skeleton or foundations_approval
+  useEffect(() => {
+    if (artifact?.status && ['skeleton', 'foundations_approval'].includes(artifact.status)) {
+      if (isFoundationsCollapsed) {
+        setIsFoundationsCollapsed(false)
+        console.log('[ArtifactPage] Phase 4: Auto-expanded FoundationsSection:', {
+          artifactId: artifact.id,
+          status: artifact.status,
+        })
+      }
+    }
+  }, [artifact?.status, artifact?.id, isFoundationsCollapsed])
 
   // Sync local content with artifact data (Phase 1: includes AI-generated skeleton)
   useEffect(() => {
@@ -121,6 +174,10 @@ export function ArtifactPage() {
         source: startCreation === 'true' ? 'create-modal' : 'portfolio-card',
       })
 
+      // Enable aggressive polling to catch draft→research status transition
+      // This is needed because Realtime subscriptions may fail in some environments
+      setIsContentCreationTriggered(true)
+
       // Set the content creation message to auto-send (artifact ID provided via screen context)
       const contentMessage = `Create content: "${artifact.title}"`
       setInitialResearchMessage(contentMessage)
@@ -132,6 +189,17 @@ export function ArtifactPage() {
       setSearchParams({}, { replace: true })
     }
   }, [searchParams, setSearchParams, artifact?.title, artifact?.status, artifact?.id])
+
+  // Disable content creation polling once we've transitioned out of draft status
+  useEffect(() => {
+    if (artifact?.status && artifact.status !== 'draft' && isContentCreationTriggered) {
+      console.log('[ArtifactPage] Content creation detected - disabling draft polling:', {
+        artifactId: artifact.id,
+        status: artifact.status,
+      })
+      setIsContentCreationTriggered(false)
+    }
+  }, [artifact?.status, isContentCreationTriggered, artifact?.id])
 
   // Invalidate research cache when artifact status changes (Phase 1 fix)
   useEffect(() => {
@@ -343,6 +411,36 @@ export function ArtifactPage() {
     }
   }, [artifact?.id, artifact?.status, updateArtifact])
 
+  // Phase 4: Handle skeleton content change in FoundationsSection
+  const handleSkeletonChange = useCallback((newContent: string) => {
+    setLocalSkeletonContent(newContent)
+    console.log('[ArtifactPage] Skeleton content updated:', {
+      artifactId: artifact?.id,
+      contentLength: newContent.length,
+    })
+  }, [artifact?.id])
+
+  // Phase 4: Handle foundations approval
+  const handleFoundationsApproval = useCallback(async () => {
+    if (!artifact?.id) return
+
+    console.log('[ArtifactPage] Approving foundations:', {
+      artifactId: artifact.id,
+      currentStatus: artifact.status,
+      hasSkeletonEdits: localSkeletonContent.length > 0,
+    })
+
+    try {
+      await foundationsApproval.mutateAsync({
+        artifactId: artifact.id,
+        skeletonContent: localSkeletonContent || undefined,
+      })
+      console.log('[ArtifactPage] Foundations approved successfully')
+    } catch (err) {
+      console.error('[ArtifactPage] Failed to approve foundations:', err)
+    }
+  }, [artifact?.id, artifact?.status, localSkeletonContent, foundationsApproval])
+
   // Auto-save content effect (debounced)
   useEffect(() => {
     if (!hasUnsavedChanges || !artifact?.id) return
@@ -460,6 +558,8 @@ export function ArtifactPage() {
                 artifactStatus: artifact.status,
                 contentMessage,
               })
+              // Enable aggressive polling to catch draft→research status transition
+              setIsContentCreationTriggered(true)
               // Set the content creation message to auto-send
               setInitialResearchMessage(contentMessage)
               // Open AI Assistant (message will be sent by ChatPanel)
@@ -507,26 +607,48 @@ export function ArtifactPage() {
           />
         </div>
 
-        {/* Editor Area - Collapsible below research (default: expanded) */}
-        <div className={isEditorCollapsed ? 'h-auto' : 'flex-1 overflow-hidden'}>
-          <ArtifactEditor
+        {/* Phase 4: Foundations Section - Between Research and Editor */}
+        {/* Shows writing characteristics + editable skeleton during foundations workflow */}
+        <div className={isFoundationsCollapsed ? 'h-auto' : 'h-1/3 min-h-[300px]'}>
+          <FoundationsSection
             artifactId={artifact.id}
-            content={localContent}
-            onContentChange={handleContentChange}
-            title={artifact.title || undefined}
-            artifactType={artifact.type}
             status={artifact.status}
-            visualsMetadata={artifact.visuals_metadata}
-            isSaving={updateArtifact.isPending || hasUnsavedChanges || hasToneChanges}
-            tone={localTone}
-            onToneChange={handleToneChange}
-            className="h-full"
-            isCollapsed={isEditorCollapsed}
-            editable={!isProcessingState(artifact.status)}
-            data-testid="artifact-editor"
-            onCollapsedChange={setIsEditorCollapsed}
+            characteristics={writingCharacteristics ?? undefined}
+            characteristicsLoading={characteristicsLoading}
+            characteristicsError={characteristicsError?.message}
+            skeletonContent={localSkeletonContent || localContent}
+            onSkeletonChange={handleSkeletonChange}
+            onApprove={handleFoundationsApproval}
+            approvalLoading={foundationsApproval.isPending}
+            isCollapsed={isFoundationsCollapsed}
+            onCollapsedChange={setIsFoundationsCollapsed}
           />
         </div>
+
+        {/* Editor Area - Collapsible below research (default: expanded) */}
+        {/* Phase 4: HIDE editor entirely during skeleton workflow (foundations, skeleton, foundations_approval) */}
+        {/* Content area should only appear AFTER foundations is approved */}
+        {!['foundations', 'skeleton', 'foundations_approval'].includes(artifact.status) && (
+          <div className={isEditorCollapsed ? 'h-auto' : 'flex-1 overflow-hidden'}>
+            <ArtifactEditor
+              artifactId={artifact.id}
+              content={localContent}
+              onContentChange={handleContentChange}
+              title={artifact.title || undefined}
+              artifactType={artifact.type}
+              status={artifact.status}
+              visualsMetadata={artifact.visuals_metadata}
+              isSaving={updateArtifact.isPending || hasUnsavedChanges || hasToneChanges}
+              tone={localTone}
+              onToneChange={handleToneChange}
+              className="h-full"
+              isCollapsed={isEditorCollapsed}
+              editable={!isProcessingState(artifact.status)}
+              data-testid="artifact-editor"
+              onCollapsedChange={setIsEditorCollapsed}
+            />
+          </div>
+        )}
       </div>
 
       {/* AI Assistant Sheet */}

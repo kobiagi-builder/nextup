@@ -10,11 +10,13 @@
 
 export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 
-// Unified Content Agent Architecture: 7-status linear workflow (no approval gates)
+// Unified Content Agent Architecture: Phase 4 workflow with foundations approval gate
 export type ArtifactStatus =
   | 'draft'                 // Initial state, editable
   | 'research'              // AI researching, editor locked
+  | 'foundations'           // AI analyzing writing characteristics
   | 'skeleton'              // AI creating structure, editor locked
+  | 'foundations_approval'  // Skeleton ready, waiting for user approval
   | 'writing'               // AI writing content, editor locked
   | 'creating_visuals'      // AI generating images, editor locked
   | 'ready'                 // Content ready, editable, can publish
@@ -58,6 +60,54 @@ export interface ArtifactResearch {
   excerpt: string
   relevance_score: number
   created_at: string
+}
+
+// =============================================================================
+// Phase 4: Writing Characteristics Types
+// =============================================================================
+
+/** Flexible writing characteristic value with confidence and reasoning */
+export interface WritingCharacteristicValue {
+  value: string | number | boolean | string[]
+  confidence: number  // 0-1 scale
+  source: 'artifact' | 'examples' | 'mix' | 'default'
+  reasoning?: string
+}
+
+/**
+ * Flexible writing characteristics - AI can add any characteristic
+ * Common examples: tone, voice, sentence_structure, vocabulary_complexity,
+ * pacing, use_of_evidence, cta_style, formatting_preferences, etc.
+ */
+export type WritingCharacteristics = Record<string, WritingCharacteristicValue>
+
+/** Stored writing characteristics for an artifact */
+export interface ArtifactWritingCharacteristics {
+  id: string
+  artifact_id: string
+  characteristics: WritingCharacteristics
+  summary?: string
+  recommendations?: string
+  created_at: string
+  updated_at: string
+}
+
+/** Source type for user writing examples */
+export type WritingExampleSourceType = 'pasted' | 'file_upload' | 'artifact' | 'url'
+
+/** User-provided writing example for style analysis */
+export interface UserWritingExample {
+  id: string
+  user_id: string
+  name: string
+  source_type: WritingExampleSourceType
+  content: string
+  word_count: number
+  source_reference?: string
+  analyzed_characteristics: WritingCharacteristics
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 // =============================================================================

@@ -78,33 +78,39 @@ export function canEditArtifact(status: ArtifactStatus): boolean {
 // Status Display Helpers
 // =============================================================================
 
-/** Status colors for UI (Tailwind classes) - 7 statuses */
+/** Status colors for UI (Tailwind classes) - Phase 4: 9 statuses */
 export const STATUS_COLORS: Record<ArtifactStatus, string> = {
   draft: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
   research: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  foundations: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   skeleton: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  foundations_approval: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
   writing: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
   creating_visuals: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
   ready: 'bg-green-500/10 text-green-400 border-green-500/20',
   published: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 }
 
-/** Status icons (Lucide icon names) - 7 statuses */
+/** Status icons (Lucide icon names) - Phase 4: 9 statuses */
 export const STATUS_ICONS: Record<ArtifactStatus, string> = {
   draft: 'FileEdit',
   research: 'Search',
+  foundations: 'Lightbulb',
   skeleton: 'Layout',
+  foundations_approval: 'ClipboardCheck',
   writing: 'PenLine',
   creating_visuals: 'Image',
   ready: 'CheckCircle',
   published: 'Send',
 }
 
-/** Human-readable status labels - 7 statuses */
+/** Human-readable status labels - Phase 4: 9 statuses */
 export const STATUS_LABELS: Record<ArtifactStatus, string> = {
   draft: 'Draft',
-  research: 'Creating Content',
-  skeleton: 'Creating Content',
+  research: 'Creating Foundations',
+  foundations: 'Creating Foundations',
+  skeleton: 'Creating Foundations',
+  foundations_approval: 'Foundations Approval',
   writing: 'Creating Content',
   creating_visuals: 'Creating Content',
   ready: 'Content Ready',
@@ -117,7 +123,7 @@ export const STATUS_LABELS: Record<ArtifactStatus, string> = {
 
 /** Processing states that lock the editor */
 export const PROCESSING_STATES: ArtifactStatus[] = [
-  'research', 'skeleton', 'writing', 'creating_visuals'
+  'research', 'foundations', 'skeleton', 'writing', 'creating_visuals'
 ]
 
 /**

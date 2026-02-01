@@ -70,3 +70,28 @@ export {
   type UseStructuredChatOptions,
   type UseStructuredChatReturn,
 } from './useStructuredChat'
+
+// Research
+export { useResearch, useAddResearch, useDeleteResearch } from './useResearch'
+
+// Image Generation
+export { useImageGeneration } from './useImageGeneration'
+
+// Phase 4: Writing Characteristics
+export {
+  writingCharacteristicsKeys,
+  useWritingCharacteristics,
+} from './useWritingCharacteristics'
+
+// Phase 4: Writing Examples
+export {
+  writingExamplesKeys,
+  useWritingExamples,
+  useWritingExample,
+  useCreateWritingExample,
+  useUpdateWritingExample,
+  useDeleteWritingExample,
+} from './useWritingExamples'
+
+// Phase 4: Foundations Approval
+export { useFoundationsApproval } from './useFoundationsApproval'

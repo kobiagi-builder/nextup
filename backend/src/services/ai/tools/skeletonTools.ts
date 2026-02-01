@@ -7,6 +7,7 @@ import { logger } from '../../../lib/logger.js';
 import { mockService, type SkeletonToolResponse } from '../mocks/index.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
+import type { WritingCharacteristics } from '../../../types/portfolio.js';
 
 /**
  * Skeleton Generation Tools for Content Creation Agent (Phase 1)
@@ -116,13 +117,63 @@ function estimateWordCount(artifactType: string, sectionsCount: number): number 
  * - Results/impact with image
  * - Key learnings
  */
+/**
+ * Extract characteristics guidance for skeleton generation
+ */
+function getCharacteristicsGuidance(characteristics?: WritingCharacteristics): string {
+  if (!characteristics || Object.keys(characteristics).length === 0) {
+    return '';
+  }
+
+  const guidance: string[] = ['## Writing Style Characteristics (apply to skeleton structure)'];
+
+  // Extract relevant characteristics for skeleton
+  const structureChar = characteristics.structure_preference || characteristics.structure;
+  if (structureChar) {
+    guidance.push(`- Structure: ${structureChar.value} (confidence: ${structureChar.confidence})`);
+  }
+
+  const depthChar = characteristics.depth || characteristics.depth_preference;
+  if (depthChar) {
+    guidance.push(`- Depth: ${depthChar.value} - adjust section count accordingly`);
+  }
+
+  const lengthChar = characteristics.length_preference || characteristics.length;
+  if (lengthChar) {
+    guidance.push(`- Length preference: ${lengthChar.value}`);
+  }
+
+  const visualsChar = characteristics.use_of_visuals || characteristics.visuals;
+  if (visualsChar) {
+    guidance.push(`- Visuals usage: ${visualsChar.value} - adjust image placeholder count`);
+  }
+
+  const formattingChar = characteristics.formatting_preferences || characteristics.formatting;
+  if (formattingChar) {
+    guidance.push(`- Formatting: ${formattingChar.value}`);
+  }
+
+  const audienceChar = characteristics.audience_assumption || characteristics.audience;
+  if (audienceChar) {
+    guidance.push(`- Target audience level: ${audienceChar.value}`);
+  }
+
+  if (guidance.length === 1) {
+    return ''; // Only header, no actual characteristics
+  }
+
+  return '\n' + guidance.join('\n') + '\n';
+}
+
 function buildSkeletonPrompt(
   artifactType: 'blog' | 'social_post' | 'showcase',
   tone: ToneOption,
   topic: string,
-  researchContext: string
+  researchContext: string,
+  characteristics?: WritingCharacteristics
 ): string {
   const toneModifier = toneModifiers[tone];
+  const characteristicsGuidance = getCharacteristicsGuidance(characteristics);
 
   const basePrompt = `You are creating a content skeleton (NOT final content) for a ${artifactType}.
 
@@ -132,7 +183,7 @@ ${researchContext}
 Topic: ${topic}
 
 Tone: ${toneModifier}
-
+${characteristicsGuidance}
 `;
 
   if (artifactType === 'blog') {
@@ -251,7 +302,7 @@ Use placeholders like [IMAGE: description] within the content flow. Include imag
  * - error: error message (if failed)
  */
 export const generateContentSkeleton = tool({
-  description: `Generate an AI-powered content skeleton based on artifact type, tone, and research context. Uses Claude to create unique structures (NOT templates) with placeholders like [Write hook here]. Updates artifact.content with skeleton.`,
+  description: `Generate an AI-powered content skeleton based on artifact type, tone, research context, and writing characteristics. Uses Claude to create unique structures (NOT templates) with placeholders like [Write hook here]. Updates artifact.content with skeleton.`,
 
   inputSchema: z.object({
     artifactId: z.string().uuid().describe('ID of the artifact to generate skeleton for'),
@@ -267,9 +318,10 @@ export const generateContentSkeleton = tool({
       'authoritative',
       'humorous'
     ]).describe('Desired tone/voice for content'),
+    useWritingCharacteristics: z.boolean().optional().default(true).describe('Whether to fetch and use writing characteristics from Phase 4 analysis'),
   }),
 
-  execute: async ({ artifactId, topic, artifactType, tone }) => {
+  execute: async ({ artifactId, topic, artifactType, tone, useWritingCharacteristics = true }) => {
     const startTime = Date.now();
     const traceId = generateMockTraceId('skeleton');
 
@@ -360,8 +412,25 @@ export const generateContentSkeleton = tool({
         contextLength: researchContext.length
       });
 
+      // 2.5 Fetch writing characteristics (Phase 4)
+      let writingCharacteristics: WritingCharacteristics | undefined;
+      if (useWritingCharacteristics) {
+        const { data: charData } = await supabaseAdmin
+          .from('artifact_writing_characteristics')
+          .select('characteristics')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (charData?.characteristics) {
+          writingCharacteristics = charData.characteristics as WritingCharacteristics;
+          logger.debug('GenerateContentSkeleton', 'Writing characteristics loaded', {
+            characteristicsCount: Object.keys(writingCharacteristics).length,
+          });
+        }
+      }
+
       // 3. Build skeleton prompt
-      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext);
+      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext, writingCharacteristics);
 
       logger.debug('GenerateContentSkeleton', 'Prompt built', {
         promptLength: prompt.length

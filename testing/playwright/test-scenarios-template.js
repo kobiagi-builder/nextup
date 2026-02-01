@@ -165,8 +165,8 @@ async function testManualCreationCreateContent() {
     await page.locator('[data-testid="artifact-type-blog"]').click();
     await page.locator('[data-testid="artifact-form-content"]').fill('Write about AI in product management');
 
-    // Step 4: Click Create Content
-    const createContentButton = page.locator('[data-testid="artifact-form-submit"]');
+    // Step 4: Click Create Content (triggers AI pipeline)
+    const createContentButton = page.locator('[data-testid="artifact-form-create-content"]');
     await createContentButton.click();
     await page.waitForTimeout(2000);
 

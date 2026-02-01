@@ -119,10 +119,10 @@ const MAX_WAIT_TIME = 600000; // 10 minutes
 
       await page.waitForTimeout(500);
 
-      // Step 5: Click "Create" using test ID
-      console.log('\n✅ Step 5: Clicking "Create" button...');
-      const createButton = page.locator('[data-testid="artifact-form-submit"]');
-      await createButton.click();
+      // Step 5: Click "Save as Draft" using test ID (creates draft without AI)
+      console.log('\n✅ Step 5: Clicking "Save as Draft" button...');
+      const saveDraftButton = page.locator('[data-testid="artifact-form-save-draft"]');
+      await saveDraftButton.click();
       await page.waitForTimeout(2000);
       console.log('✅ Artifact created');
 

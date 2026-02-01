@@ -52,9 +52,9 @@
     --accent: 214 83% 39%;
     --accent-foreground: 210 20% 98%;
 
-    /* Destructive - Light red #ffe0eb */
-    --destructive: 339 100% 94%;
-    --destructive-foreground: 340 100% 30%;
+    /* Destructive - Same red as dark mode for consistency */
+    --destructive: 340 100% 64%;
+    --destructive-foreground: 0 0% 100%;
 
     /* Borders and inputs */
     --border: 214 32% 91%;
