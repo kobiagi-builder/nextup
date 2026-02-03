@@ -280,6 +280,150 @@ The **build-agent** skill lets me add new rules, skills, or capabilities as I di
 
 ---
 
+## Try It Yourself: A Step-by-Step Guide
+
+I'm making this agent available for you to use. You don't need to be a developer - if you can download a file and open an app, you can run this agent. Here's how.
+
+### What You'll Need
+
+Before we start, make sure you have:
+
+1. **Claude Code** - This is the tool that runs the agent. It's free to download from [Anthropic](https://claude.ai/download). Think of it like Microsoft Word, but for AI conversations.
+
+2. **A place to run it** - You have three options:
+   - **Visual Studio Code (VSCode)** - A free code editor (what I use). Download it from [code.visualstudio.com](https://code.visualstudio.com)
+   - **Terminal** - The command line on your Mac or PC (already installed on your computer)
+   - **Claude Desktop App** - The simplest option if you just want to try it
+
+Don't worry if terms like "terminal" or "code editor" sound intimidating. I'll walk you through each step.
+
+### Step 1: Download the Agent
+
+First, you need to get a copy of the agent files onto your computer.
+
+**Option A: Download as a ZIP file (easiest)**
+
+1. Go to `https://github.com/kobiagi-builder/fractional-pm-agent`
+2. Click the green **"Code"** button
+3. Click **"Download ZIP"**
+4. Find the downloaded file (usually in your Downloads folder)
+5. Double-click to unzip it
+6. You'll now have a folder called something like `fractional-pm-agent-main`
+
+**Option B: Clone with Git (if you're comfortable with terminal)**
+
+Open your terminal and run:
+```bash
+git clone https://github.com/kobiagi-builder/fractional-pm-agent
+```
+
+This creates a folder with all the agent files.
+
+### Step 2: Put It Somewhere You'll Remember
+
+Move the folder to a location you can easily find. I recommend:
+
+- **Mac**: `/Users/[your-name]/Documents/fractional-pm-agent`
+- **Windows**: `C:\Users\[your-name]\Documents\fractional-pm-agent`
+
+The exact location doesn't matter - just remember where you put it.
+
+### Step 3: Open It in Claude Code
+
+Now comes the magic. You need to open this folder in Claude Code so the agent can run.
+
+**If using VSCode (recommended):**
+
+1. Open VSCode
+2. Go to **File → Open Folder**
+3. Navigate to where you saved the agent folder
+4. Select the folder and click **Open**
+5. VSCode will ask if you trust the authors - click **Yes, I trust the authors**
+6. Open the Claude Code extension (look for the Claude icon in the sidebar, or press `Cmd+Shift+P` and type "Claude")
+7. You're ready to go!
+
+**If using Terminal:**
+
+1. Open Terminal (Mac: search for "Terminal" in Spotlight; Windows: search for "Command Prompt" or "PowerShell")
+2. Navigate to your folder by typing:
+   ```bash
+   cd /path/to/fractional-pm-agent
+   ```
+   (Replace `/path/to/` with your actual folder location)
+3. Type `claude` and press Enter
+4. Claude Code will start in that folder
+
+**If using Claude Desktop App:**
+
+1. Open the Claude app
+2. In your conversation, tell Claude: "I want to use the Fractional PM Agent. The files are in [your folder path]"
+3. Claude will recognize the agent structure and activate it
+
+### Step 4: Introduce Yourself (Onboarding)
+
+The first time you use the agent, you need to help it understand who you are. This is like filling out a profile - the more it knows, the better it can help.
+
+Start your first conversation with something like:
+
+> "Hi! I'm new here. I'm a [your role] working with [types of clients/companies]. I want to use this agent to help me [your main goal]."
+
+The agent will ask you questions to build your profile. Be honest - remember, this is like having a conversation with a coach who genuinely wants to help you.
+
+**Pro tip:** The agent stores everything in the `growth/` folder. Your profile will be in `growth/profile.md`. You can always open this file and see (or edit) what the agent knows about you.
+
+### Step 5: Add Your First Customer
+
+If you're using this for fractional PM work, you'll want to add a customer:
+
+> "I want to add a new customer: [Company Name]"
+
+The agent will:
+1. Create a new folder under `customers/[company-name]/`
+2. Ask you questions about the company, team, product, and challenges
+3. Set up the documentation structure automatically
+
+From then on, whenever you say "Let's work on [Company Name]," the agent loads all that context instantly.
+
+### Step 6: Start Using It
+
+Here are some things you can try:
+
+**For customer work:**
+- "Let's work on [Customer Name]" - Loads all customer context
+- "Help me prepare for tomorrow's strategy meeting with [Customer]"
+- "I just had a call with [Customer]. Here's what happened: [summary]" - Agent will document it
+
+**For personal growth:**
+- "I want to assess my skills" - Invokes the Growth Advisor
+- "Help me plan my professional development for this quarter"
+- "I got feedback from a client that [feedback]. Help me process it."
+
+**For expert help:**
+- "I need to create a product strategy using Playing to Win"
+- "Help me write an executive summary in Amazon 6-pager format"
+- "I need to prioritize this roadmap using RICE framework"
+
+### The Magic: It Remembers Everything
+
+After each session, the agent automatically updates your documentation. Next time you come back - whether it's tomorrow or three months later - it remembers:
+
+- What you discussed with each customer
+- Decisions that were made and why
+- Action items and their status
+- Your personal growth journey
+
+You don't have to do anything. The documentation happens automatically.
+
+### Customizing It for You
+
+The beauty of this agent is that it evolves with you. If you find yourself needing a capability that doesn't exist:
+
+> "I need the agent to help me with [new thing]"
+
+The agent can create new rules, skills, or capabilities using the `build-agent` skill. Over time, your agent becomes uniquely yours - tailored to your specific practice and needs.
+
+---
+
 ## What's Next
 
 In upcoming posts, I'll dive deep into specific capabilities:
