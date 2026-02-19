@@ -58,9 +58,10 @@ const FOUNDATIONS_VISIBLE_STATUSES: ArtifactStatus[] = [
 ]
 
 // Statuses where skeleton editor is locked (during AI processing)
+// NOTE: 'skeleton' is NOT included — that status means the skeleton is created
+// and waiting for user review/approval, so it should be editable.
 const SKELETON_LOCKED_STATUSES: ArtifactStatus[] = [
   'foundations',
-  'skeleton',
   'writing',
   'creating_visuals',
 ]
@@ -103,8 +104,9 @@ export function FoundationsSection({
   useEffect(() => {
     if (AUTO_EXPAND_STATUSES.includes(status) && isCollapsed && !hasBeenViewed) {
       setIsCollapsed(false)
-      setHasBeenViewed(true)
       sessionStorage.setItem(`foundations-viewed-${artifactId}`, 'true')
+      // Update viewed state in next render to avoid setState in effect
+      Promise.resolve().then(() => setHasBeenViewed(true))
     }
   }, [status, isCollapsed, hasBeenViewed, artifactId, setIsCollapsed])
 
@@ -122,8 +124,8 @@ export function FoundationsSection({
   const handleExpand = () => {
     setIsCollapsed(false)
     if (!hasBeenViewed) {
-      setHasBeenViewed(true)
       sessionStorage.setItem(`foundations-viewed-${artifactId}`, 'true')
+      setHasBeenViewed(true)
     }
   }
 

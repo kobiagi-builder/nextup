@@ -4,8 +4,9 @@
  * Factory functions and utilities for creating test data.
  */
 
-import type { ArtifactStatus, ArtifactType } from '../../types/database.types.js';
-import type { ScreenContext } from '../../services/ai/types/contentAgent.js';
+import type { ArtifactStatus, ArtifactType } from '../../types/portfolio.js';
+import type { ScreenContext, ToolOutput } from '../../services/ai/types/contentAgent.js';
+import type { ToolExecutionOptions } from 'ai';
 
 // =============================================================================
 // Test Artifact Factory
@@ -33,8 +34,8 @@ export function createMockArtifact(overrides?: Partial<MockArtifact>): MockArtif
     title: 'Test Artifact',
     type: 'blog',
     status: 'draft',
-    content: null,
-    skeleton: null,
+    content: undefined,
+    skeleton: undefined,
     created_at: now,
     updated_at: now,
     ...overrides,
@@ -112,7 +113,7 @@ export function createMockUser(overrides?: Partial<MockUser>): MockUser {
     id: 'test-user-' + Math.random().toString(36).substr(2, 9),
     email: 'test@example.com',
     full_name: 'Test User',
-    avatar_url: null,
+    avatar_url: undefined,
     created_at: new Date().toISOString(),
     ...overrides,
   };
@@ -210,10 +211,35 @@ export async function cleanupTestData(userId: string): Promise<void> {
 }
 
 // =============================================================================
+// Tool Test Execution Helper
+// =============================================================================
+
+/** Mock ToolExecutionOptions for tests */
+const testToolOptions: ToolExecutionOptions = {
+  toolCallId: 'test-call-id',
+  messages: [],
+};
+
+/**
+ * Execute a tool in test context with proper typing.
+ * Handles the ToolExecutionOptions requirement and type narrowing.
+ */
+export async function callTool(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  toolDef: { execute?: (...args: any[]) => any },
+  input: Record<string, unknown>,
+): Promise<ToolOutput<any>> {
+  if (!toolDef.execute) {
+    throw new Error('Tool does not have an execute function');
+  }
+  return toolDef.execute(input, testToolOptions) as Promise<ToolOutput<any>>;
+}
+
+// =============================================================================
 // Assertion Helpers
 // =============================================================================
 
-export function assertToolOutputSuccess<T>(result: unknown): asserts result is { success: true; data: T } {
+export function assertToolOutputSuccess(result: ToolOutput<any>): asserts result is ToolOutput<any> & { success: true } {
   if (typeof result !== 'object' || result === null) {
     throw new Error('Expected result to be an object');
   }
@@ -225,7 +251,7 @@ export function assertToolOutputSuccess<T>(result: unknown): asserts result is {
   }
 }
 
-export function assertToolOutputError(result: unknown): asserts result is { success: false; error: { message: string; category: string } } {
+export function assertToolOutputError(result: ToolOutput<any>): asserts result is ToolOutput<any> & { success: false; error: { message: string; category: string } } {
   if (typeof result !== 'object' || result === null) {
     throw new Error('Expected result to be an object');
   }

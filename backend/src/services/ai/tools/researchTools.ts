@@ -1,5 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
+import { anthropic } from '@ai-sdk/anthropic';
+import { generateText } from 'ai';
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { logger } from '../../../lib/logger.js';
 import { mockService, type ResearchToolResponse } from '../mocks/index.js';
@@ -28,6 +30,58 @@ interface ResearchResult {
   source_url?: string;
   excerpt: string;
   relevance_score: number;
+}
+
+/**
+ * Generate angle-specific search queries from the user's description.
+ * Uses a fast LLM call to extract the specific claims, examples, and arguments
+ * the user wants to make, and creates targeted search queries for each.
+ *
+ * Falls back to title-only queries if no description is provided.
+ */
+async function generateAngleSpecificQueries(
+  title: string,
+  description: string,
+  artifactType: string
+): Promise<string[]> {
+  try {
+    const { text } = await generateText({
+      model: anthropic('claude-3-5-haiku-20241022'),
+      prompt: `You are a research query generator. Given a content topic and the author's intended narrative, generate 8-10 specific search queries that would find supporting evidence, data, counter-perspectives, and expert opinions for the author's SPECIFIC arguments and examples.
+
+Topic title: ${title}
+Author's narrative and intended angle:
+${description}
+
+Content type: ${artifactType}
+
+Rules:
+- Generate queries that find evidence for the SPECIFIC claims, examples, and analogies in the author's narrative
+- Include queries for any specific companies, products, events, or people mentioned
+- Include queries for the core thesis/argument
+- Include 1-2 queries for the MECHANISM behind key examples (why something worked, not just that it worked)
+- Include 1 query for counter-arguments or criticisms of the author's position
+- Include 1 query for historical parallels or analogies relevant to the thesis
+- Include 1-2 broader queries for general context
+- Do NOT generate generic queries about the topic title alone
+- Each query should be 4-10 words, optimized for web search
+
+Return one query per line, no numbering, no bullets, no explanations.`,
+      temperature: 0.3,
+      maxOutputTokens: 400,
+    });
+
+    const queries = text.split('\n').map(q => q.trim()).filter(q => q.length > 3);
+    logger.debug('[GenerateAngleSpecificQueries] Generated queries from description', {
+      queryCount: queries.length,
+    });
+    return queries.length > 0 ? queries : [title]; // Fallback to title if parsing fails
+  } catch (error) {
+    logger.warn('[GenerateAngleSpecificQueries] Failed, falling back to title query', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return [title];
+  }
 }
 
 /**
@@ -76,7 +130,7 @@ async function querySource(
   topic: string,
   limit: number = 5
 ): Promise<ResearchResult[]> {
-  logger.debug('QuerySource', 'Querying source with Tavily API', {
+  logger.debug('[QuerySource] Querying source with Tavily API', {
     sourceType,
     topic: topic.substring(0, 50),
     limit
@@ -110,7 +164,7 @@ async function querySource(
       relevance_score: r.score
     }));
   } catch (error) {
-    logger.error('QuerySource', error instanceof Error ? error : new Error(String(error)), {
+    logger.error('[QuerySource] ' + (error instanceof Error ? error.message : String(error)), {
       sourceType,
       topic: topic.substring(0, 50)
     });
@@ -146,15 +200,16 @@ export const conductDeepResearch = tool({
   inputSchema: z.object({
     artifactId: z.string().uuid().describe('ID of the artifact to research for'),
     topic: z.string().min(3).describe('Research topic or content subject'),
+    topicDescription: z.string().optional().describe('Author\'s detailed description with narrative angle, key arguments, specific examples, and intended hooks/CTAs. When provided, research queries are tailored to find evidence supporting the author\'s specific arguments rather than generic topic coverage.'),
     artifactType: z.enum(['blog', 'social_post', 'showcase']).describe('Type of artifact being created'),
   }),
 
-  execute: async ({ artifactId, topic, artifactType }) => {
+  execute: async ({ artifactId, topic, topicDescription, artifactType }) => {
     const startTime = Date.now();
     const traceId = generateMockTraceId('research');
 
     try {
-      logger.info('ConductDeepResearch', 'Starting research', {
+      logger.info('[ConductDeepResearch] Starting research', {
         artifactId,
         topicLength: topic.length,
         artifactType,
@@ -165,10 +220,30 @@ export const conductDeepResearch = tool({
       // Mock Check - Return mock response if mocking is enabled
       // =========================================================================
       if (mockService.shouldMock('researchTools')) {
-        logger.info('ConductDeepResearch', 'Using mock response', {
+        logger.info('[ConductDeepResearch] Using mock response', {
           artifactId,
           topic: topic.substring(0, 50),
         });
+
+        // Save author_brief to metadata even in mock mode
+        // Guard: don't overwrite an existing interview-enriched brief
+        if (topicDescription) {
+          const { data: currentArtifact } = await supabaseAdmin
+            .from('artifacts')
+            .select('metadata')
+            .eq('id', artifactId)
+            .single();
+
+          const currentMetadata = (currentArtifact?.metadata as Record<string, unknown>) || {};
+          if (!currentMetadata.author_brief) {
+            await supabaseAdmin
+              .from('artifacts')
+              .update({
+                metadata: { ...currentMetadata, author_brief: topicDescription },
+              })
+              .eq('id', artifactId);
+          }
+        }
 
         // Update artifact status to 'research' even in mock mode
         await supabaseAdmin
@@ -193,12 +268,12 @@ export const conductDeepResearch = tool({
           .insert(mockResearchData);
 
         if (insertError) {
-          logger.warn('ConductDeepResearch', 'Failed to insert mock research', {
+          logger.warn('[ConductDeepResearch] Failed to insert mock research', {
             artifactId,
             error: insertError.message,
           });
         } else {
-          logger.debug('ConductDeepResearch', 'Mock research data inserted', {
+          logger.debug('[ConductDeepResearch] Mock research data inserted', {
             artifactId,
             count: mockResearchData.length,
           });
@@ -237,28 +312,69 @@ export const conductDeepResearch = tool({
         .eq('id', artifactId);
 
       if (statusError) {
-        logger.error('ConductDeepResearch', statusError, {
+        logger.error('[ConductDeepResearch] ' + statusError.message, {
           artifactId,
           stage: 'update_status'
         });
         // Continue anyway - status update failure shouldn't block research
       } else {
-        logger.debug('ConductDeepResearch', 'Status updated to research (Phase 1)', {
+        logger.debug('[ConductDeepResearch] Status updated to research (Phase 1)', {
           artifactId,
           newStatus: 'research'
         });
       }
 
+      // 0.5 Save author_brief to artifact metadata (preserves user intent through pipeline)
+      // Guard: don't overwrite an existing interview-enriched brief with the simple topic description
+      if (topicDescription) {
+        const { data: currentArtifact } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
+
+        const currentMetadata = (currentArtifact?.metadata as Record<string, unknown>) || {};
+        if (!currentMetadata.author_brief) {
+          await supabaseAdmin
+            .from('artifacts')
+            .update({
+              metadata: { ...currentMetadata, author_brief: topicDescription },
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', artifactId);
+
+          logger.info('[ConductDeepResearch] Author brief saved to metadata', {
+            briefLength: topicDescription.length,
+          });
+        } else {
+          logger.info('[ConductDeepResearch] Existing author brief preserved (interview-enriched)', {
+            existingBriefLength: String(currentMetadata.author_brief).length,
+          });
+        }
+      }
+
       // 1. Determine source priority based on topic characteristics
       const sourcePriority = determineSourcePriority(topic, artifactType);
-      logger.debug('ConductDeepResearch', 'Source priority determined', {
+      logger.debug('[ConductDeepResearch] Source priority determined', {
         sources: sourcePriority
       });
 
-      // 2. Query top 5 sources in parallel (4 results per source = 20 total potential)
-      const sourceQueries = sourcePriority.slice(0, 5).map(source =>
-        querySource(source, topic, 4)
-      );
+      // 1.5 Generate angle-specific queries if description is available
+      let searchQueries: string[] = [topic]; // Default: search by title
+      if (topicDescription) {
+        searchQueries = await generateAngleSpecificQueries(topic, topicDescription, artifactType);
+        logger.info('[ConductDeepResearch] Using angle-specific queries from description', {
+          queryCount: searchQueries.length,
+        });
+      }
+
+      // 2. Query top 5 sources in parallel using angle-specific queries
+      // Distribute queries across sources for diverse perspectives
+      const sourceQueries = sourcePriority.slice(0, 5).map((source, i) => {
+        // Each source gets a different query from the angle-specific set for diversity
+        const queryForSource = searchQueries[i % searchQueries.length] || topic;
+        return querySource(source, queryForSource, 4);
+      });
 
       const results = await Promise.allSettled(sourceQueries);
 
@@ -268,7 +384,7 @@ export const conductDeepResearch = tool({
         .flatMap(r => r.value)
         .map(r => ({ ...r, artifact_id: artifactId })); // Set artifact_id
 
-      logger.debug('ConductDeepResearch', 'Raw results collected', {
+      logger.debug('[ConductDeepResearch] Raw results collected', {
         totalResults: allResults.length,
         sources: [...new Set(allResults.map(r => r.source_type))]
       });
@@ -279,7 +395,7 @@ export const conductDeepResearch = tool({
         .sort((a, b) => b.relevance_score - a.relevance_score)
         .slice(0, 20);
 
-      logger.debug('ConductDeepResearch', 'Results filtered', {
+      logger.debug('[ConductDeepResearch] Results filtered', {
         filtered: filteredResults.length,
         minRelevance: Math.min(...filteredResults.map(r => r.relevance_score)),
         maxRelevance: Math.max(...filteredResults.map(r => r.relevance_score))
@@ -292,7 +408,7 @@ export const conductDeepResearch = tool({
       let usedFallback = false;
 
       if (uniqueSources.size < 5) {
-        logger.warn('ConductDeepResearch', 'Insufficient real sources, using fallback', {
+        logger.warn('[ConductDeepResearch] Insufficient real sources, using fallback', {
           found: uniqueSources.size,
           minRequired: 5,
           topic: topic.substring(0, 50),
@@ -319,7 +435,7 @@ export const conductDeepResearch = tool({
         finalResults = [...filteredResults, ...mockResults];
         usedFallback = true;
 
-        logger.info('ConductDeepResearch', 'Fallback sources generated', {
+        logger.info('[ConductDeepResearch] Fallback sources generated', {
           realSources: filteredResults.length,
           fallbackSources: mockResults.length,
           totalSources: finalResults.length,
@@ -336,7 +452,7 @@ export const conductDeepResearch = tool({
       if (error) {
         const duration = Date.now() - startTime;
 
-        logger.error('ConductDeepResearch', error, {
+        logger.error('[ConductDeepResearch] ' + (error instanceof Error ? error.message : String(error)), {
           artifactId,
           resultsCount: filteredResults.length,
           duration,
@@ -363,7 +479,7 @@ export const conductDeepResearch = tool({
 
       const duration = Date.now() - startTime;
 
-      logger.info('ConductDeepResearch', 'Research completed successfully', {
+      logger.info('[ConductDeepResearch] Research completed successfully', {
         artifactId,
         sourceCount: data?.length || 0,
         uniqueSources: new Set(finalResults.map(r => r.source_type)).size,
@@ -422,7 +538,7 @@ export const conductDeepResearch = tool({
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      logger.error('ConductDeepResearch', error instanceof Error ? error : new Error(String(error)), {
+      logger.error('[ConductDeepResearch] ' + (error instanceof Error ? error.message : String(error)), {
         artifactId,
         topic: topic.substring(0, 50),
         duration,

@@ -51,7 +51,7 @@ export function ImageApprovalPanel({
 
     try {
       await onApprove([id]);
-    } catch (error) {
+    } catch {
       // Revert on error
       setApprovedIds(approvedIds);
       setRejectedIds(rejectedIds);
@@ -68,7 +68,7 @@ export function ImageApprovalPanel({
 
     try {
       await onReject([id]);
-    } catch (error) {
+    } catch {
       // Revert on error
       setRejectedIds(rejectedIds);
       setApprovedIds(approvedIds);
@@ -82,7 +82,7 @@ export function ImageApprovalPanel({
 
     try {
       await onApprove(allIds);
-    } catch (error) {
+    } catch {
       // Revert on error
       setApprovedIds(approvedIds);
       setRejectedIds(rejectedIds);

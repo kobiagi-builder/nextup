@@ -80,7 +80,7 @@ function estimateWordCount(artifactType: string, sectionsCount: number): number 
   if (artifactType === 'blog') {
     return 150 + (sectionsCount * 400);
   } else if (artifactType === 'showcase') {
-    return sectionsCount * 250;
+    return 200 + (sectionsCount * 400); // Showcases need deep per-section content (framework elements)
   } else if (artifactType === 'social_post') {
     return 200;
   }
@@ -158,6 +158,26 @@ function getCharacteristicsGuidance(characteristics?: WritingCharacteristics): s
     guidance.push(`- Target audience level: ${audienceChar.value}`);
   }
 
+  const hookChar = characteristics.hook_style;
+  if (hookChar) {
+    guidance.push(`- Hook style: ${hookChar.value}`);
+  }
+
+  const metaphorChar = characteristics.central_metaphor_strategy;
+  if (metaphorChar) {
+    guidance.push(`- Central metaphor: ${metaphorChar.value}`);
+  }
+
+  const closingChar = characteristics.closing_type;
+  if (closingChar) {
+    guidance.push(`- Closing type: ${closingChar.value}`);
+  }
+
+  const counterArgChar = characteristics.counter_argument_approach;
+  if (counterArgChar) {
+    guidance.push(`- Counter-arguments: ${counterArgChar.value}`);
+  }
+
   if (guidance.length === 1) {
     return ''; // Only header, no actual characteristics
   }
@@ -170,14 +190,39 @@ function buildSkeletonPrompt(
   tone: ToneOption,
   topic: string,
   researchContext: string,
-  characteristics?: WritingCharacteristics
+  characteristics?: WritingCharacteristics,
+  authorBrief?: string
 ): string {
   const toneModifier = toneModifiers[tone];
   const characteristicsGuidance = getCharacteristicsGuidance(characteristics);
 
-  const basePrompt = `You are creating a content skeleton (NOT final content) for a ${artifactType}.
+  // Build author's vision section if brief is available
+  const authorVisionSection = authorBrief
+    ? `
+## Author's Vision (PRIMARY GUIDE for structure and argument flow)
 
-Research context (use these insights to inform structure):
+The author has a specific narrative in mind. Use this as your primary guide for structuring the skeleton. You may enhance with research findings, but the core argument, key examples, specific analogies, and intended angle MUST be preserved in the skeleton structure.
+
+${authorBrief}
+
+When creating the skeleton:
+- Structure sections around the author's key arguments, not generic subtopics
+- Preserve the author's specific examples and analogies as section focal points
+- Keep the author's intended hook and CTA direction
+- Use research to SUPPORT the author's narrative, not replace it
+- If the author mentions specific data points, companies, or events, ensure they appear in the skeleton
+- For SHOWCASES: The brief comes from a structured interview — treat stakeholder dynamics, emotional moments, and specific observations as essential skeleton elements (not optional color)
+
+`
+    : '';
+
+  const researchLabel = authorBrief
+    ? 'Research context (use these insights to SUPPORT the author\'s narrative above):'
+    : 'Research context (use these insights to inform structure):';
+
+  const basePrompt = `You are creating a content skeleton (NOT final content) for a ${artifactType}.
+${authorVisionSection}
+${researchLabel}
 ${researchContext}
 
 Topic: ${topic}
@@ -187,33 +232,46 @@ ${characteristicsGuidance}
 `;
 
   if (artifactType === 'blog') {
-    return basePrompt + `Generate a blog skeleton with:
+    return basePrompt + `Generate a blog skeleton that builds an ARGUMENT, not a topic list.
 
-1. Title: Compelling and specific
-2. Hook: [Write engaging hook here] - 2-3 sentences to grab attention
+## Skeleton Structure Rules
 
-[IMAGE: Featured image - describe what would visually represent the topic]
+1. **Title**: Specific, opinionated - hint at the article's novel angle
+2. **Hook**: [Write the actual opening hook] - Start with a specific observation, provocative claim, or concrete example. NOT "In today's fast-paced world..."
 
-3. Section 1 (H2): [Main point 1]
-   - [Expand on this point - reference research sources]
-   [IMAGE: Describe visual that supports this section]
+[IMAGE: Featured image - visual metaphor for the article's central tension or theme]
 
-4. Section 2 (H2): [Main point 2]
-   - [Expand on this point - reference research sources]
-   [IMAGE: Describe visual that supports this section]
+3. **Setup section (H2)**: Establish the status quo being challenged
+   - [Present what the reader currently believes]
+   - End with: why the common approach fails or misses something
 
-5. Section 3 (H2): [Main point 3]
-   - [Expand on this point - reference research sources]
-   [IMAGE: Describe visual that supports this section]
+4. **Central argument section (H2)**: The article's core insight
+   - [Present your thesis through a concrete, named example]
+   - Develop the example: what happened, WHY it happened (mechanism), what it implies
+   [IMAGE: Visual metaphor for this section's core idea]
 
-6. (Optional) Section 4 (H2): [Main point 4]
-   - [Expand on this point if needed]
-   [IMAGE: Describe visual if this section is included]
+5. **Evidence/depth section (H2)**: Supporting evidence and nuance
+   - [Second example from a different angle that reinforces the thesis]
+   - Include a counter-argument or caveat: "To be fair..." / "This doesn't mean..."
+   [IMAGE: Visual metaphor for this section's core idea]
 
-7. Conclusion: [Summarize key takeaways]
-8. Call to Action: [Suggest next steps for reader]
+6. **Implications section (H2)**: Why this matters for the reader
+   - [Connect the thesis back to the reader's situation]
+   - Practical takeaway or shift in thinking
 
-Use placeholders like [Write hook here] and [IMAGE: description]. Include image placeholders within the content flow after major sections. Reference research sources like "According to [Source]...". Keep total length under 2000 characters.`;
+7. **(Optional) Additional section (H2)**: Only if depth warrants it
+   [IMAGE: Visual metaphor if this section is included]
+
+8. **Closing**: NOT a summary. End with: diagnostic questions the reader can apply to their own situation, a provocative reframe, or a reflective question.
+
+## Key Constraints
+- Sections build on each other - NOT interchangeable topic blocks
+- At least ONE named example (company, person, event) must appear
+- Include at least ONE moment of intellectual honesty (caveat, limitation)
+- If the article introduces a new concept, show it through example BEFORE naming it (earned naming)
+- Use placeholders like [Write hook here] and [IMAGE: description]
+- Reference research sources like "According to [Source]..."
+- Keep total length under 2000 characters.`;
   }
 
   if (artifactType === 'social_post') {
@@ -240,39 +298,102 @@ Use placeholders and keep concise (suitable for LinkedIn/Twitter). Include ONE i
   }
 
   if (artifactType === 'showcase') {
-    return basePrompt + `Generate a project showcase skeleton with:
+    return basePrompt + `Generate a showcase case study skeleton. This is a NARRATIVE article telling the story of a real professional case — NOT a product showcase or project portfolio piece.
 
-1. Title: [Project name and brief descriptor]
+## CRITICAL SHOWCASE RULES
 
-[IMAGE: Hero image - screenshot or visual of the project in action]
+1. **Content Ratio**: ~30% situation/context/outcome, ~70% solution/framework/toolbox. The bulk of the article is the implementable framework.
+2. **Anonymization**: NEVER use real company names, people names, or identifying details. Use descriptions: "a B2B SaaS company", "the head of sales", "an adjacent enterprise segment".
+3. **No Specific Numbers**: Use relative language instead of exact figures. "Several times our average deal size" NOT "$500K deals". "A few dozen customers" NOT "40 customers". "The company grew several times over" NOT "grew 4x".
+4. **Stakeholder Story**: Include the human/political dimension — different perspectives, tensions, emotions, and how they were navigated. This is what makes the case real.
+5. **Personal Evidence Only**: Use the author's direct experience and observations. NO external quotes, business-book citations, or "studies show" references.
 
-2. Overview: [Write compelling project overview here]
-   - What it is
-   - Who it's for
+## Skeleton Structure (follow this architecture)
 
-3. Problem: [Describe the problem or challenge]
-   - Why it matters
-   - Current pain points
+1. **Title**: Specific, intriguing — hint at the framework AND the human dimension
+   - Good: "The ICP Expansion Scorecard: A Decision Framework for When Big Deals Pull You Off Course"
+   - Bad: "How I Helped a Company Make Better Decisions"
 
-[IMAGE: Describe visual showing the problem or pain point]
+[IMAGE: Hero image - visual metaphor for the article's central tension]
 
-4. Solution: [Explain your approach]
-   - Key features or methods
-   - Technical highlights
+2. **The Situation** (H2): Scene-setting opening — vivid, specific, immediate
+   - [Open with a concrete moment the reader can visualize — "Every B2B product leader will face this moment..."]
+   - [Establish the stakes and tension within first 100 words]
+   - [Reader promise: explicitly state what they'll walk away with — "By the end of this article, you'll have the complete scorecard, the process, and the lessons"]
+   - [Introduce the organizational tension — this isn't just a technical problem, it's a people problem]
+   - [Show why each stakeholder's perspective was legitimate — CEO saw growth, Sales had real pipeline, Engineering was stretched, Product saw fragmentation]
 
-[IMAGE: Describe visual showing the solution - architecture diagram, key feature, or interface]
+3. **The Human Process** (H2): The stakeholder facilitation approach — THIS IS CRITICAL
+   - [Explain WHY a facilitation process was needed — "presenting a recommendation would create a winner and a loser"]
+   - [Step-by-step process for stakeholder alignment BEFORE any analysis]
 
-5. Results: [Share outcomes and impact]
-   - Measurable results
-   - User feedback or testimonials
+   ### Step 1: [Stakeholder mapping sub-section]
+   - [1:1 conversations with each stakeholder]
+   - [Questions to ask: "What excites you?", "What worries you?", "What would need to be true?"]
+   - [Document different risk tolerances, time horizons, definitions of success]
 
-[IMAGE: Describe visual showing results - metrics dashboard, before/after, or testimonial graphic]
+   ### Step 2: [Axis ownership sub-section]
+   - [Each stakeholder owns the axis closest to their expertise]
+   - [Table mapping axes to natural owners]
 
-6. Learnings: [Key takeaways from the project]
-   - What went well
-   - What you'd do differently
+   ### Step 3: [Preliminary reviews sub-section]
+   - [Never surprise people in a room full of peers]
+   - [Share findings individually before the group meeting]
+   - [The meeting becomes ratification, not debate]
 
-Use placeholders like [IMAGE: description] within the content flow. Include image placeholders after major sections to visualize the project journey. Reference research sources. Keep under 2000 characters.`;
+---
+
+4-8. **The Framework Elements** (H2 each): 4-6 elements of the implementable framework
+   EACH element MUST follow this repeatable template:
+
+   ### Element N: [Name] (H2)
+   **What it answers**: [One sentence — what question this element resolves]
+
+   **How to run it**: [Step-by-step implementation instructions]
+   - [Numbered steps with specific actions]
+   - [Include formulas, templates, or decision criteria where applicable]
+   - [Be prescriptive enough that a reader could execute this tomorrow]
+
+   **How this played out**: [Personal case evidence]
+   - [What actually happened when this element was applied]
+   - [Include the stakeholder who owned this analysis and what they found]
+   - [Show the emotional/political impact — "When the VP of Engineering presented these numbers — numbers he'd calculated himself — the room understood"]
+
+   **Common pitfall**: [Specific mistake to avoid]
+   - [What teams typically get wrong with this element]
+   - [Why the mistake is seductive and how to avoid it]
+
+   **Signal criteria**: [Go / Conditional Go / No-Go thresholds]
+   - [Clear decision criteria for this element]
+
+   [IMAGE: Visual metaphor for this element's core tension or insight — after every 2nd element]
+
+---
+
+9. **Running the Framework** (H2): How to synthesize and decide
+   - [Decision matrix: how signals combine into Go/Conditional/No-Go]
+   - [The decision meeting format — template with timing]
+   - [Handling the aftermath: messages to prospects, framing for the board, communicating to the team]
+
+10. **The Outcome** (H2): Results and reflection — BRIEF (this is the 30%, not the 70%)
+    - [What happened after the decision — use relative terms]
+    - [The counterintuitive benefit — "saying no was good for the prospects too"]
+    - [Circular closure: callback to the opening tension, resolve it]
+    - [The stakeholder who pushed hardest for the other direction later agreed — because they helped build the analysis]
+
+11. **When to Use This** (H2): Trigger scenarios — when should the reader pull this out?
+    - [Bulleted list of specific situations that call for this framework]
+    - [End with a memorable final line — NOT a quote, but an original insight]
+
+## Key Constraints
+- Sections build a NARRATIVE ARC — tension → process → framework → resolution
+- Each framework element must be IMPLEMENTABLE, not just descriptive
+- The human/political dimension must be woven throughout, not just in one section
+- Use discovery order (how the story unfolded) not taxonomic listing
+- Include at least 3 genuine "I was wrong" or "we underestimated" moments throughout
+- Vary section lengths — not every section should be the same weight
+- Use [PLACEHOLDER: ...] notes for where the content writer should add specific detail
+- Total skeleton under 3000 characters (this is an outline, not final content)`;
   }
 
   return basePrompt;
@@ -293,7 +414,7 @@ Use placeholders like [IMAGE: description] within the content flow. Include imag
  * 2. Build research context summary
  * 3. Generate skeleton prompt with type-specific structure
  * 4. Call Claude API with tone modifiers
- * 5. Validate skeleton length (< 2000 chars for blogs/showcases, < 1500 for social)
+ * 5. Validate skeleton length (< 6000 chars for blogs/showcases, < 2000 for social)
  * 6. Update artifact.content in database
  *
  * Returns:
@@ -326,7 +447,7 @@ export const generateContentSkeleton = tool({
     const traceId = generateMockTraceId('skeleton');
 
     try {
-      logger.info('GenerateContentSkeleton', 'Starting skeleton generation', {
+      logger.info('[GenerateContentSkeleton] Starting skeleton generation', {
         artifactId,
         artifactType,
         tone,
@@ -338,7 +459,7 @@ export const generateContentSkeleton = tool({
       // MOCK CHECK: Return mock response if mocking is enabled
       // =========================================================================
       if (mockService.shouldMock('skeletonTools')) {
-        logger.info('GenerateContentSkeleton', 'Using mock response', {
+        logger.info('[GenerateContentSkeleton] Using mock response', {
           artifactId,
           artifactType,
           tone,
@@ -376,7 +497,8 @@ export const generateContentSkeleton = tool({
       if (researchError) {
         const duration = Date.now() - startTime;
 
-        logger.error('GenerateContentSkeleton', researchError, {
+        logger.error('[GenerateContentSkeleton] Failed to fetch research', {
+          error: researchError,
           artifactId,
           stage: 'fetch_research',
           duration,
@@ -407,7 +529,7 @@ export const generateContentSkeleton = tool({
             .join('\n\n')
         : 'No research context available. Generate skeleton based on topic alone.';
 
-      logger.debug('GenerateContentSkeleton', 'Research context prepared', {
+      logger.debug('[GenerateContentSkeleton] Research context prepared', {
         sourceCount: researchResults?.length || 0,
         contextLength: researchContext.length
       });
@@ -423,16 +545,34 @@ export const generateContentSkeleton = tool({
 
         if (charData?.characteristics) {
           writingCharacteristics = charData.characteristics as WritingCharacteristics;
-          logger.debug('GenerateContentSkeleton', 'Writing characteristics loaded', {
+          logger.debug('[GenerateContentSkeleton] Writing characteristics loaded', {
             characteristicsCount: Object.keys(writingCharacteristics).length,
           });
         }
       }
 
-      // 3. Build skeleton prompt
-      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext, writingCharacteristics);
+      // 2.6 Fetch author's brief from artifact metadata
+      let authorBrief: string | undefined;
+      {
+        const { data: artifactMeta } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
 
-      logger.debug('GenerateContentSkeleton', 'Prompt built', {
+        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
+        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+          authorBrief = metadata.author_brief;
+          logger.debug('[GenerateContentSkeleton] Author brief loaded from metadata', {
+            briefLength: authorBrief.length,
+          });
+        }
+      }
+
+      // 3. Build skeleton prompt
+      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext, writingCharacteristics, authorBrief);
+
+      logger.debug('[GenerateContentSkeleton] Prompt built', {
         promptLength: prompt.length
       });
 
@@ -441,21 +581,21 @@ export const generateContentSkeleton = tool({
         model: anthropic('claude-sonnet-4-20250514'),
         prompt,
         temperature: 0.7, // Balanced creativity and consistency
-        maxTokens: 2000, // Enough for detailed skeleton
+        maxOutputTokens: 2000, // Enough for detailed skeleton
       });
 
-      logger.debug('GenerateContentSkeleton', 'Skeleton generated', {
+      logger.debug('[GenerateContentSkeleton] Skeleton generated', {
         skeletonLength: skeleton.length
       });
 
-      // 5. Validate skeleton length
-      const maxLength = artifactType === 'social_post' ? 1500 : 2000;
       // 5. Validate skeleton length and truncate if needed
+      // Blogs/showcases need more room for section headers + descriptions
+      const maxLength = artifactType === 'social_post' ? 2000 : 6000;
       let finalSkeleton = skeleton;
       let warning: string | undefined;
 
       if (skeleton.length > maxLength) {
-        logger.warn('GenerateContentSkeleton', 'Skeleton exceeds max length', {
+        logger.warn('[GenerateContentSkeleton] Skeleton exceeds max length', {
           length: skeleton.length,
           maxLength
         });
@@ -465,12 +605,16 @@ export const generateContentSkeleton = tool({
       }
 
       // 6. Update artifact content in database (always update, even if truncated)
-      // Status: skeleton (user reviews outline and approves before writeFullContent)
+      // Status: foundations_approval (user reviews skeleton and approves before writeFullContent)
+      // Note: We set foundations_approval directly instead of skeleton because:
+      // - In non-pipeline mode (AI SDK direct), PipelineExecutor's pauseForApproval logic doesn't run
+      // - The skeleton status is transient and should never be visible to the user
+      // - Both code paths (pipeline and direct) need to end at foundations_approval
       const { error: updateError } = await supabaseAdmin
         .from('artifacts')
         .update({
           content: finalSkeleton,
-          status: 'skeleton',
+          status: 'foundations_approval',
           updated_at: new Date().toISOString()
         })
         .eq('id', artifactId);
@@ -478,7 +622,8 @@ export const generateContentSkeleton = tool({
       if (updateError) {
         const duration = Date.now() - startTime;
 
-        logger.error('GenerateContentSkeleton', updateError, {
+        logger.error('[GenerateContentSkeleton] Failed to update artifact', {
+          error: updateError,
           artifactId,
           stage: 'update_artifact',
           duration,
@@ -507,12 +652,12 @@ export const generateContentSkeleton = tool({
       const estimatedWords = estimateWordCount(artifactType, sections.length);
       const duration = Date.now() - startTime;
 
-      logger.info('GenerateContentSkeleton', 'Skeleton generation completed', {
+      logger.info('[GenerateContentSkeleton] Skeleton generation completed', {
         artifactId,
         skeletonLength: finalSkeleton.length,
         sectionsCount: sections.length,
         estimatedWords,
-        status: 'skeleton',
+        status: 'foundations_approval',
         wasTruncated: !!warning,
         duration,
         traceId,
@@ -528,7 +673,7 @@ export const generateContentSkeleton = tool({
         success: true,
         traceId,
         duration,
-        statusTransition: { from: 'researching', to: 'skeleton' },
+        statusTransition: { from: 'foundations', to: 'foundations_approval' },
         data: {
           skeleton: finalSkeleton,
           sections,
@@ -550,7 +695,8 @@ export const generateContentSkeleton = tool({
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      logger.error('GenerateContentSkeleton', error instanceof Error ? error : new Error(String(error)), {
+      logger.error('[GenerateContentSkeleton] Skeleton generation failed', {
+        error: error instanceof Error ? error : new Error(String(error)),
         artifactId,
         topic: topic.substring(0, 50),
         duration,

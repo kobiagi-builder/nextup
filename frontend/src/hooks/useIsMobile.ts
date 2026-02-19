@@ -10,9 +10,10 @@ import { useState, useEffect } from 'react'
 const MOBILE_BREAKPOINT = 768
 
 export function useIsMobile(): boolean {
-  const [isMobile, setIsMobile] = useState(
-    typeof window !== 'undefined' ? window.innerWidth < MOBILE_BREAKPOINT : false
-  )
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`).matches
+  })
 
   useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
@@ -20,9 +21,6 @@ export function useIsMobile(): boolean {
     const handleChange = (e: MediaQueryListEvent) => {
       setIsMobile(e.matches)
     }
-
-    // Set initial value
-    setIsMobile(mql.matches)
 
     // Listen for changes
     mql.addEventListener('change', handleChange)

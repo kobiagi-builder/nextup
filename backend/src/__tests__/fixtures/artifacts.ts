@@ -17,8 +17,8 @@ export const draftArtifact: MockArtifact = {
   title: 'Getting Started with React Testing',
   type: 'blog',
   status: 'draft',
-  content: null,
-  skeleton: null,
+  content: undefined,
+  skeleton: undefined,
   created_at: '2026-01-20T10:00:00Z',
   updated_at: '2026-01-20T10:00:00Z',
 };
@@ -34,8 +34,8 @@ export const researchCompleteArtifact: MockArtifact = {
   title: 'Building Scalable Node.js APIs',
   type: 'blog',
   status: 'research',
-  content: null,
-  skeleton: null,
+  content: undefined,
+  skeleton: undefined,
   created_at: '2026-01-19T10:00:00Z',
   updated_at: '2026-01-20T15:30:00Z',
 };
@@ -51,7 +51,7 @@ export const skeletonReadyArtifact: MockArtifact = {
   title: 'Microservices Architecture Best Practices',
   type: 'blog',
   status: 'skeleton',
-  content: null,
+  content: undefined,
   skeleton: `# Introduction
 Hook that grabs attention about microservices
 Brief overview of why architecture matters

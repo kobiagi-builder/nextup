@@ -10,7 +10,7 @@ import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { researchFixtures } from '../../../../fixtures/research.js';
-import { assertToolOutputSuccess, assertToolOutputError, createMockSkeleton } from '../../../../utils/testHelpers.js';
+import { callTool, assertToolOutputSuccess, assertToolOutputError, createMockSkeleton } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
 vi.mock('../../../../../lib/supabase.js', () => ({
@@ -34,7 +34,7 @@ describe('generateContentSkeleton', () => {
 
   describe('Input Validation', () => {
     it('should reject invalid artifactId format', async () => {
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: 'invalid-uuid',
       });
 
@@ -52,7 +52,7 @@ describe('generateContentSkeleton', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -71,7 +71,7 @@ describe('generateContentSkeleton', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -116,7 +116,7 @@ describe('generateContentSkeleton', () => {
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -130,18 +130,6 @@ describe('generateContentSkeleton', () => {
 
   describe('Section Parsing', () => {
     it('should parse markdown H2 sections from blog skeleton', async () => {
-      const blogSkeleton = `# Introduction
-Hook
-
-## Section 1: Main Point
-Content
-
-## Section 2: Details
-Content
-
-## Conclusion
-Summary`;
-
       (mockService.shouldMock as any).mockReturnValue(false);
 
       (supabaseAdmin.from as any).mockReturnValue({
@@ -174,7 +162,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -184,11 +172,6 @@ Summary`;
     });
 
     it('should parse numbered sections from skeleton', async () => {
-      const numberedSkeleton = `1. Introduction: Hook
-2. Main Point: Key insights
-3. Supporting Details: Examples
-4. Conclusion: Summary`;
-
       (mockService.shouldMock as any).mockReturnValue(false);
 
       (supabaseAdmin.from as any).mockReturnValue({
@@ -220,7 +203,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -260,7 +243,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -304,7 +287,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -345,7 +328,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -369,7 +352,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: 'nonexistent-artifact-id',
       });
 
@@ -400,7 +383,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -441,7 +424,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 
@@ -479,7 +462,7 @@ Summary`;
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: artifactFixtures.researchComplete.id,
       });
 

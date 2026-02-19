@@ -43,8 +43,30 @@ function logPhase2(
 /**
  * Build the comprehensive humanity check prompt based on the humanizer skill
  */
-function buildHumanityCheckPrompt(content: string, tone: string): string {
+export function buildHumanityCheckPrompt(content: string, tone: string, authorBrief?: string): string {
+  const authorProtectionSection = authorBrief
+    ? `
+## Author's Core Message (Protect the author's voice)
+
+The author has specific intent behind this content. Your job is to distinguish between:
+- **AI writing patterns** (remove these): inflated vocabulary, filler phrases, generic structure, robotic transitions
+- **Author's intentional choices** (keep these): specific examples, provocative positions, unconventional metaphors, personal anecdotes, data points
+
+${authorBrief}
+
+When humanizing:
+- Keep the author's specific examples, analogies, and data points intact
+- Preserve provocative or contrarian positions - these are intentional, not AI artifacts
+- Maintain the author's hook and call-to-action direction
+- If the author uses an unconventional metaphor or comparison, keep it
+
+---
+
+`
+    : '';
+
   return `You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page.
+${authorProtectionSection}
 
 ## Your Task
 
@@ -75,6 +97,21 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 - **Use "I" when it fits.** First person isn't unprofessional - it's honest
 - **Let some mess in.** Perfect structure feels algorithmic
 - **Be specific about feelings.** Not "this is concerning" but specific reactions
+
+### Human voice markers to PRESERVE (do NOT remove these):
+- **Intellectual honesty**: "To be fair...", "I should note...", "This isn't always..." — credibility, not weakness
+- **Thinking-out-loud**: "Here's what puzzles me...", "The part that surprised me..." — genuine engagement
+- **Reader-as-peer**: Skipping definitions, assuming shared context — signals respect
+- **Named examples with mechanism**: "When X did Y because of Z..." — preserve the full chain
+- **Conversational markers**: "Look.", "Here's the thing.", "And yet." — voice, not slop
+- **Vulnerability**: "I was wrong about this.", "This changed my thinking." — authentic
+- **Distinctive phrases**: Anything unique to the author — keep it
+
+### Remove vs Keep:
+- REMOVE: "delve", "tapestry", "landscape", "multifaceted" → AI vocabulary
+- KEEP: "to be fair", "here's the thing" → Human voice markers
+- REMOVE: "In today's rapidly evolving..." → AI throat-clearing
+- KEEP: "I used to think... but then..." → Authentic thinking-out-loud
 
 ---
 
@@ -234,11 +271,13 @@ ${content}
 
 1. Read through the content carefully
 2. Identify all AI-sounding patterns from the 24 categories above
-3. Rewrite naturally without those patterns
-4. Preserve all factual information and key points
-5. Maintain the original structure and the "${tone}" tone
-6. Add natural variation in sentence length and structure
-7. Include specific details instead of generic statements
+3. BEFORE rewriting, identify human voice markers to PRESERVE (see list above)
+4. Rewrite naturally: remove AI patterns, keep human voice markers intact
+5. Preserve all factual information, named examples, and mechanism explanations
+6. Maintain the original structure and the "${tone}" tone
+7. Preserve intellectual honesty signals (caveats, admissions, counter-arguments)
+8. Keep conversational markers and thinking-out-loud moments
+9. If a sentence sounds "too real" or "too opinionated" — it's working. Keep it.
 
 ## Output
 
@@ -333,9 +372,8 @@ export const applyHumanityCheck = tool({
       patternCategories: 24,
     });
 
-    logger.info("ApplyHumanityCheck", "Starting humanity check", {
+    logger.info("[ApplyHumanityCheck] Starting humanity check", {
       traceId,
-      artifactId,
       contentLength: content.length,
       tone,
     });
@@ -362,7 +400,7 @@ export const applyHumanityCheck = tool({
         await supabaseAdmin
           .from("artifacts")
           .update({
-            status: mockResponse.status || "creating_visuals",
+            status: mockResponse.status || "humanity_checking",
             updated_at: new Date().toISOString()
           })
           .eq("id", artifactId);
@@ -381,8 +419,27 @@ export const applyHumanityCheck = tool({
         tone,
       });
 
+      // Fetch author's brief from artifact metadata
+      let authorBrief: string | undefined;
+      {
+        const { data: artifactMeta } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
+
+        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
+        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+          authorBrief = metadata.author_brief;
+          logPhase2('AUTHOR_BRIEF_FETCH', 'Author brief loaded for intent preservation', {
+            traceId,
+            briefLength: authorBrief.length,
+          });
+        }
+      }
+
       const promptStartTime = Date.now();
-      const prompt = buildHumanityCheckPrompt(content, tone);
+      const prompt = buildHumanityCheckPrompt(content, tone, authorBrief);
       const promptDuration = Date.now() - promptStartTime;
 
       logPhase2('PROMPT_BUILD', 'Prompt built successfully', {
@@ -393,7 +450,7 @@ export const applyHumanityCheck = tool({
         includesPersonalitySection: true,
       });
 
-      logger.debug("ApplyHumanityCheck", "Prompt built", {
+      logger.debug("[ApplyHumanityCheck] Prompt built", {
         traceId,
         promptLength: prompt.length,
         patternCategories: 24,
@@ -405,14 +462,14 @@ export const applyHumanityCheck = tool({
       const modelConfig = {
         model: 'claude-sonnet-4-20250514',
         temperature: 0.5,
-        maxTokens: Math.ceil(content.length * 1.5),
+        maxOutputTokens: Math.ceil(content.length * 1.5),
       };
 
       logPhase2('CLAUDE_API_CALL', 'Calling Claude API for humanization', {
         traceId,
         model: modelConfig.model,
         temperature: modelConfig.temperature,
-        maxTokens: modelConfig.maxTokens,
+        maxOutputTokens: modelConfig.maxOutputTokens,
         inputContentLength: content.length,
       });
 
@@ -422,7 +479,7 @@ export const applyHumanityCheck = tool({
         model: anthropic(modelConfig.model),
         prompt,
         temperature: modelConfig.temperature,
-        maxTokens: modelConfig.maxTokens,
+        maxOutputTokens: modelConfig.maxOutputTokens,
       });
 
       const claudeDuration = Date.now() - claudeStartTime;
@@ -439,7 +496,7 @@ export const applyHumanityCheck = tool({
         tokensPerSecond: Math.round((humanizedContent.length / 4) / (claudeDuration / 1000)),
       });
 
-      logger.debug("ApplyHumanityCheck", "Content humanized", {
+      logger.debug("[ApplyHumanityCheck] Content humanized", {
         traceId,
         originalLength: content.length,
         humanizedLength: humanizedContent.length,
@@ -508,8 +565,8 @@ export const applyHumanityCheck = tool({
         traceId,
         artifactId,
         contentLength: humanizedContent.length,
-        fromStatus: 'humanity_checking',
-        toStatus: 'creating_visuals',
+        fromStatus: 'writing',
+        toStatus: 'humanity_checking',
       });
 
       const dbStartTime = Date.now();
@@ -518,7 +575,7 @@ export const applyHumanityCheck = tool({
         .from("artifacts")
         .update({
           content: humanizedContent,
-          status: "creating_visuals",
+          status: "humanity_checking",
           writing_metadata: {
             traceId,
             humanityCheckApplied: true,
@@ -552,9 +609,8 @@ export const applyHumanityCheck = tool({
           duration: dbDuration,
         });
 
-        logger.error("ApplyHumanityCheck", updateError, {
+        logger.error("[ApplyHumanityCheck] Failed to update artifact: " + updateError.message, {
           traceId,
-          artifactId,
           stage: "update_artifact",
         });
 
@@ -583,7 +639,7 @@ export const applyHumanityCheck = tool({
       logPhase2('DATABASE_UPDATE', 'Artifact updated successfully', {
         traceId,
         artifactId,
-        newStatus: 'creating_visuals',
+        newStatus: 'humanity_checking',
         duration: dbDuration,
       });
 
@@ -610,19 +666,18 @@ export const applyHumanityCheck = tool({
           claudeApi: claudeDuration,
           databaseUpdate: dbDuration,
         },
-        nextStatus: 'creating_visuals',
+        nextStatus: 'humanity_checking',
       });
       logPhase2('HUMANITY_CHECK_COMPLETE', '='.repeat(80));
 
-      logger.info("ApplyHumanityCheck", "Humanity check completed", {
+      logger.info("[ApplyHumanityCheck] Humanity check completed", {
         traceId,
-        artifactId,
         originalLength: content.length,
         humanizedLength: humanizedContent.length,
         humanityScoreBefore,
         humanityScoreAfter,
         patternsFixed,
-        status: "creating_visuals",
+        status: "humanity_checking",
       });
 
       const response: ToolOutput<{
@@ -638,7 +693,7 @@ export const applyHumanityCheck = tool({
         success: true,
         traceId,
         duration: totalDuration,
-        statusTransition: { from: 'humanity_checking', to: 'creating_visuals' },
+        statusTransition: { from: 'writing', to: 'humanity_checking' },
         data: {
           originalLength: content.length,
           humanizedLength: humanizedContent.length,
@@ -675,14 +730,9 @@ export const applyHumanityCheck = tool({
         totalDuration,
       });
 
-      logger.error(
-        "ApplyHumanityCheck",
-        error instanceof Error ? error : new Error(errorMessage),
-        {
-          traceId,
-          artifactId,
-        }
-      );
+      logger.error("[ApplyHumanityCheck] " + errorMessage, {
+        traceId,
+      });
 
       // Rollback status
       logPhase2('STATUS_ROLLBACK', 'Rolling back status to "humanity_checking"', {
@@ -754,7 +804,7 @@ export const checkContentHumanity = tool({
       contentLength: content.length,
     });
 
-    logger.info("CheckContentHumanity", "Analyzing content for AI patterns", {
+    logger.info("[CheckContentHumanity] Analyzing content for AI patterns", {
       traceId,
       contentLength: content.length,
     });
@@ -800,14 +850,14 @@ export const checkContentHumanity = tool({
       const modelConfig = {
         model: 'claude-sonnet-4-20250514',
         temperature: 0.3,
-        maxTokens: 2000,
+        maxOutputTokens: 2000,
       };
 
       logPhase2('CLAUDE_API_CALL', 'Calling Claude API for analysis', {
         traceId,
         model: modelConfig.model,
         temperature: modelConfig.temperature,
-        maxTokens: modelConfig.maxTokens,
+        maxOutputTokens: modelConfig.maxOutputTokens,
       });
 
       const claudeStartTime = Date.now();
@@ -816,7 +866,7 @@ export const checkContentHumanity = tool({
         model: anthropic(modelConfig.model),
         prompt: analysisPrompt,
         temperature: modelConfig.temperature,
-        maxTokens: modelConfig.maxTokens,
+        maxOutputTokens: modelConfig.maxOutputTokens,
       });
 
       const claudeDuration = Date.now() - claudeStartTime;
@@ -858,7 +908,7 @@ export const checkContentHumanity = tool({
           responsePreview: analysisResult.substring(0, 200),
         });
 
-        logger.warn("CheckContentHumanity", "Failed to parse analysis JSON", {
+        logger.warn("[CheckContentHumanity] Failed to parse analysis JSON", {
           traceId,
           result: analysisResult.substring(0, 200),
         });
@@ -914,7 +964,7 @@ export const checkContentHumanity = tool({
       });
       logPhase2('CONTENT_ANALYSIS_COMPLETE', '='.repeat(60));
 
-      logger.info("CheckContentHumanity", "Analysis completed", {
+      logger.info("[CheckContentHumanity] Analysis completed", {
         traceId,
         patternCount,
         humanityScore,
@@ -967,11 +1017,9 @@ export const checkContentHumanity = tool({
         totalDuration,
       });
 
-      logger.error(
-        "CheckContentHumanity",
-        error instanceof Error ? error : new Error(errorMessage),
-        { traceId }
-      );
+      logger.error("[CheckContentHumanity] " + errorMessage, {
+        traceId,
+      });
 
       return {
         success: false,

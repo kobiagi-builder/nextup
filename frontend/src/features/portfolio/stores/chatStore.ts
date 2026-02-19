@@ -149,7 +149,7 @@ export const GENERAL_CONTEXT_KEY: ChatContextKey = 'general'
 export const useChatStore = create<ChatStore>()(
   persist(
     devtools(
-      (set, _get) => ({
+      (set) => ({
         // Initial state
         ...initialState,
 

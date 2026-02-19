@@ -81,7 +81,7 @@ export const generateContentVisuals = tool({
     const startTime = Date.now();
 
     try {
-      logger.info('GenerateContentVisuals', 'Starting visual generation (MVP stub)', {
+      logger.info('[GenerateContentVisuals] Starting visual generation (MVP stub)', {
         traceId,
         artifactId,
       });
@@ -90,7 +90,7 @@ export const generateContentVisuals = tool({
       // MOCK CHECK: Return mock response if mocking is enabled
       // =========================================================================
       if (mockService.shouldMock('visualsCreatorTools')) {
-        logger.info('GenerateContentVisuals', 'Using mock response', {
+        logger.info('[GenerateContentVisuals] Using mock response', {
           traceId,
           artifactId,
         });
@@ -124,7 +124,7 @@ export const generateContentVisuals = tool({
 
       if (fetchError || !artifact) {
         const duration = Date.now() - startTime;
-        logger.error('GenerateContentVisuals', fetchError || new Error('Artifact not found'), {
+        logger.error(`[GenerateContentVisuals] ${fetchError?.message || 'Artifact not found'}`, {
           traceId,
           artifactId,
           stage: 'fetch_artifact',
@@ -151,7 +151,7 @@ export const generateContentVisuals = tool({
       // 2. Detect visual placeholders in content
       const placeholders = detectVisualPlaceholders(artifact.content || '');
 
-      logger.debug('GenerateContentVisuals', 'Visual placeholders detected', {
+      logger.debug('[GenerateContentVisuals] Visual placeholders detected', {
         traceId,
         artifactId,
         visualsDetected: placeholders.length,
@@ -160,7 +160,7 @@ export const generateContentVisuals = tool({
 
       // MVP: Log placeholders (future: generate actual visuals)
       placeholders.forEach((placeholder, index) => {
-        logger.debug('GenerateContentVisuals', `Placeholder ${index + 1}`, {
+        logger.debug(`[GenerateContentVisuals] Placeholder ${index + 1}`, {
           traceId,
           type: placeholder.type,
           description: placeholder.description.substring(0, 100),
@@ -186,7 +186,7 @@ export const generateContentVisuals = tool({
 
       if (updateError) {
         const duration = Date.now() - startTime;
-        logger.error('GenerateContentVisuals', updateError, {
+        logger.error(`[GenerateContentVisuals] ${updateError.message}`, {
           traceId,
           artifactId,
           stage: 'update_status',
@@ -212,7 +212,7 @@ export const generateContentVisuals = tool({
 
       const duration = Date.now() - startTime;
 
-      logger.info('GenerateContentVisuals', 'Visual generation completed (MVP stub)', {
+      logger.info('[GenerateContentVisuals] Visual generation completed (MVP stub)', {
         traceId,
         artifactId,
         visualsDetected: placeholders.length,
@@ -253,7 +253,7 @@ export const generateContentVisuals = tool({
 
     } catch (error) {
       const duration = Date.now() - startTime;
-      logger.error('GenerateContentVisuals', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[GenerateContentVisuals] ${error instanceof Error ? error.message : String(error)}`, {
         traceId,
         artifactId,
       });

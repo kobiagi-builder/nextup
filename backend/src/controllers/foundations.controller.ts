@@ -23,9 +23,9 @@ import type { WritingCharacteristics } from '../types/portfolio.js';
  */
 export const approveFoundations = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { id: artifactId } = req.params;
+    const artifactId = req.params.id as string;
     const { skeleton_content } = req.body || {};
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
 
     if (!artifactId) {
       res.status(400).json({
@@ -35,7 +35,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    logger.info('FoundationsController', 'Approving foundations', {
+    logger.info('[FoundationsController] Approving foundations', {
       artifactId,
       hasUserId: !!userId,
       hasSkeletonContent: !!skeleton_content,
@@ -49,7 +49,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
       .single();
 
     if (fetchError || !artifact) {
-      logger.warn('FoundationsController', 'Artifact not found', {
+      logger.warn('[FoundationsController] Artifact not found', {
         artifactId,
         error: fetchError?.message,
       });
@@ -62,7 +62,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
 
     // Verify ownership if userId available
     if (userId && artifact.user_id !== userId) {
-      logger.warn('FoundationsController', 'Unauthorized access attempt', {
+      logger.warn('[FoundationsController] Unauthorized access attempt', {
         artifactId,
         artifactUserId: artifact.user_id,
         requestUserId: userId,
@@ -74,23 +74,25 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Verify artifact is in correct status
-    if (artifact.status !== 'foundations_approval') {
-      logger.warn('FoundationsController', 'Invalid status for approval', {
+    // Verify artifact is in correct status for approval
+    // Accept both 'skeleton' (legacy) and 'foundations_approval' (current flow)
+    const approvalEligibleStatuses = ['skeleton', 'foundations_approval'];
+    if (!approvalEligibleStatuses.includes(artifact.status)) {
+      logger.warn('[FoundationsController] Invalid status for approval', {
         artifactId,
         currentStatus: artifact.status,
-        expectedStatus: 'foundations_approval',
+        expectedStatuses: approvalEligibleStatuses,
       });
       res.status(400).json({
         error: 'Invalid status',
-        message: `Cannot approve foundations: artifact is in '${artifact.status}' status, expected 'foundations_approval'`,
+        message: `Cannot approve foundations: artifact is in '${artifact.status}' status, expected one of: ${approvalEligibleStatuses.join(', ')}`,
       });
       return;
     }
 
     // Save user's skeleton edits if provided
     if (skeleton_content && typeof skeleton_content === 'string') {
-      logger.info('FoundationsController', 'Saving user skeleton edits', {
+      logger.info('[FoundationsController] Saving user skeleton edits', {
         artifactId,
         contentLength: skeleton_content.length,
       });
@@ -104,7 +106,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
         .eq('id', artifactId);
 
       if (updateError) {
-        logger.error('FoundationsController', new Error(updateError.message), {
+        logger.error(`[FoundationsController] ${updateError.message}`, {
           artifactId,
           sourceCode: 'approveFoundations.saveSkeletonContent',
         });
@@ -117,14 +119,14 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
     }
 
     // Resume pipeline from approval point
-    logger.info('FoundationsController', 'Resuming pipeline from approval', {
+    logger.info('[FoundationsController] Resuming pipeline from approval', {
       artifactId,
     });
 
     const result = await pipelineExecutor.resumeFromApproval(artifactId);
 
     if (!result.success) {
-      logger.error('FoundationsController', new Error(result.error?.message || 'Pipeline failed'), {
+      logger.error(`[FoundationsController] ${result.error?.message || 'Pipeline failed'}`, {
         artifactId,
         error: result.error,
       });
@@ -136,7 +138,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    logger.info('FoundationsController', 'Foundations approved, pipeline resumed', {
+    logger.info('[FoundationsController] Foundations approved, pipeline resumed', {
       artifactId,
       traceId: result.traceId,
       stepsCompleted: result.stepsCompleted,
@@ -154,13 +156,9 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
       },
     });
   } catch (error) {
-    logger.error(
-      'FoundationsController',
-      error instanceof Error ? error : new Error(String(error)),
-      {
+    logger.error(`[FoundationsController] ${error instanceof Error ? error.message : String(error)}`, {
         sourceCode: 'approveFoundations',
-      }
-    );
+      });
 
     res.status(500).json({
       error: 'Internal server error',
@@ -179,7 +177,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
 export const getWritingCharacteristics = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id: artifactId } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
 
     if (!artifactId) {
       res.status(400).json({
@@ -189,7 +187,7 @@ export const getWritingCharacteristics = async (req: Request, res: Response): Pr
       return;
     }
 
-    logger.debug('FoundationsController', 'Fetching writing characteristics', {
+    logger.debug('[FoundationsController] Fetching writing characteristics', {
       artifactId,
     });
 
@@ -210,7 +208,7 @@ export const getWritingCharacteristics = async (req: Request, res: Response): Pr
       .single();
 
     if (error || !data) {
-      logger.debug('FoundationsController', 'Writing characteristics not found', {
+      logger.debug('[FoundationsController] Writing characteristics not found', {
         artifactId,
         error: error?.message,
       });
@@ -224,7 +222,7 @@ export const getWritingCharacteristics = async (req: Request, res: Response): Pr
     // Verify ownership if userId available
     const artifactUserId = (data.artifacts as any)?.user_id;
     if (userId && artifactUserId !== userId) {
-      logger.warn('FoundationsController', 'Unauthorized access attempt', {
+      logger.warn('[FoundationsController] Unauthorized access attempt', {
         artifactId,
       });
       res.status(403).json({
@@ -244,13 +242,9 @@ export const getWritingCharacteristics = async (req: Request, res: Response): Pr
       updatedAt: data.updated_at,
     });
   } catch (error) {
-    logger.error(
-      'FoundationsController',
-      error instanceof Error ? error : new Error(String(error)),
-      {
+    logger.error(`[FoundationsController] ${error instanceof Error ? error.message : String(error)}`, {
         sourceCode: 'getWritingCharacteristics',
-      }
-    );
+      });
 
     res.status(500).json({
       error: 'Internal server error',

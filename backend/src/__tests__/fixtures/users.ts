@@ -38,7 +38,7 @@ export const newUser: MockUser = {
   id: 'user-new-001',
   email: 'newuser@example.com',
   full_name: 'New User',
-  avatar_url: null,
+  avatar_url: undefined,
   created_at: new Date().toISOString(),
 };
 
@@ -50,7 +50,7 @@ export const userWithoutAvatar: MockUser = {
   id: 'user-no-avatar-001',
   email: 'simple@example.com',
   full_name: 'Simple User',
-  avatar_url: null,
+  avatar_url: undefined,
   created_at: '2026-01-15T00:00:00Z',
 };
 

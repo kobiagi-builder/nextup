@@ -7,6 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getAccessToken } from '@/lib/supabase'
 import type {
   UserWritingExample,
   CreateWritingExampleInput,
@@ -46,9 +47,11 @@ export function useWritingExamples(options: UseWritingExamplesOptions = {}) {
       })
 
       try {
+        const token = await getAccessToken()
         const params = options.activeOnly ? '?active_only=true' : ''
         const response = await api.get<ListWritingExamplesResponse>(
-          `/api/user/writing-examples${params}`
+          `/api/user/writing-examples${params}`,
+          token ? { token } : undefined
         )
         console.log('[useWritingExamples] Examples fetched:', {
           count: response.count,
@@ -80,8 +83,10 @@ export function useWritingExample(id: string) {
       })
 
       try {
+        const token = await getAccessToken()
         const example = await api.get<UserWritingExample>(
-          `/api/user/writing-examples/${id}`
+          `/api/user/writing-examples/${id}`,
+          token ? { token } : undefined
         )
         return example
       } catch (error) {
@@ -113,9 +118,11 @@ export function useCreateWritingExample() {
         timestamp: new Date().toISOString(),
       })
 
+      const token = await getAccessToken()
       const example = await api.post<UserWritingExample>(
         '/api/user/writing-examples',
-        input
+        input,
+        token ? { token } : undefined
       )
       return example
     },
@@ -152,9 +159,11 @@ export function useUpdateWritingExample() {
         timestamp: new Date().toISOString(),
       })
 
+      const token = await getAccessToken()
       const example = await api.put<UserWritingExample>(
         `/api/user/writing-examples/${id}`,
-        data
+        data,
+        token ? { token } : undefined
       )
       return example
     },
@@ -188,7 +197,8 @@ export function useDeleteWritingExample() {
         timestamp: new Date().toISOString(),
       })
 
-      await api.delete(`/api/user/writing-examples/${id}`)
+      const token = await getAccessToken()
+      await api.delete(`/api/user/writing-examples/${id}`, token ? { token } : undefined)
     },
     onSuccess: (_, id) => {
       // Invalidate list queries

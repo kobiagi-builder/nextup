@@ -16,7 +16,7 @@ import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { logToFile } from '../../../lib/logger.js';
-import { generateWithRetry, getResolutionForType, type ImageGenParams } from '../../../lib/imageGeneration.js';
+import { generateWithRetry, getResolutionForType, type ImageGenParams, type VisualIdentity } from '../../../lib/imageGeneration.js';
 import { uploadFinalImage } from '../../../lib/storageHelpers.js';
 import type { VisualsMetadata } from '../../../types/portfolio.js';
 
@@ -25,8 +25,8 @@ const imageNeedSchema = z.object({
   id: z.string(),
   placement_after: z.string(),
   description: z.string(),
-  purpose: z.enum(['illustration', 'diagram', 'photo', 'screenshot', 'chart', 'hero']),
-  style: z.enum(['professional', 'modern', 'abstract', 'realistic']),
+  purpose: z.enum(['illustration', 'photo', 'hero']),
+  style: z.enum(['professional', 'modern', 'abstract', 'realistic', 'editorial', 'cinematic']),
   approved: z.boolean().default(false),
 });
 
@@ -67,12 +67,23 @@ function extractContentThemes(content: string, title: string): string[] {
 }
 
 /**
- * Determine mood based on content analysis
+ * Determine mood based on tone (primary) and content analysis (secondary)
  */
-function analyzeMood(content: string, artifactType: string): string {
+function analyzeMood(content: string, artifactType: string, tone?: string): string {
+  // Tone takes priority when available (set by the user)
+  if (tone) {
+    const toneToMood: Record<string, string> = {
+      casual: 'warm, approachable, and slightly irreverent',
+      formal: 'refined, authoritative, and polished',
+      professional: 'confident and polished',
+      conversational: 'friendly, relatable, and inviting',
+      provocative: 'bold, confrontational, and thought-provoking',
+    };
+    if (toneToMood[tone]) return toneToMood[tone];
+  }
+
   const lowerContent = content.toLowerCase();
 
-  // Check for specific mood indicators
   if (lowerContent.includes('success') || lowerContent.includes('achieve') || lowerContent.includes('growth')) {
     return 'inspiring and optimistic';
   }
@@ -86,7 +97,6 @@ function analyzeMood(content: string, artifactType: string): string {
     return 'trustworthy and professional';
   }
 
-  // Default moods by artifact type
   const defaultMoods: Record<string, string> = {
     blog: 'engaging and informative',
     social_post: 'attention-grabbing and energetic',
@@ -94,6 +104,68 @@ function analyzeMood(content: string, artifactType: string): string {
   };
 
   return defaultMoods[artifactType] || 'professional and polished';
+}
+
+/**
+ * Generate a unified visual identity for ALL images in an artifact.
+ * Called once per artifact to ensure visual consistency across all generated images.
+ */
+export function generateVisualIdentity(tone?: string, _artifactType?: string, mood?: string): VisualIdentity {
+  // Map tone to visual style
+  const toneStyles: Record<string, Partial<VisualIdentity>> = {
+    casual: {
+      primaryStyle: 'editorial photography with warm film grain and authentic moments',
+      colorPalette: 'warm earth tones: burnt sienna, deep teal, cream, muted gold',
+      lightingApproach: 'natural golden hour lighting with soft shadows',
+      compositionStyle: 'rule of thirds with intentional negative space',
+      visualTone: 'warm, approachable, slightly irreverent',
+    },
+    formal: {
+      primaryStyle: 'refined studio photography with clean lines and precise framing',
+      colorPalette: 'sophisticated neutrals: charcoal, navy, silver, white',
+      lightingApproach: 'controlled studio lighting with subtle rim light',
+      compositionStyle: 'centered subjects with symmetrical balance',
+      visualTone: 'authoritative, polished, premium',
+    },
+    professional: {
+      primaryStyle: 'modern editorial with clean composition and purposeful framing',
+      colorPalette: 'muted business tones: slate blue, warm gray, ivory, deep navy',
+      lightingApproach: 'soft directional lighting with gentle shadows',
+      compositionStyle: 'rule of thirds with clear focal hierarchy',
+      visualTone: 'confident, credible, approachable',
+    },
+    conversational: {
+      primaryStyle: 'candid editorial photography with natural warmth',
+      colorPalette: 'friendly warm palette: terracotta, sage green, soft cream, dusty rose',
+      lightingApproach: 'natural window light with warm color temperature',
+      compositionStyle: 'slightly off-center subjects with environmental context',
+      visualTone: 'friendly, relatable, inviting',
+    },
+    provocative: {
+      primaryStyle: 'high-contrast editorial with dramatic framing and bold composition',
+      colorPalette: 'striking contrasts: deep black, bright amber, crimson accent, cool white',
+      lightingApproach: 'dramatic chiaroscuro with strong directional light',
+      compositionStyle: 'unconventional angles with tension-creating asymmetry',
+      visualTone: 'bold, confrontational, thought-provoking',
+    },
+  };
+
+  const defaults: VisualIdentity = {
+    primaryStyle: 'clean editorial photography with intentional framing',
+    colorPalette: 'harmonious muted tones with one accent color',
+    lightingApproach: 'natural soft lighting with gentle shadows',
+    compositionStyle: 'rule of thirds with clear focal point',
+    visualTone: mood || 'professional and engaging',
+    consistencyAnchors: 'all images use the same color temperature and level of saturation',
+  };
+
+  const toneStyle = tone ? toneStyles[tone] : undefined;
+
+  return {
+    ...defaults,
+    ...toneStyle,
+    consistencyAnchors: `All images share ${toneStyle?.colorPalette || defaults.colorPalette} and ${toneStyle?.lightingApproach || defaults.lightingApproach}`,
+  };
 }
 
 /**
@@ -107,12 +179,12 @@ function generateHeroSubject(title: string, themes: string[], artifactType: stri
   const primaryTheme = themes[0] || cleanTitle;
   const secondaryTheme = themes[1] || '';
 
-  // Build a descriptive subject
-  let subject = `Visual concept representing "${primaryTheme}"`;
+  // Create a conceptual visual subject, not a literal illustration
+  let subject = `Evocative visual metaphor capturing the tension or insight of "${primaryTheme}"`;
   if (secondaryTheme && secondaryTheme !== primaryTheme) {
-    subject += ` with elements of ${secondaryTheme}`;
+    subject += `, connecting it to ${secondaryTheme}`;
   }
-
+  subject += '. Focus on mood, symbolism, and emotional resonance rather than literal depiction.';
   return subject;
 }
 
@@ -227,16 +299,15 @@ function extractImagePlaceholders(content: string): Array<{
   fullMatch: string;
   description: string;
   index: number;
-  purpose: 'hero' | 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart';
+  purpose: 'hero' | 'illustration' | 'photo';
 }> {
   const placeholders: Array<{
     fullMatch: string;
     description: string;
     index: number;
-    purpose: 'hero' | 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart';
+    purpose: 'hero' | 'illustration' | 'photo';
   }> = [];
 
-  // Match [IMAGE: ...] patterns (case insensitive, multiline)
   const imagePattern = /\[IMAGE:\s*([^\]]+)\]/gi;
   let match;
 
@@ -244,18 +315,13 @@ function extractImagePlaceholders(content: string): Array<{
     const description = match[1].trim();
     const lowerDesc = description.toLowerCase();
 
-    // Determine purpose based on description keywords
-    let purpose: 'hero' | 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart' = 'illustration';
+    // All purposes map to hero, photo, or illustration (default)
+    // chart/diagram/graph/dashboard/screenshot all become 'illustration' (visual metaphor)
+    let purpose: 'hero' | 'illustration' | 'photo' = 'illustration';
     if (lowerDesc.includes('hero') || lowerDesc.includes('featured')) {
       purpose = 'hero';
-    } else if (lowerDesc.includes('diagram') || lowerDesc.includes('workflow') || lowerDesc.includes('process')) {
-      purpose = 'diagram';
-    } else if (lowerDesc.includes('photo') || lowerDesc.includes('real')) {
+    } else if (lowerDesc.includes('photo') || lowerDesc.includes('photograph') || lowerDesc.includes('close-up') || lowerDesc.includes('portrait')) {
       purpose = 'photo';
-    } else if (lowerDesc.includes('screenshot') || lowerDesc.includes('interface') || lowerDesc.includes('dashboard')) {
-      purpose = 'illustration';
-    } else if (lowerDesc.includes('chart') || lowerDesc.includes('graph') || lowerDesc.includes('data')) {
-      purpose = 'chart';
     }
 
     placeholders.push({
@@ -368,7 +434,7 @@ function generateBasicImageNeeds(
       id: randomUUID(),
       placement_after: 'problem section',
       description: 'Abstract visualization of a challenge being addressed',
-      purpose: 'diagram',
+      purpose: 'illustration',
       style: 'modern',
       approved: true,
     });
@@ -405,11 +471,34 @@ export const identifyImageNeeds = tool({
       const titleMatch = content.match(/^#\s+(.+)$/m) || content.match(/^(.+)$/m);
       const title = titleMatch ? titleMatch[1].trim() : 'Untitled';
 
-      // Extract themes and mood for enhanced prompting
-      const themes = extractContentThemes(content, title);
-      const mood = analyzeMood(content, artifactType);
+      // Fetch tone and author_brief from artifact metadata
+      let artifactTone: string | undefined;
+      let authorBrief: string | undefined;
+      {
+        const { data: artifactRecord } = await supabaseAdmin
+          .from('artifacts')
+          .select('tone, metadata')
+          .eq('id', artifactId)
+          .single();
 
-      logToFile(`[identifyImageNeeds] Title: "${title}", Themes: ${themes.join(', ')}, Mood: ${mood}`);
+        if (artifactRecord) {
+          artifactTone = artifactRecord.tone || undefined;
+          const metadata = artifactRecord.metadata as Record<string, unknown> | null;
+          if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+            authorBrief = metadata.author_brief;
+          }
+        }
+        logToFile(`[identifyImageNeeds] Artifact context: tone=${artifactTone || 'none'}, hasAuthorBrief=${!!authorBrief}`);
+      }
+
+      // Extract themes and mood (tone-aware)
+      const themes = extractContentThemes(content, title);
+      const mood = analyzeMood(content, artifactType, artifactTone);
+
+      // Generate unified visual identity for cross-image consistency
+      const visualIdentity = generateVisualIdentity(artifactTone, artifactType, mood);
+
+      logToFile(`[identifyImageNeeds] Title: "${title}", Themes: ${themes.join(', ')}, Mood: ${mood}, VisualStyle: ${visualIdentity.primaryStyle.substring(0, 50)}`);
 
       // Generate image needs from placeholders (or fall back to basic needs)
       const imageNeeds = generateImageNeedsFromPlaceholders(artifactType, title, content);
@@ -456,11 +545,17 @@ export const identifyImageNeeds = tool({
 
         const resolution = getResolutionForType(artifactType, purposeForResolution);
 
+        // Get section content for this image (text near the placeholder)
+        const sectionContent = getPlaceholderContext(content, need.placement_after.startsWith('[IMAGE:')
+          ? content.indexOf(need.placement_after)
+          : 0
+        );
+
         logToFile(`[identifyImageNeeds] Generating image ${i + 1}/${imageNeeds.length} (${isHeroImage ? 'hero' : need.purpose}): "${need.description.substring(0, 50)}..."`);
         logToFile(`[identifyImageNeeds] Resolution: ${resolution.width}x${resolution.height}`);
 
         try {
-          // Generate image with enhanced parameters
+          // Generate image with full content-aware parameters
           const imageParams: ImageGenParams = {
             prompt: need.description,
             style: need.style,
@@ -468,9 +563,13 @@ export const identifyImageNeeds = tool({
             quality: 'standard',
             purpose: isHeroImage ? 'hero' : need.purpose,
             artifactContext: title,
-            // Enhanced prompting fields
-            mood: mood,
+            mood,
             contentThemes: themes,
+            // Content-aware fields
+            sectionContent: sectionContent || undefined,
+            authorBrief,
+            tone: artifactTone,
+            visualIdentity,
           };
 
           const imageBuffer = await generateWithRetry(imageParams, 2);

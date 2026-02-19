@@ -37,8 +37,16 @@ class ApiClient {
     })
 
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Request failed' }))
-      throw new Error(error.error || `HTTP ${response.status}`)
+      const body = await response.json().catch(() => ({ error: 'Request failed' }))
+
+      // Tag Supabase connectivity errors for better UX handling
+      if (response.status === 503 && body.code === 'SUPABASE_UNAVAILABLE') {
+        const err = new Error(body.error || 'Database service unavailable')
+        ;(err as Error & { code?: string }).code = 'SUPABASE_UNAVAILABLE'
+        throw err
+      }
+
+      throw new Error(body.error || `HTTP ${response.status}`)
     }
 
     return response.json()

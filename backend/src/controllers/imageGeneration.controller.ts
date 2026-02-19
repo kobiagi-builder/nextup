@@ -226,6 +226,68 @@ export async function regenerateImage(req: Request, res: Response) {
 }
 
 /**
+ * POST /api/artifacts/:id/images/crop
+ *
+ * Upload a cropped image. Accepts base64-encoded PNG data,
+ * uploads to Supabase Storage via service role key (bypasses RLS).
+ */
+export async function uploadCroppedImage(req: Request, res: Response) {
+  const { id: artifactId } = req.params;
+  const { imageData } = req.body;
+
+  if (!imageData || typeof imageData !== 'string') {
+    return res.status(400).json({ error: 'Missing imageData (base64 PNG)' });
+  }
+
+  try {
+    // Verify the artifact exists
+    const { data: artifact } = await supabaseAdmin
+      .from('artifacts')
+      .select('id')
+      .eq('id', artifactId)
+      .single();
+
+    if (!artifact) {
+      return res.status(404).json({ error: 'Artifact not found' });
+    }
+
+    // Decode base64 to buffer
+    const base64Data = imageData.replace(/^data:image\/\w+;base64,/, '');
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    const timestamp = Date.now();
+    const path = `${artifactId}/images/final/crop_${timestamp}.png`;
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from('artifacts')
+      .upload(path, buffer, {
+        contentType: 'image/png',
+        cacheControl: '31536000',
+        upsert: false,
+      });
+
+    if (uploadError) {
+      throw uploadError;
+    }
+
+    const url = supabaseAdmin.storage
+      .from('artifacts')
+      .getPublicUrl(path).data.publicUrl;
+
+    return res.status(200).json({ url });
+
+  } catch (error: any) {
+    logger.error('[ImageCrop] Failed to upload cropped image', {
+      hasArtifactId: !!artifactId,
+      error: error.message,
+    });
+    return res.status(500).json({
+      error: 'Failed to upload cropped image',
+    });
+  }
+}
+
+/**
  * GET /api/artifacts/:id/images/status
  *
  * Get current image generation status.

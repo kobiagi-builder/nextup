@@ -12,7 +12,7 @@
  */
 
 import { GoogleGenAI } from '@google/genai';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { logToFile } from './logger.js';
 
 // Service configuration from env
@@ -39,20 +39,35 @@ if (!HAS_GEMINI_KEY && !HAS_OPENAI_KEY) {
   logToFile(`[ImageGen] WARNING: No image generation API keys configured! Add OPENAI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY to .env`);
 }
 
+/** Unified visual identity applied to ALL images in an artifact for consistency */
+export interface VisualIdentity {
+  primaryStyle: string;       // e.g., "editorial photography with muted film grain"
+  colorPalette: string;       // e.g., "warm earth tones: burnt sienna, deep teal, cream"
+  lightingApproach: string;   // e.g., "natural golden hour with soft shadows"
+  compositionStyle: string;   // e.g., "rule of thirds, shallow DOF"
+  visualTone: string;         // e.g., "confident and slightly provocative"
+  consistencyAnchors: string; // e.g., "all images use warm color temperature"
+}
+
 export interface ImageGenParams {
   prompt: string;
   negativePrompt?: string;
-  style: 'professional' | 'modern' | 'abstract' | 'realistic';
+  style: 'professional' | 'modern' | 'abstract' | 'realistic' | 'editorial' | 'cinematic';
   resolution: { width: number; height: number };
   quality: 'standard' | 'hd';
-  purpose?: 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart' | 'hero';
+  purpose?: 'illustration' | 'photo' | 'hero';
   artifactContext?: string;
   // Enhanced prompting fields
-  subject?: string;           // Main subject of the image
-  mood?: string;              // Emotional tone (inspiring, calm, energetic)
-  colorPalette?: string;      // Specific colors to use
-  composition?: string;       // Composition style (centered, rule of thirds)
-  contentThemes?: string[];   // Key themes from the article content
+  subject?: string;
+  mood?: string;
+  colorPalette?: string;
+  composition?: string;
+  contentThemes?: string[];
+  // Content-aware fields (threaded from pipeline)
+  sectionContent?: string;      // Summary of the section this image belongs to
+  authorBrief?: string;         // Author's original narrative intent
+  tone?: string;                // Artifact's tone setting (casual, formal, etc.)
+  visualIdentity?: VisualIdentity;  // Unified visual standard for all images
 }
 
 export enum ImageGenerationErrorType {
@@ -169,6 +184,7 @@ export async function generateImageWithImagen(
       config: {
         numberOfImages: 1,
         aspectRatio: aspectRatio,
+        negativePrompt: 'text, words, letters, numbers, labels, captions, watermarks, logos, signatures, charts, graphs, tables, dashboards, presentation slides, UI mockups, screenshots, blurry text, misspelled words',
       }
     });
 
@@ -217,220 +233,250 @@ export async function generateImageWithNanoBanana(
 }
 
 /**
- * Enhanced prompt builder using best practices from research
+ * Edit an existing image using OpenAI's gpt-image-1 model.
+ * Uses image-to-image editing to preserve composition while applying targeted changes.
  *
- * Structure: [Subject + Details] [Setting/Environment] [Style/Medium]
- *            [Lighting] [Composition] [Mood] [Quality Modifiers]
- *
- * Key principles:
- * - Use narrative paragraphs, not keyword lists (especially for DALL-E 3)
- * - Be specific and descriptive
- * - Include mood and atmosphere
- * - Specify composition and camera angle when relevant
+ * @param sourceImageBuffer - The source image as a Buffer (PNG/JPEG/WebP)
+ * @param editPrompt - Natural language description of the desired edit
+ * @param options - Optional size and quality settings
+ * @returns Buffer containing the edited image
  */
-function enhancePrompt(params: ImageGenParams): string {
-  const { prompt, purpose, style, artifactContext, mood, colorPalette, contentThemes } = params;
-
-  // Build structured prompt based on purpose
-  let enhancedPrompt = '';
-
-  switch (purpose) {
-    case 'hero':
-      enhancedPrompt = buildHeroImagePrompt(prompt, style, artifactContext, mood, colorPalette, contentThemes);
-      break;
-    case 'illustration':
-      enhancedPrompt = buildIllustrationPrompt(prompt, style, artifactContext, mood, colorPalette);
-      break;
-    case 'diagram':
-      enhancedPrompt = buildDiagramPrompt(prompt, style, artifactContext);
-      break;
-    case 'photo':
-      enhancedPrompt = buildPhotoPrompt(prompt, style, artifactContext, mood);
-      break;
-    default:
-      enhancedPrompt = buildGenericPrompt(prompt, style, artifactContext, mood);
+export async function editImageWithOpenAI(
+  sourceImageBuffer: Buffer,
+  editPrompt: string,
+  options: {
+    size?: '1024x1024' | '1536x1024' | '1024x1536' | 'auto';
+    quality?: 'low' | 'medium' | 'high' | 'auto';
+  } = {}
+): Promise<Buffer> {
+  if (!openai) {
+    logToFile(`[ImageGen:Edit] ERROR: OPENAI_API_KEY not configured`);
+    const authError: ImageGenerationError = {
+      type: ImageGenerationErrorType.AUTHENTICATION_REQUIRED,
+      message: 'Image editing requires OPENAI_API_KEY in .env',
+      recoverable: false,
+    };
+    throw authError;
   }
 
-  logToFile(`[ImageGen:EnhancePrompt] Purpose: ${purpose}, Enhanced prompt: "${enhancedPrompt.substring(0, 150)}..."`);
+  const { size = 'auto', quality = 'high' } = options;
+
+  logToFile(`[ImageGen:Edit] Editing image with prompt: "${editPrompt.substring(0, 100)}..."`);
+  logToFile(`[ImageGen:Edit] Size: ${size}, Quality: ${quality}, Source size: ${sourceImageBuffer.length} bytes`);
+
+  try {
+    const imageFile = await toFile(sourceImageBuffer, 'source.png', { type: 'image/png' });
+
+    const response = await openai.images.edit({
+      model: 'gpt-image-1',
+      image: imageFile,
+      prompt: editPrompt,
+      size,
+      quality,
+      n: 1,
+    });
+
+    logToFile(`[ImageGen:Edit] Response received, checking for image data...`);
+
+    if (!response.data || response.data.length === 0) {
+      throw new Error('No image data in edit response');
+    }
+
+    const imageData = response.data[0]?.b64_json;
+    if (!imageData) {
+      throw new Error('No image data in edit response');
+    }
+
+    const buffer = Buffer.from(imageData, 'base64');
+    logToFile(`[ImageGen:Edit] Image edited successfully, size: ${buffer.length} bytes`);
+
+    return buffer;
+
+  } catch (error: any) {
+    const errorMsg = error.message || JSON.stringify(error);
+    logToFile(`[ImageGen:Edit] ERROR: ${errorMsg}`);
+
+    if (errorMsg.includes('content_policy') || errorMsg.includes('safety')) {
+      const policyError: ImageGenerationError = {
+        type: ImageGenerationErrorType.CONTENT_POLICY,
+        message: 'Image edit prompt violates content policy',
+        recoverable: false,
+      };
+      throw policyError;
+    }
+
+    throw classifyImageGenerationError(error);
+  }
+}
+
+/**
+ * Download an image from a URL and return as Buffer.
+ * Used to fetch existing images for image-to-image editing.
+ */
+export async function downloadImage(url: string): Promise<Buffer> {
+  logToFile(`[ImageGen:Download] Fetching image from URL (length: ${url.length})`);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to download image: HTTP ${response.status}`);
+  }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  logToFile(`[ImageGen:Download] Downloaded ${buffer.length} bytes`);
+
+  return buffer;
+}
+
+/**
+ * Unified content-aware prompt builder
+ *
+ * Builds prompts in 5 parts:
+ * 1. Subject/scene (from placeholder description)
+ * 2. Content context (section content, author's brief, themes)
+ * 3. Visual identity (unified style, palette, lighting, composition)
+ * 4. Purpose-specific composition (hero/photo/illustration)
+ * 5. Negative prompt (NO text, words, labels, etc.)
+ *
+ * Key principles:
+ * - Use narrative prose (DALL-E 3 and Imagen prefer prose over keyword lists)
+ * - Thread artifact context so images reflect the article's message
+ * - Apply unified visual identity so all images in one artifact feel cohesive
+ * - NEVER include text, graphs, charts, or data visualizations
+ */
+function enhancePrompt(params: ImageGenParams): string {
+  const {
+    prompt, purpose, style, mood, colorPalette, contentThemes,
+    sectionContent, authorBrief, tone, visualIdentity,
+  } = params;
+
+  const parts: string[] = [];
+
+  // --- Part 1: Subject/Scene ---
+  parts.push(prompt.trim());
+
+  // --- Part 2: CRITICAL Negative Constraints (front-loaded for DALL-E 3 rewriter) ---
+  parts.push(
+    'CRITICAL: Absolutely NO text, NO words, NO letters, NO numbers, NO labels, NO captions, ' +
+    'NO watermarks, NO logos anywhere in the image. ' +
+    'No charts, graphs, tables, dashboards, slides, UI mockups, or screenshots. Pure visual imagery only.'
+  );
+
+  // --- Part 3: Visual Identity (ensures cross-image consistency) ---
+  if (visualIdentity) {
+    parts.push(
+      `Visual style: ${visualIdentity.primaryStyle}. ` +
+      `Color palette: ${visualIdentity.colorPalette}. ` +
+      `Lighting: ${visualIdentity.lightingApproach}. ` +
+      `Composition approach: ${visualIdentity.compositionStyle}. ` +
+      `Visual tone: ${visualIdentity.visualTone}. ` +
+      `Consistency: ${visualIdentity.consistencyAnchors}.`
+    );
+  } else {
+    // Fallback when no visual identity is provided
+    const fallbackStyle = buildFallbackStyle(style, mood, tone, colorPalette);
+    parts.push(fallbackStyle);
+  }
+
+  // --- Part 4: Content Context (makes images content-aware) ---
+  if (sectionContent || authorBrief || contentThemes?.length) {
+    const contextParts: string[] = [];
+
+    if (sectionContent) {
+      contextParts.push(`This image accompanies a section about: ${sectionContent.substring(0, 400)}.`);
+    }
+
+    if (authorBrief) {
+      contextParts.push(`The article's core narrative: ${authorBrief.substring(0, 200)}.`);
+    }
+
+    if (contentThemes?.length) {
+      contextParts.push(`Key themes to reflect visually: ${contentThemes.slice(0, 3).join(', ')}.`);
+    }
+
+    parts.push(contextParts.join(' '));
+  }
+
+  // --- Part 5: Purpose-Specific Composition ---
+  parts.push(buildPurposeComposition(purpose));
+
+  const enhancedPrompt = parts.join('\n\n');
+  logToFile(`[ImageGen:EnhancePrompt] Purpose: ${purpose}, Style: ${style}, HasVisualIdentity: ${!!visualIdentity}, Prompt length: ${enhancedPrompt.length}, Full prompt: ${enhancedPrompt.substring(0, 300)}`);
 
   return enhancedPrompt;
 }
 
 /**
- * Build hero image prompt - landscape, impactful, sets tone for the article
+ * Build fallback style direction when no VisualIdentity is provided
  */
-function buildHeroImagePrompt(
-  subject: string,
+function buildFallbackStyle(
   style: string,
-  context?: string,
   mood?: string,
-  colorPalette?: string,
-  themes?: string[]
-): string {
-  const moodText = mood || 'inspiring and professional';
-  const themeText = themes?.length ? themes.slice(0, 3).join(', ') : '';
-
-  // Style-specific visual directions
-  const styleDirections: Record<string, string> = {
-    professional: 'Clean, corporate aesthetic with subtle gradients and minimal visual clutter. Think modern business publication cover.',
-    modern: 'Contemporary design with bold shapes, vibrant accents, and dynamic composition. Think tech startup marketing.',
-    abstract: 'Artistic interpretation using geometric shapes, flowing forms, and symbolic visual metaphors.',
-    realistic: 'High-quality photography style with natural lighting and authentic subject matter.',
-  };
-
-  const colorDirection = colorPalette
-    ? `Color palette: ${colorPalette}.`
-    : 'Use a cohesive color palette that feels professional and trustworthy.';
-
-  // Build narrative prompt (DALL-E 3 prefers prose over keywords)
-  let prompt = `Create a visually striking hero image that represents the concept of ${subject}. `;
-
-  if (themeText) {
-    prompt += `The image should visually communicate themes of ${themeText}. `;
-  }
-
-  prompt += `${styleDirections[style] || styleDirections.professional} `;
-  prompt += `The overall mood should be ${moodText}. `;
-  prompt += `${colorDirection} `;
-
-  // Composition and technical specs
-  prompt += `Composition: wide landscape format with visual interest spread across the frame, suitable as a header image. `;
-  prompt += `The image should work well at various sizes and be visually clear even when scaled down. `;
-
-  // Quality and restrictions
-  prompt += `High resolution, crisp details, professional quality. `;
-  prompt += `IMPORTANT: No text, no words, no letters, no watermarks, no logos in the image.`;
-
-  return prompt;
-}
-
-/**
- * Build illustration prompt - supporting visual for content sections
- */
-function buildIllustrationPrompt(
-  subject: string,
-  style: string,
-  context?: string,
-  mood?: string,
+  tone?: string,
   colorPalette?: string
 ): string {
-  const moodText = mood || 'professional and engaging';
-
   const styleDirections: Record<string, string> = {
-    professional: 'Clean digital illustration with flat design elements, subtle shadows, and clear visual hierarchy.',
-    modern: 'Contemporary vector illustration with bold colors, geometric shapes, and playful elements.',
-    abstract: 'Artistic illustration using metaphorical imagery, flowing lines, and creative interpretation.',
-    realistic: 'Detailed illustration with depth, texture, and realistic proportions.',
+    professional: 'Clean, polished aesthetic with subtle gradients and minimal visual clutter.',
+    modern: 'Contemporary design with bold shapes, vibrant accents, and dynamic composition.',
+    abstract: 'Artistic interpretation using geometric shapes, flowing forms, and symbolic visual metaphors.',
+    realistic: 'High-quality photography style with natural lighting and authentic subject matter.',
+    editorial: 'Editorial photography feel with intentional framing, muted film grain, and authentic moments.',
+    cinematic: 'Cinematic wide-angle with dramatic lighting, rich color grading, and atmospheric depth.',
   };
 
-  let prompt = `Create a clear, informative illustration that visualizes ${subject}. `;
+  const toneToMood: Record<string, string> = {
+    casual: 'warm, approachable, and slightly irreverent',
+    formal: 'refined, authoritative, and polished',
+    provocative: 'bold, confrontational, and thought-provoking',
+    conversational: 'friendly, relatable, and inviting',
+  };
 
-  if (context) {
-    prompt += `This illustration accompanies an article about ${context}. `;
-  }
+  const resolvedMood = mood || (tone && toneToMood[tone]) || 'professional and engaging';
+  const resolvedStyle = styleDirections[style] || styleDirections.professional;
 
-  prompt += `Style: ${styleDirections[style] || styleDirections.professional} `;
-  prompt += `The mood should be ${moodText}. `;
+  let fallback = `Visual style: ${resolvedStyle} Mood: ${resolvedMood}.`;
 
   if (colorPalette) {
-    prompt += `Use colors: ${colorPalette}. `;
-  } else {
-    prompt += `Use a limited, harmonious color palette (3-4 main colors). `;
+    fallback += ` Color palette: ${colorPalette}.`;
   }
 
-  // Keep it simple and focused
-  prompt += `Keep the composition simple and focused on the main concept. Avoid clutter. `;
-  prompt += `The illustration should be easily understood at a glance. `;
-  prompt += `No text, no labels, no watermarks.`;
-
-  return prompt;
+  return fallback;
 }
 
 /**
- * Build diagram prompt - technical, clear, minimal
+ * Build purpose-specific composition guidance
  */
-function buildDiagramPrompt(
-  subject: string,
-  style: string,
-  context?: string
-): string {
-  let prompt = `Create a clean, professional diagram that explains ${subject}. `;
+function buildPurposeComposition(purpose?: string): string {
+  switch (purpose) {
+    case 'hero':
+      return (
+        'Composition: Wide landscape format filling the entire frame. ' +
+        'Visual interest spread across the image, suitable as a bold article header. ' +
+        'Dramatic scale and depth. Should work well when cropped to various aspect ratios.'
+      );
 
-  prompt += `Style: Minimal flat design with clear visual hierarchy. `;
-  prompt += `Use simple shapes (circles, rectangles, arrows) to represent concepts and relationships. `;
-  prompt += `Limited color palette: use 2-3 colors maximum for clarity. `;
-  prompt += `White or light neutral background for maximum clarity. `;
+    case 'photo':
+      return (
+        'Shallow depth of field with soft background blur (bokeh). Subject sharply in focus. ' +
+        'Natural lighting, slightly warm color temperature. ' +
+        'Rule of thirds composition with breathing room around the subject. ' +
+        'Photorealistic, high detail, editorial photography quality.'
+      );
 
-  if (context) {
-    prompt += `Context: This diagram is for an article about ${context}. `;
+    case 'illustration':
+      return (
+        'Single clear focal point with minimal surrounding elements. ' +
+        'The visual metaphor should be immediately understandable at a glance. ' +
+        'Clean composition without clutter. ' +
+        'Works well as an inline content image at medium size.'
+      );
+
+    default:
+      return (
+        'Clean composition with a clear focal point. ' +
+        'Professional quality, high resolution, crisp details.'
+      );
   }
-
-  prompt += `The diagram should be self-explanatory through visual design alone. `;
-  prompt += `IMPORTANT: No text labels, no words - communicate purely through visual design.`;
-
-  return prompt;
-}
-
-/**
- * Build photo-style prompt - realistic, stock photography feel
- */
-function buildPhotoPrompt(
-  subject: string,
-  style: string,
-  context?: string,
-  mood?: string
-): string {
-  const moodText = mood || 'professional and authentic';
-
-  let prompt = `Professional photograph of ${subject}. `;
-
-  prompt += `Photography style: Editorial photography with natural lighting, `;
-  prompt += `shallow depth of field creating soft bokeh in background. `;
-  prompt += `Shot with high-end camera, sharp focus on subject. `;
-
-  prompt += `Mood: ${moodText}. `;
-
-  if (context) {
-    prompt += `The photo should feel relevant to ${context}. `;
-  }
-
-  prompt += `Composition: Rule of thirds, with breathing room around subject. `;
-  prompt += `Colors: Natural, slightly desaturated for professional look. `;
-  prompt += `8K quality, detailed, photorealistic. `;
-  prompt += `No artificial elements, no text overlays, no watermarks.`;
-
-  return prompt;
-}
-
-/**
- * Build generic prompt with good defaults
- */
-function buildGenericPrompt(
-  subject: string,
-  style: string,
-  context?: string,
-  mood?: string
-): string {
-  const moodText = mood || 'professional';
-
-  const styleText: Record<string, string> = {
-    professional: 'clean corporate design',
-    modern: 'contemporary minimal design',
-    abstract: 'artistic conceptual design',
-    realistic: 'photorealistic rendering',
-  };
-
-  let prompt = `Create an image representing ${subject}. `;
-  prompt += `Visual style: ${styleText[style] || styleText.professional}. `;
-  prompt += `Mood: ${moodText}. `;
-
-  if (context) {
-    prompt += `Context: ${context}. `;
-  }
-
-  prompt += `High quality, professional finish. No text or watermarks.`;
-
-  return prompt;
 }
 
 /**
@@ -620,26 +666,16 @@ export function getResolutionForType(
         return { width: 1792, height: 1024 };
 
       case 'illustration':
-      case 'chart':
-        // Illustrations and charts work best as squares or landscape
-        // Use landscape for blog context, square otherwise
+        // Illustrations: landscape for blog, square otherwise
         return type === 'blog'
           ? { width: 1792, height: 1024 }
           : { width: 1024, height: 1024 };
-
-      case 'diagram':
-        // Diagrams are usually landscape for better readability
-        return { width: 1792, height: 1024 };
 
       case 'photo':
         // Photos vary - use artifact type to decide
         return type === 'social_post'
           ? { width: 1024, height: 1024 }
           : { width: 1792, height: 1024 };
-
-      case 'screenshot':
-        // Screenshots are typically landscape
-        return { width: 1792, height: 1024 };
     }
   }
 

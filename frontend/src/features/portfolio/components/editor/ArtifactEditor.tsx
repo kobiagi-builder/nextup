@@ -17,6 +17,8 @@ import { RichTextEditor } from './RichTextEditor'
 import { ChatPanel } from '../chat/ChatPanel'
 import { ImageApprovalPanel } from '../artifact/ImageApprovalPanel'
 import { ImageRegenerationModal } from '../artifact/ImageRegenerationModal'
+import { TagsInput } from '../artifact/TagsInput'
+import { Label } from '@/components/ui/label'
 import { artifactContextKey } from '../../stores/chatStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useImageGeneration } from '../../hooks/useImageGeneration'
@@ -55,6 +57,14 @@ export interface ArtifactEditorProps {
   onCollapsedChange?: (collapsed: boolean) => void
   /** Whether the editor is editable (false locks for AI processing) */
   editable?: boolean
+  /** Callback when user clicks AI button on text selection */
+  onTextAIClick?: () => void
+  /** Callback when user clicks AI button on image selection */
+  onImageAIClick?: () => void
+  /** Artifact tags */
+  tags?: string[]
+  /** Tags change handler */
+  onTagsChange?: (tags: string[]) => void
   /** Test ID for E2E testing */
   'data-testid'?: string
 }
@@ -77,6 +87,10 @@ export function ArtifactEditor({
   className,
   isCollapsed: externalIsCollapsed,
   onCollapsedChange,
+  onTextAIClick,
+  onImageAIClick,
+  tags = [],
+  onTagsChange,
   editable = true,
   'data-testid': testId,
 }: ArtifactEditorProps) {
@@ -149,7 +163,6 @@ export function ArtifactEditor({
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const _openRegenerationModal = (image: FinalImage, need: ImageNeed) => {
     setRegeneratingImage(image)
     setRegeneratingImageNeed(need)
@@ -174,13 +187,16 @@ export function ArtifactEditor({
             tone={tone}
             onToneChange={onToneChange}
             editable={editable}
+            artifactId={artifactId}
+            onTextAIClick={onTextAIClick}
+            onImageAIClick={onImageAIClick}
           />
           {/* Lock overlay when not editable */}
           {!editable && (
             <div className="absolute inset-0 bg-background/50 flex items-center justify-center z-10" data-testid="editor-lock-overlay">
               <div className="flex items-center gap-2 text-muted-foreground bg-background/80 px-4 py-2 rounded-lg">
                 <Lock className="h-4 w-4" />
-                <span>Content is being generated...</span>
+                <span>{status === 'creating_visuals' ? 'Finalizing your content...' : 'Content is being generated...'}</span>
               </div>
             </div>
           )}
@@ -252,7 +268,7 @@ export function ArtifactEditor({
   return (
     <div className={cn('flex flex-col h-full', className)} data-testid={testId}>
       {/* Editor header */}
-      <div className="flex items-center justify-between border-b px-4 py-2">
+      <div className="flex items-center justify-between px-4 py-2">
         <div className="flex items-center gap-2">
           {title && <span className="font-medium">{title}</span>}
           {artifactType && (
@@ -277,6 +293,20 @@ export function ArtifactEditor({
           </Button>
         </div>
       </div>
+
+      {/* Tags */}
+      {onTagsChange && (
+        <div className="border-b px-4 py-3 flex items-start gap-3">
+          <Label className="pt-2 shrink-0">Tags</Label>
+          <TagsInput
+            tags={tags}
+            onChange={onTagsChange}
+            disabled={!editable}
+            placeholder="Type a tag and press Enter..."
+            className="flex-1"
+          />
+        </div>
+      )}
 
       {/* Phase 3: Content Complete Banner */}
       {showCompleteBanner && (
@@ -305,8 +335,8 @@ export function ArtifactEditor({
                       'Analyzing content for images...'}
                     {visualsMetadata?.phase?.phase === 'generating_images' &&
                       `Generating final images... ${
-                        (visualsMetadata.phase as any).completed || 0
-                      }/${(visualsMetadata.phase as any).total || 0}`}
+                        (visualsMetadata.phase as { completed?: number }).completed || 0
+                      }/${(visualsMetadata.phase as { total?: number }).total || 0}`}
                   </p>
                   <p className="text-sm text-muted-foreground">
                     This may take a few minutes. You'll be notified when complete.
@@ -333,7 +363,7 @@ export function ArtifactEditor({
       )}
 
       {/* Editor */}
-      <div className="flex-1 overflow-auto relative">
+      <div className="flex-1 relative">
         <RichTextEditor
           content={content}
           onChange={onContentChange}
@@ -342,6 +372,9 @@ export function ArtifactEditor({
           onToneChange={onToneChange}
           className="h-full"
           editable={editable}
+          artifactId={artifactId}
+          onTextAIClick={onTextAIClick}
+          onImageAIClick={onImageAIClick}
         />
         {/* Lock overlay when not editable */}
         {!editable && (
@@ -351,7 +384,7 @@ export function ArtifactEditor({
           >
             <div className="flex items-center gap-2 text-muted-foreground bg-background/80 px-4 py-2 rounded-lg">
               <Lock className="h-4 w-4" />
-              <span>Content is being generated...</span>
+              <span>{status === 'creating_visuals' ? 'Finalizing your content...' : 'Content is being generated...'}</span>
             </div>
           </div>
         )}

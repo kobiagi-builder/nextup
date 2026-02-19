@@ -58,7 +58,8 @@ export function useArtifacts(options?: {
 
       // Apply status filter
       if (status !== 'all') {
-        query = query.eq('status', status as any) // Type cast for new statuses not yet in generated types
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        query = query.eq('status', status as any)
       }
 
       // Apply search filter
@@ -125,7 +126,7 @@ export function useArtifact(id: string | null, enableDraftPolling = false) {
       // Processing states that require polling (editor is locked during these)
       // NOTE: 'skeleton' and 'foundations_approval' are NOT included because they are
       // "paused for approval" states - the pipeline is waiting for user action, not processing
-      const processingStates = ['research', 'foundations', 'writing', 'creating_visuals']
+      const processingStates = ['research', 'foundations', 'writing', 'humanity_checking', 'creating_visuals']
 
       if (artifact?.status && processingStates.includes(artifact.status)) {
         console.log('[useArtifact] ⏱️ POLLING (Fallback): Processing state detected:', {
@@ -243,18 +244,25 @@ export function useUpdateArtifact() {
 
 /**
  * Delete an artifact
+ *
+ * Routes through the backend API (service role) because Supabase PostgREST
+ * returns 401 for DELETE operations from the anon role.
  */
 export function useDeleteArtifact() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('artifacts')
-        .delete()
-        .eq('id', id)
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/artifacts/${id}`,
+        { method: 'DELETE' }
+      )
 
-      if (error) throw error
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: 'Delete failed' }))
+        throw new Error(body.error || `HTTP ${response.status}`)
+      }
+
       return id
     },
     onSuccess: (id) => {

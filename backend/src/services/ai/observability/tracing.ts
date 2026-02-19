@@ -57,7 +57,7 @@ class SpanTracker {
 
     this.spans.set(spanId, span);
 
-    logger.debug('Tracing', 'Span started', {
+    logger.debug('[Tracing] Span started', {
       spanId,
       traceId,
       operation,
@@ -72,7 +72,7 @@ class SpanTracker {
   completeSpan(spanId: string, metadata?: Record<string, unknown>): Span | undefined {
     const span = this.spans.get(spanId);
     if (!span) {
-      logger.warn('Tracing', 'Span not found for completion', { spanId });
+      logger.warn('[Tracing] Span not found for completion', { spanId });
       return undefined;
     }
 
@@ -84,7 +84,7 @@ class SpanTracker {
       span.metadata = { ...span.metadata, ...metadata };
     }
 
-    logger.debug('Tracing', 'Span completed', {
+    logger.debug('[Tracing] Span completed', {
       spanId,
       traceId: span.traceId,
       operation: span.operation,
@@ -100,7 +100,7 @@ class SpanTracker {
   failSpan(spanId: string, error: Error, metadata?: Record<string, unknown>): Span | undefined {
     const span = this.spans.get(spanId);
     if (!span) {
-      logger.warn('Tracing', 'Span not found for failure', { spanId });
+      logger.warn('[Tracing] Span not found for failure', { spanId });
       return undefined;
     }
 
@@ -113,7 +113,7 @@ class SpanTracker {
       span.metadata = { ...span.metadata, ...metadata };
     }
 
-    logger.error('Tracing', error, {
+    logger.error('[Tracing] ' + error.message, {
       spanId,
       traceId: span.traceId,
       operation: span.operation,
@@ -237,7 +237,7 @@ export async function withTracing<T>(
  * Log correlation info for trace
  */
 export function logTrace(traceId: string, message: string, metadata?: Record<string, unknown>): void {
-  logger.info('Trace', message, {
+  logger.info('[Trace] ' + message, {
     traceId,
     ...metadata,
   });

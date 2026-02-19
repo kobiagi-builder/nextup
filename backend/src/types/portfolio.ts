@@ -13,11 +13,13 @@ export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 // Unified Content Agent Architecture: Phase 4 workflow with foundations approval gate
 export type ArtifactStatus =
   | 'draft'                 // Initial state, editable
+  | 'interviewing'          // AI interviewing user about showcase case
   | 'research'              // AI researching, editor locked
   | 'foundations'           // AI analyzing writing characteristics
   | 'skeleton'              // AI creating structure, editor locked
   | 'foundations_approval'  // Skeleton ready, waiting for user approval
   | 'writing'               // AI writing content, editor locked
+  | 'humanity_checking'     // AI humanizing content, editor locked
   | 'creating_visuals'      // AI generating images, editor locked
   | 'ready'                 // Content ready, editable, can publish
   | 'published'             // Published, editable (editing → ready)
@@ -207,8 +209,8 @@ export interface ImageNeed {
   id: string
   placement_after: string // Heading text or line number
   description: string
-  purpose: 'illustration' | 'diagram' | 'photo' | 'screenshot' | 'chart'
-  style: 'professional' | 'modern' | 'abstract' | 'realistic'
+  purpose: 'illustration' | 'photo' | 'hero'
+  style: 'professional' | 'modern' | 'abstract' | 'realistic' | 'editorial' | 'cinematic'
   approved: boolean // User approval flag
 }
 

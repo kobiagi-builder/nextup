@@ -25,7 +25,11 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { ToneSelector } from '../artifact/ToneSelector'
-import { useCallback, useEffect } from 'react'
+import { ImageBubbleMenu } from './ImageBubbleMenu'
+import { ImageCropModal } from './ImageCropModal'
+import { TextSelectionAIButton } from './TextSelectionAIButton'
+import { registerEditorRef, unregisterEditorRef } from '../../stores/editorSelectionStore'
+import { useCallback, useEffect, useState } from 'react'
 import type { ToneOption } from '../../types/portfolio'
 import { formatListsInHtml } from '../../utils/htmlFormatter'
 
@@ -35,9 +39,74 @@ interface RichTextEditorProps {
   placeholder?: string
   className?: string
   editable?: boolean
-  tone?: ToneOption // Phase 1: Content tone
-  onToneChange?: (tone: ToneOption) => void // Phase 1: Tone change handler
+  tone?: ToneOption
+  onToneChange?: (tone: ToneOption) => void
+  artifactId?: string
+  /** Called when user clicks AI button on text selection */
+  onTextAIClick?: () => void
+  /** Called when user clicks AI button on image selection */
+  onImageAIClick?: () => void
 }
+
+/** Apply alignment as justify-content on the ResizableNodeView container (already display:flex). */
+function syncAlignment(container: HTMLElement, align: string) {
+  container.style.justifyContent =
+    align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center'
+}
+
+/**
+ * Extended Image extension with alignment support and resize enabled.
+ * Also fixes a Tiptap v3 bug where the ResizableNodeView's onUpdate callback
+ * accepts attribute changes (returns true) but never syncs el.src to the DOM.
+ * Our override intercepts update() to sync the <img> element directly.
+ */
+const AlignableImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      'data-align': {
+        default: 'center',
+        parseHTML: (element: HTMLElement) => element.getAttribute('data-align') || 'center',
+        renderHTML: (attributes: Record<string, string>) => {
+          return { 'data-align': attributes['data-align'] || 'center' }
+        },
+      },
+    }
+  },
+
+  addNodeView() {
+    const parentFactory = this.parent?.()
+    if (!parentFactory) return null
+    return (props: Parameters<Exclude<typeof parentFactory, null>>[0]) => {
+      const nodeView = parentFactory(props)
+      if (!nodeView || typeof nodeView === 'function') return nodeView
+      // Access ResizableNodeView internals: dom (container), element (<img>), node
+      const view = nodeView as unknown as {
+        dom: HTMLElement
+        element: HTMLImageElement
+        node: { attrs: Record<string, unknown> }
+      }
+      // Apply initial alignment on the container (already display:flex)
+      syncAlignment(view.dom, (props.node.attrs['data-align'] as string) || 'center')
+      const origUpdate = nodeView.update?.bind(nodeView)
+      nodeView.update = (node, decorations, innerDecorations) => {
+        // Sync el.src — the default onUpdate returns true but never updates it
+        if (view.element && node.attrs.src !== view.node.attrs.src) {
+          view.element.src = node.attrs.src as string
+        }
+        // Reset inline size styles when width/height are cleared (after crop)
+        if (view.element && node.attrs.width == null) {
+          view.element.style.width = ''
+          view.element.style.height = ''
+        }
+        // Sync alignment on the container
+        syncAlignment(view.dom, (node.attrs['data-align'] as string) || 'center')
+        return origUpdate ? origUpdate(node, decorations, innerDecorations) : true
+      }
+      return nodeView
+    }
+  },
+})
 
 /**
  * Toolbar button component
@@ -85,9 +154,9 @@ function EditorToolbar({
   tone?: ToneOption
   onToneChange?: (tone: ToneOption) => void
 }) {
-  if (!editor) return null
-
   const setLink = useCallback(() => {
+    if (!editor) return
+
     const previousUrl = editor.getAttributes('link').href
     const url = window.prompt('URL', previousUrl)
 
@@ -100,6 +169,8 @@ function EditorToolbar({
 
     editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run()
   }, [editor])
+
+  if (!editor) return null
 
   return (
     <div className="flex items-center gap-0.5 border-b border-border/50 p-2 bg-muted/30 justify-between">
@@ -226,7 +297,12 @@ export function RichTextEditor({
   editable = true,
   tone,
   onToneChange,
+  artifactId,
+  onTextAIClick,
+  onImageAIClick,
 }: RichTextEditorProps) {
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -243,9 +319,16 @@ export function RichTextEditor({
           class: 'text-primary underline',
         },
       }),
-      Image.configure({
+      AlignableImage.configure({
         inline: false,
         allowBase64: true,
+        resize: {
+          enabled: true,
+          directions: ['bottom-right', 'bottom-left'],
+          minWidth: 100,
+          minHeight: 100,
+          alwaysPreserveAspectRatio: true,
+        },
         HTMLAttributes: {
           class: 'rounded-lg max-w-full h-auto my-4',
         },
@@ -292,9 +375,28 @@ export function RichTextEditor({
     },
   })
 
+  // Register editor ref for content improvement feature (ArtifactPage reads this)
+  useEffect(() => {
+    if (editor) {
+      registerEditorRef(editor)
+    }
+    return () => unregisterEditorRef()
+  }, [editor])
+
+  // Sync editable state when prop changes (e.g., status transitions unlock the editor)
+  useEffect(() => {
+    if (editor && editor.isEditable !== editable) {
+      editor.setEditable(editable)
+    }
+  }, [editor, editable])
+
   // Update editor content when prop changes (Phase 1: critical for skeleton display)
   useEffect(() => {
     if (!editor) return
+
+    // Don't overwrite content while user is actively editing
+    // This prevents cursor jumping during auto-save cycles
+    if (editor.isFocused) return
 
     const currentHTML = editor.getHTML()
     let newContent = content || ''
@@ -320,16 +422,74 @@ export function RichTextEditor({
     }
   }, [content, editor])
 
+  const handleCropComplete = useCallback((oldSrc: string, newUrl: string) => {
+    if (!editor) return
+    // Find the image node by its src and update attrs via setNodeMarkup.
+    // The AlignableImage.addNodeView override syncs el.src to the DOM.
+    const { tr } = editor.state
+    let found = false
+    editor.state.doc.descendants((node, pos) => {
+      if (found) return false
+      if (node.type.name === 'image' && node.attrs.src === oldSrc) {
+        tr.setNodeMarkup(pos, undefined, {
+          ...node.attrs,
+          src: newUrl,
+          width: null,
+          height: null,
+        })
+        found = true
+        return false
+      }
+    })
+    if (found) {
+      editor.view.dispatch(tr)
+    }
+  }, [editor])
+
   return (
     <div
       className={cn(
-        'rounded-lg border border-border/50 bg-card overflow-hidden',
+        'rounded-lg border border-border/50 bg-card',
         'focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary/50',
         className
       )}
     >
-      {editable && <EditorToolbar editor={editor} tone={tone} onToneChange={onToneChange} />}
+      {editable && (
+        <div className="sticky top-0 z-10 bg-card">
+          <EditorToolbar editor={editor} tone={tone} onToneChange={onToneChange} />
+        </div>
+      )}
       <EditorContent editor={editor} />
+
+      {/* Text selection AI button (content improvement) */}
+      {editor && editable && artifactId && onTextAIClick && (
+        <TextSelectionAIButton
+          editor={editor}
+          artifactId={artifactId}
+          onAIClick={onTextAIClick}
+        />
+      )}
+
+      {/* Image bubble menu (crop, align, delete, AI) */}
+      {editor && editable && (
+        <ImageBubbleMenu
+          editor={editor}
+          onCropClick={(src) => setCropImageSrc(src)}
+          onAIClick={onImageAIClick}
+          artifactId={artifactId}
+        />
+      )}
+
+      {/* Image crop modal */}
+      {cropImageSrc && artifactId && (
+        <ImageCropModal
+          isOpen={true}
+          onClose={() => setCropImageSrc(null)}
+          imageSrc={cropImageSrc}
+          artifactId={artifactId}
+          onCropComplete={(newUrl) => handleCropComplete(cropImageSrc!, newUrl)}
+        />
+      )}
     </div>
   )
 }

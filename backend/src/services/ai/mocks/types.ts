@@ -20,7 +20,8 @@ export type MockCategory =
   | 'humanityCheckTools'
   | 'topicsResearchTools'
   | 'visualsCreatorTools'
-  | 'imageGenerationTools';
+  | 'imageGenerationTools'
+  | 'writingCharacteristicsTools';
 
 export interface MockConfig {
   masterToggle: MasterToggleMode;
@@ -32,6 +33,7 @@ export interface MockConfig {
   topicsResearchTools: MockMode;
   visualsCreatorTools: MockMode;
   imageGenerationTools: MockMode;
+  writingCharacteristicsTools: MockMode;
   delayMinMs: number;
   delayMaxMs: number;
   captureResponses: boolean;

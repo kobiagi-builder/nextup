@@ -46,7 +46,7 @@ export class ContentAgent {
     };
     this.tokenBudget = tokenBudgetManager;
 
-    logger.info('ContentAgent', 'Initialized', {
+    logger.info('[ContentAgent] Initialized', {
       sessionId: this.sessionState.sessionId,
     });
   }
@@ -62,7 +62,7 @@ export class ContentAgent {
       // Check session timeout
       if (this.checkSessionTimeout()) {
         this.resetSession();
-        logger.info('ContentAgent', 'Session reset due to timeout', {
+        logger.info('[ContentAgent] Session reset due to timeout', {
           sessionId: this.sessionState.sessionId,
         });
       }
@@ -73,7 +73,7 @@ export class ContentAgent {
       // Detect intent
       const intentResult = await detectIntent(message, screenContext);
 
-      logger.info('ContentAgent', 'Intent detected', {
+      logger.info('[ContentAgent] Intent detected', {
         intent: intentResult.intent,
         confidence: intentResult.confidence,
         method: intentResult.method,
@@ -124,7 +124,7 @@ export class ContentAgent {
         intentDetected: intentResult.intent,
       };
     } catch (error) {
-      logger.error('ContentAgent', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[ContentAgent] ${error instanceof Error ? error.message : String(error)}`, {
         message: message.substring(0, 100),
       });
 
@@ -142,7 +142,7 @@ export class ContentAgent {
    * Future: Full pipeline with research → skeleton → write → humanize → visuals
    */
   async executeFullPipeline(request: PipelineExecutionRequest): Promise<PipelineResult> {
-    logger.info('ContentAgent', 'Executing full pipeline', {
+    logger.info('[ContentAgent] Executing full pipeline', {
       artifactId: request.artifactId,
       options: request.options,
     });
@@ -165,7 +165,7 @@ export class ContentAgent {
    * Future: Tool execution with proper error handling and tracing
    */
   async executeSingleTool(toolName: ToolName, params: unknown): Promise<ToolOutput> {
-    logger.info('ContentAgent', 'Executing single tool', {
+    logger.info('[ContentAgent] Executing single tool', {
       toolName,
       params,
     });
@@ -195,7 +195,7 @@ export class ContentAgent {
    * Clear session and reset state
    */
   clearSession(): void {
-    logger.info('ContentAgent', 'Clearing session', {
+    logger.info('[ContentAgent] Clearing session', {
       sessionId: this.sessionState.sessionId,
     });
 
@@ -301,7 +301,7 @@ export class ContentAgent {
       const removed = this.conversationHistory.length - this.maxConversationTurns;
       this.conversationHistory = this.conversationHistory.slice(-this.maxConversationTurns);
 
-      logger.debug('ContentAgent', 'Trimmed conversation history', {
+      logger.debug('[ContentAgent] Trimmed conversation history', {
         removed,
         remaining: this.conversationHistory.length,
       });

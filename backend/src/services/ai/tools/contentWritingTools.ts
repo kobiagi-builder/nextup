@@ -1,6 +1,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { google } from '@ai-sdk/google';
+import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
 import { supabaseAdmin } from '../../../lib/supabase.js';
 import { logger, logToFile } from '../../../lib/logger.js';
@@ -8,6 +9,7 @@ import { mockService, type ContentSectionResponse, type FullContentResponse } fr
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
 import type { WritingCharacteristics } from '../../../types/portfolio.js';
+import { buildHumanityCheckPrompt } from './humanityCheckTools.js';
 
 /**
  * Content Writing Tools for Content Creation Agent (Phase 2)
@@ -70,7 +72,7 @@ const toneTemperatures: Record<ToneOption, number> = {
 const tokenLimits: Record<'blog' | 'social_post' | 'showcase', number> = {
   blog: 2000,        // ~1500 words per section
   social_post: 500,  // ~375 words (entire post)
-  showcase: 1500,    // ~1125 words per section
+  showcase: 2000,    // ~1500 words per section (framework elements need depth)
 };
 
 // =============================================================================
@@ -157,6 +159,30 @@ function getWritingCharacteristicsGuidance(characteristics?: WritingCharacterist
     guidance.push(`- Target audience level: ${audienceChar.value}`);
   }
 
+  const honestyChar = characteristics.intellectual_honesty_level;
+  if (honestyChar) guidance.push(`- Intellectual honesty: ${honestyChar.value}`);
+
+  const vulnerabilityChar = characteristics.vulnerability_frequency;
+  if (vulnerabilityChar) guidance.push(`- Vulnerability/admissions: ${vulnerabilityChar.value}`);
+
+  const humorChar = characteristics.humor_level;
+  if (humorChar) guidance.push(`- Humor: ${humorChar.value}`);
+
+  const rhetoricalChar = characteristics.rhetorical_question_usage;
+  if (rhetoricalChar) guidance.push(`- Rhetorical questions: ${rhetoricalChar.value}`);
+
+  const conversationalChar = characteristics.conversational_markers;
+  if (conversationalChar) guidance.push(`- Conversational markers: ${conversationalChar.value}`);
+
+  const peerChar = characteristics.reader_as_peer_level;
+  if (peerChar) guidance.push(`- Reader treatment: ${peerChar.value}`);
+
+  const exampleDepthChar = characteristics.example_development_depth;
+  if (exampleDepthChar) guidance.push(`- Example development: ${exampleDepthChar.value}`);
+
+  const phrasesChar = characteristics.distinctive_phrasing;
+  if (phrasesChar) guidance.push(`- Signature phrases: ${Array.isArray(phrasesChar.value) ? phrasesChar.value.join('; ') : phrasesChar.value}`);
+
   if (guidance.length === 1) {
     return ''; // Only header, no actual characteristics
   }
@@ -174,16 +200,27 @@ function buildContentPrompt(
   artifactType: 'blog' | 'social_post' | 'showcase',
   researchContext: string,
   isFirstSection: boolean = false,
-  characteristics?: WritingCharacteristics
+  characteristics?: WritingCharacteristics,
+  authorBrief?: string
 ): string {
   const toneModifier = toneModifiers[tone];
   const characteristicsGuidance = getWritingCharacteristicsGuidance(characteristics);
 
+  const authorIntentSection = authorBrief
+    ? `
+## Author's Intent (your north star for this section)
+The author has a specific narrative and angle in mind. Stay anchored to this intent - use research to support it, not replace it. If the author mentions specific examples, analogies, or arguments, weave them in naturally.
+
+${authorBrief}
+
+`
+    : '';
+
   // Determine image placeholder type based on section position
   const imageType = isFirstSection ? 'Featured/Hero' : 'Section';
   const imageExample = isFirstSection
-    ? '[IMAGE: Featured image - Split-screen showing traditional approach on one side and modern AI-enhanced solution on the other, with data streams connecting them]'
-    : '[IMAGE: Professional photo showing a healthcare worker using a tablet with AI-powered diagnostic software, with patient data visualizations on screen]';
+    ? '[IMAGE: Featured image - A lone climber standing at the edge of a vast canyon at golden hour, looking across to the other side where a futuristic city glows, representing the gap between current state and ambitious vision]'
+    : '[IMAGE: Close-up of hands molding wet clay on a potter\'s wheel, with the emerging shape suggesting a unique form taking shape, representing the craft of building something distinctive]';
 
   return `You are a professional content writer creating ${artifactType} content.
 
@@ -193,7 +230,7 @@ Write compelling content for this section of a ${artifactType}.
 ## Section to Write
 Heading: ${sectionHeading}
 Placeholder/Notes: ${sectionPlaceholder}
-
+${authorIntentSection}
 ## Research Context (incorporate naturally)
 ${researchContext || 'No specific research available. Write based on general knowledge.'}
 
@@ -201,26 +238,126 @@ ${researchContext || 'No specific research available. Write based on general kno
 ${toneModifier}
 ${characteristicsGuidance}
 ## Writing Guidelines
-- Write engaging, well-researched content
-- Reference research findings naturally (don't cite sources explicitly)
-- Use specific details, not vague claims
-- Vary sentence structure for readability
-- Stay focused on the section topic
-- Match the tone consistently throughout
-${artifactType === 'blog' ? '- Aim for 200-400 words per section' : ''}
+
+### Example Development (for every example used)
+1. Claim: State the point
+2. Named example: "When [specific company/person] did X..."
+3. Mechanism: Explain WHY it worked/failed, not just THAT it did
+4. Implication: "This means..." or "The lesson here is..."
+
+### Paragraph Rhythm
+- Mix short paragraphs (1-2 sentences for emphasis) with longer ones (3-5 sentences)
+- After a bold claim, follow with a concrete example in the NEXT sentence
+- Sentence fragments for emphasis. Like this. Sparingly.
+
+### Voice and Honesty
+- Credit sources by name: "As [Author] found in..." NOT "Research shows..."
+- Include at least one honest caveat per section: "To be fair...", "This isn't always..."
+- Treat the reader as a peer who is smart but hasn't considered this angle yet
+- Occasional conversational markers: "Here's the thing.", "And yet.", "Look."
+
+### What NOT to do
+- No throat-clearing: "In today's rapidly evolving landscape..."
+- No empty transitions: "Let's dive in", "Moving on to..."
+- No summary sentences at the end of each section
+- No generic conclusions: "The future looks bright"
+
+${artifactType === 'blog' ? '- Aim for 250-450 words per section' : ''}
 ${artifactType === 'social_post' ? '- Keep it concise and punchy (150-280 characters)' : ''}
-${artifactType === 'showcase' ? '- Balance technical detail with accessibility' : ''}
+${artifactType === 'showcase' ? `### Showcase-Specific Writing Rules (CRITICAL)
+
+**Content Architecture**:
+- This is a NARRATIVE CASE STUDY, not a product showcase. Write as the author telling their own professional story.
+- Content ratio: ~30% situation/context/outcome, ~70% implementable framework/toolbox.
+- Each framework element must follow the template: What it answers → How to run it (step-by-step) → How it played out (personal case) → Common pitfall → Signal criteria.
+- The reader should be able to IMPLEMENT this framework after reading. Be prescriptive, not descriptive.
+
+**Anonymization (MANDATORY)**:
+- NEVER use real company names, people names, product names, or identifying details.
+- Use role-based references: "the head of sales", "our VP of Engineering", "the CEO".
+- Use descriptive company references: "a B2B SaaS company", "a mid-market data analytics platform".
+- Use descriptive segment references: "an adjacent enterprise segment", "our core vertical".
+
+**No Specific Numbers (MANDATORY)**:
+- Replace ALL specific numbers with relative language.
+- "Several times our average deal size" NOT "$500K deals".
+- "A few dozen customers" NOT "40 customers".
+- "The company grew several times over" NOT "grew 4x".
+- "Significantly longer sales cycles" NOT "18-month sales cycles".
+- "Many months of dedicated work" NOT "9 months of engineering".
+- Acceptable: relative terms like "substantially", "several", "a few", "significantly", percentages as ranges like ">40%", and framework-internal thresholds (these are prescriptive, not autobiographical).
+
+**Stakeholder & Human Dimension**:
+- Weave the human/political story throughout — NOT confined to one section.
+- Show each stakeholder's perspective as legitimate: their fears, motivations, and what success looks like from their seat.
+- Include emotional texture: "the head of sales paused", "the CEO sat with this data for a few days", "the room understood".
+- Show how the process (not just the data) changed minds: "numbers he'd calculated himself", "because she owned the analysis".
+- Include at least 3 genuine concession moments: "I was wrong about...", "we underestimated...", "the fear was valid".
+
+**Voice & Tone**:
+- Write in first person ("I") for narrative sections, shift to second person ("you") for instructional framework sections.
+- Vary sentence length deliberately: mix short punchy sentences (5-8 words) with medium (15-20) and occasional long (25-30).
+- Use sentence fragments sparingly for emphasis. Like this.
+- Conversational register: contractions ("don't", "isn't"), occasional direct address ("Here's what nobody tells you"), epistemic hedging where honest ("in most cases", "often").
+- Em dashes for asides — like this — to create a conversational rhythm.
+- Emotional texture should VARY across the piece: analytical in framework sections, reflective in outcome, urgent in problem statement.
+
+**Evidence & Attribution**:
+- Use ONLY personal experience and direct observations. NO external quotes, research citations, or "studies show".
+- Attribution variety: "I realized", "the head of sales later told me", "when we ran the numbers", "the finding was sobering".
+- Replace any temptation to cite external sources with personal case evidence or direct stakeholder quotes (anonymized).
+
+**Narrative Architecture**:
+- Build an argument that EVOLVES — each section adds new understanding, not just new information.
+- Use discovery order (how insights unfolded in practice) not taxonomic listing.
+- Include controlled digressions that enrich then snap back: brief tangents about what you learned, then return to the main thread.
+- Leave some tensions deliberately unresolved: "This is the part most frameworks skip, and it's the part that matters most."
+- Distinguish from "just another framework" — acknowledge prior art implicitly and show what's different.
+
+**Opening Requirements**:
+- Start with a vivid, specific moment the reader can visualize — NOT a generic statement.
+- Establish stakes and tension within first 100 words.
+- Explicit reader promise: state what they'll walk away with (the complete framework, the process, and the lessons).
+- Create curiosity through stakeholder tension, not clickbait.
+
+**Closing Requirements**:
+- Circular closure: resolve the opening tension explicitly.
+- Include "when to use this" trigger scenarios — specific situations that call for this framework.
+- End with an original memorable line — NOT an external quote or generic statement.
+- Handle the aftermath: what happened to the stakeholders, the prospects, the company.
+- The final insight should reframe the entire piece: "The best decision is one everyone helped build."
+
+**Section Length Guidance**:
+- Opening/Situation: 250-400 words (vivid but focused)
+- Stakeholder Process: 400-600 words (detailed steps)
+- Each Framework Element: 350-500 words (What/How/Case/Pitfall/Criteria)
+- Running the Framework: 300-400 words (decision matrix and meeting format)
+- Outcome: 200-300 words (brief, circular closure)
+- When to Use: 100-200 words (trigger list)
+- Total target: 2,500-3,500 words` : ''}
 
 ## Image Placeholders (CRITICAL)
 Add ONE ${imageType} image placeholder at the end of this section using the format:
 [IMAGE: ${isFirstSection ? 'Featured image - ' : ''}Detailed description of what the image should show]
 
-The image description should:
-- Be specific to THIS section's content
-- Describe a visual that would enhance the reader's understanding
-- Include style hints (e.g., "professional photo showing...", "diagram illustrating...", "infographic displaying...")
-- Be 1-2 sentences describing exactly what should appear in the image
-${isFirstSection ? '- For the featured/hero image: Create a visually striking image that captures the overall theme of the article' : ''}
+STRICT RULES for image descriptions:
+- NEVER request graphs, charts, infographics, data visualizations, presentation slides, dashboards, UI mockups, or screenshots
+- AI image generators CANNOT render readable text - any text will be blurry, misspelled, or nonsensical
+- Instead: describe VISUAL METAPHORS, scenes, or concepts that communicate the section's message through imagery alone
+- Be specific to THIS section's core message (not generic stock imagery)
+- Describe what the viewer SEES (objects, people, settings, lighting, mood) not abstract data
+- 1-2 sentences describing the scene vividly
+${isFirstSection ? '- For the featured/hero image: Create a visually striking scene that captures the article\'s central tension or theme' : ''}
+
+GOOD examples (visual metaphors):
+- "Two contrasting doors side by side - one weathered and rusty, the other sleek and modern - representing choosing between old and new approaches"
+- "A chess piece (knight) casting a shadow shaped like a crown, on a marble surface with dramatic side lighting"
+
+BAD examples (NEVER USE - will produce broken images):
+- "Graph showing growth over time" (requires axis labels = broken text)
+- "Comparison chart of features" (requires text columns = illegible)
+- "Dashboard with metrics" (requires readable numbers = nonsense)
+- "Slide showing key points" (requires bullet text = garbled)
 
 Example: ${imageExample}
 
@@ -281,7 +418,7 @@ export const writeContentSection = tool({
       placeholderLength: sectionPlaceholder.length,
     });
 
-    logger.info('WriteContentSection', 'Starting content generation', {
+    logger.info('[WriteContentSection] Starting content generation', {
       traceId,
       artifactId,
       sectionHeading,
@@ -294,7 +431,7 @@ export const writeContentSection = tool({
       // MOCK CHECK: Return mock response if mocking is enabled
       // =======================================================================
       if (mockService.shouldMock('contentWritingTools')) {
-        logger.info('WriteContentSection', 'Using mock response', {
+        logger.info('[WriteContentSection] Using mock response', {
           traceId,
           artifactId,
           sectionHeading,
@@ -335,7 +472,7 @@ export const writeContentSection = tool({
           error: researchError.message,
           duration: researchDuration,
         });
-        logger.warn('WriteContentSection', 'Failed to fetch research', {
+        logger.warn('[WriteContentSection] Failed to fetch research', {
           traceId,
           artifactId,
           error: researchError.message,
@@ -365,11 +502,32 @@ export const writeContentSection = tool({
         contextLength: researchContext.length,
       });
 
-      logger.debug('WriteContentSection', 'Research context prepared', {
+      logger.debug('[WriteContentSection] Research context prepared', {
         traceId,
         sourceCount: researchResults?.length || 0,
         hasContext: !!researchContext,
       });
+
+      // =======================================================================
+      // TRACE: Step 2.5 - Fetch Author's Brief from Metadata
+      // =======================================================================
+      let authorBriefForSection: string | undefined;
+      {
+        const { data: artifactMeta } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
+
+        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
+        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+          authorBriefForSection = metadata.author_brief;
+          logPhase2('AUTHOR_BRIEF_FETCH', 'Author brief loaded for section writing', {
+            traceId,
+            briefLength: authorBriefForSection.length,
+          });
+        }
+      }
 
       // =======================================================================
       // TRACE: Step 3 - Build Content Generation Prompt
@@ -379,7 +537,10 @@ export const writeContentSection = tool({
         sectionPlaceholder,
         tone,
         artifactType,
-        researchContext
+        researchContext,
+        false,  // isFirstSection - standalone tool doesn't know section position
+        undefined,  // characteristics - not fetched in standalone mode
+        authorBriefForSection
       );
 
       logPhase2('PROMPT_BUILD', 'Content generation prompt built', {
@@ -406,7 +567,7 @@ export const writeContentSection = tool({
         model: google('gemini-2.0-flash'),
         prompt,
         temperature: toneTemperatures[tone],
-        maxTokens: tokenLimits[artifactType],
+        maxOutputTokens: tokenLimits[artifactType],
       });
 
       const geminiDuration = Date.now() - geminiStartTime;
@@ -418,7 +579,7 @@ export const writeContentSection = tool({
         tokensPerSecond: Math.round((generatedContent.length / 4) / (geminiDuration / 1000)),
       });
 
-      logger.info('WriteContentSection', 'Content generated successfully', {
+      logger.info('[WriteContentSection] Content generated successfully', {
         traceId,
         artifactId,
         sectionHeading,
@@ -492,7 +653,8 @@ export const writeContentSection = tool({
         totalDuration,
       });
 
-      logger.error('WriteContentSection', error instanceof Error ? error : new Error(errorMessage), {
+      logger.error('[WriteContentSection] Content generation failed', {
+        error: error instanceof Error ? error : new Error(errorMessage),
         traceId,
         artifactId,
         sectionHeading,
@@ -559,7 +721,7 @@ export const writeFullContent = tool({
       artifactType,
     });
 
-    logger.info('WriteFullContent', 'Starting full content writing', {
+    logger.info('[WriteFullContent] Starting full content writing', {
       traceId,
       artifactId,
       artifactType,
@@ -568,25 +730,11 @@ export const writeFullContent = tool({
 
     try {
       // =======================================================================
-      // DEBUG: Log runtime mock configuration
-      // =======================================================================
-      const shouldMockResult = mockService.shouldMock('contentWritingTools');
-      console.log('[DEBUG] WriteFullContent mock check:', {
-        shouldMock: shouldMockResult,
-        mockConfig: mockService.getConfig(),
-        envVars: {
-          MOCK_ALL_AI_TOOLS: process.env.MOCK_ALL_AI_TOOLS,
-          MOCK_CONTENT_WRITING_TOOLS: process.env.MOCK_CONTENT_WRITING_TOOLS,
-        },
-        traceId,
-        artifactId,
-      });
-
-      // =======================================================================
       // MOCK CHECK: Return mock response if mocking is enabled
       // =======================================================================
+      const shouldMockResult = mockService.shouldMock('contentWritingTools');
       if (shouldMockResult) {
-        logger.info('WriteFullContent', 'Using mock response', {
+        logger.info('[WriteFullContent] Using mock response', {
           traceId,
           artifactId,
           artifactType,
@@ -638,7 +786,8 @@ export const writeFullContent = tool({
           artifactId,
           error: statusError.message,
         });
-        logger.error('WriteFullContent', statusError, {
+        logger.error('[WriteFullContent] Failed to update status', {
+          error: statusError,
           traceId,
           artifactId,
           stage: 'update_status_writing',
@@ -752,7 +901,7 @@ export const writeFullContent = tool({
         placeholderLengths: sections.map(s => s.placeholder.length),
       });
 
-      logger.debug('WriteFullContent', 'Parsed skeleton sections', {
+      logger.debug('[WriteFullContent] Parsed skeleton sections', {
         traceId,
         sectionCount: sections.length,
         headings: sections.map(s => s.heading),
@@ -765,7 +914,7 @@ export const writeFullContent = tool({
           artifactId,
           fallbackHeading: artifact.title || 'Content',
         });
-        logger.warn('WriteFullContent', 'No H2 sections found in skeleton', {
+        logger.warn('[WriteFullContent] No H2 sections found in skeleton', {
           traceId,
           artifactId,
         });
@@ -829,7 +978,7 @@ export const writeFullContent = tool({
             traceId,
             characteristicsCount: Object.keys(writingCharacteristics).length,
           });
-          logger.debug('WriteFullContent', 'Writing characteristics loaded', {
+          logger.debug('[WriteFullContent] Writing characteristics loaded', {
             traceId,
             characteristicsCount: Object.keys(writingCharacteristics).length,
           });
@@ -837,6 +986,31 @@ export const writeFullContent = tool({
           logPhase2('CHARACTERISTICS_FETCH', 'No writing characteristics found, using defaults', {
             traceId,
             artifactId,
+          });
+        }
+      }
+
+      // =======================================================================
+      // TRACE: Step 4.6 - Fetch Author's Brief from Metadata
+      // =======================================================================
+      let authorBrief: string | undefined;
+      {
+        const { data: artifactMeta } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
+
+        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
+        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+          authorBrief = metadata.author_brief;
+          logPhase2('AUTHOR_BRIEF_FETCH', 'Author brief loaded from metadata', {
+            traceId,
+            briefLength: authorBrief.length,
+          });
+          logger.debug('[WriteFullContent] Author brief loaded', {
+            traceId,
+            briefLength: authorBrief.length,
           });
         }
       }
@@ -877,7 +1051,8 @@ export const writeFullContent = tool({
             artifactType,
             researchContext,
             i === 0,  // isFirstSection - first section gets featured/hero image
-            writingCharacteristics  // Phase 4: Pass writing characteristics
+            writingCharacteristics,  // Phase 4: Pass writing characteristics
+            authorBrief  // Author's original intent as north star
           );
 
           logPhase2('GEMINI_API_CALL', `Calling Gemini for section "${section.heading}"`, {
@@ -890,15 +1065,52 @@ export const writeFullContent = tool({
             model: google('gemini-2.0-flash'),
             prompt,
             temperature: toneTemperatures[tone],
-            maxTokens: tokenLimits[artifactType],
+            maxOutputTokens: tokenLimits[artifactType],
           });
 
+          // =================================================================
+          // Per-section humanization: remove AI patterns immediately
+          // =================================================================
+          let finalContent = generatedContent;
+          try {
+            logPhase2('SECTION_HUMANIZE', `Humanizing section ${i + 1}/${sections.length}`, {
+              traceId,
+              sectionHeading: section.heading,
+              originalLength: generatedContent.length,
+            });
+
+            const humanizePrompt = buildHumanityCheckPrompt(generatedContent, tone, authorBrief);
+            const { text: humanizedContent } = await generateText({
+              model: anthropic('claude-sonnet-4-20250514'),
+              prompt: humanizePrompt,
+              temperature: 0.5,
+              maxOutputTokens: Math.ceil(generatedContent.length * 1.5),
+            });
+
+            finalContent = humanizedContent;
+
+            logPhase2('SECTION_HUMANIZE', `Section ${i + 1} humanized`, {
+              traceId,
+              sectionHeading: section.heading,
+              originalLength: generatedContent.length,
+              humanizedLength: humanizedContent.length,
+              lengthChange: humanizedContent.length - generatedContent.length,
+            });
+          } catch (humanizeError) {
+            // Non-fatal: keep original content if humanization fails
+            logger.warn('[WriteFullContent] Section humanization failed, using original', {
+              traceId,
+              sectionHeading: section.heading,
+              error: humanizeError instanceof Error ? humanizeError.message : String(humanizeError),
+            });
+          }
+
           const sectionDuration = Date.now() - sectionStartTime;
-          const wordCount = Math.round(generatedContent.split(/\s+/).length);
+          const wordCount = Math.round(finalContent.split(/\s+/).length);
 
           writtenSections.push({
             heading: section.heading,
-            content: generatedContent,
+            content: finalContent,
           });
 
           sectionTimings.push({
@@ -920,7 +1132,7 @@ export const writeFullContent = tool({
             duration: sectionDuration,
           });
 
-          logger.debug('WriteFullContent', 'Section written', {
+          logger.debug('[WriteFullContent] Section written', {
             traceId,
             heading: section.heading,
             contentLength: generatedContent.length,
@@ -948,7 +1160,8 @@ export const writeFullContent = tool({
             duration: sectionDuration,
           });
 
-          logger.error('WriteFullContent', sectionError instanceof Error ? sectionError : new Error(errorMsg), {
+          logger.error('[WriteFullContent] Section write failed', {
+            error: sectionError instanceof Error ? sectionError : new Error(errorMsg),
             traceId,
             artifactId,
             sectionHeading: section.heading,
@@ -983,21 +1196,61 @@ export const writeFullContent = tool({
       });
 
       // =======================================================================
+      // CRITICAL: Abort if no content was generated (preserves skeleton in DB)
+      // =======================================================================
+      if (writtenSections.length === 0) {
+        const totalDuration = Date.now() - startTime;
+        const errorMsg = errors.length > 0
+          ? errors[0]
+          : 'All sections failed to generate content';
+
+        logPhase2('FULL_CONTENT_ERROR', 'No content generated - aborting to preserve skeleton', {
+          traceId,
+          artifactId,
+          sectionErrors: errors.length,
+          totalDuration,
+        });
+
+        logger.error('[WriteFullContent] No content generated, aborting pipeline', {
+          traceId,
+          artifactId,
+          errors: errors.length,
+        });
+
+        return {
+          success: false,
+          traceId,
+          duration: totalDuration,
+          data: {
+            totalLength: 0,
+            sectionsWritten: 0,
+            sectionResults,
+            ...(errors.length > 0 && { errors }),
+          },
+          error: {
+            category: 'TOOL_EXECUTION_FAILED' as const,
+            message: `Content generation failed: ${errorMsg}`,
+            recoverable: true,
+          },
+        };
+      }
+
+      // =======================================================================
       // TRACE: Step 7 - Update Artifact Content (Keep Status as 'writing' for Phase 3)
       // =======================================================================
-      logPhase2('STATUS_UPDATE', 'Updating artifact with content (keeping status "writing" for Phase 3 image generation)', {
+      logPhase2('STATUS_UPDATE', 'Updating artifact with humanized content', {
         traceId,
         artifactId,
         contentLength: fullContent.length,
         fromStatus: 'writing',
-        toStatus: 'writing', // Keep 'writing' to trigger Phase 3 identifyImageNeeds
+        toStatus: 'humanity_checking',
       });
 
       const { error: updateError } = await supabaseAdmin
         .from('artifacts')
         .update({
           content: fullContent,
-          status: 'writing',
+          status: 'humanity_checking',
           writing_metadata: {
             traceId,
             sectionsWritten: writtenSections.length,
@@ -1034,7 +1287,7 @@ export const writeFullContent = tool({
         };
       }
 
-      logPhase2('STATUS_UPDATE', 'Artifact updated successfully, status remains "writing"', {
+      logPhase2('STATUS_UPDATE', 'Artifact updated successfully, status set to "humanity_checking"', {
         traceId,
         artifactId,
       });
@@ -1054,11 +1307,11 @@ export const writeFullContent = tool({
         averageSectionTime: sectionTimings.length > 0
           ? Math.round(sectionTimings.reduce((acc, t) => acc + t.duration, 0) / sectionTimings.length)
           : 0,
-        nextStatus: 'creating_visuals',
+        nextStatus: 'humanity_checking',
       });
       logPhase2('FULL_CONTENT_COMPLETE', '='.repeat(80));
 
-      logger.info('WriteFullContent', 'Full content writing completed', {
+      logger.info('[WriteFullContent] Full content writing completed', {
         traceId,
         artifactId,
         sectionsWritten: writtenSections.length,
@@ -1075,7 +1328,7 @@ export const writeFullContent = tool({
         success: true,
         traceId,
         duration: totalDuration,
-        statusTransition: { from: 'skeleton', to: 'writing' },
+        statusTransition: { from: 'foundations_approval', to: 'humanity_checking' },
         data: {
           totalLength: fullContent.length,
           sectionsWritten: writtenSections.length,
@@ -1108,7 +1361,8 @@ export const writeFullContent = tool({
         totalDuration,
       });
 
-      logger.error('WriteFullContent', error instanceof Error ? error : new Error(errorMessage), {
+      logger.error('[WriteFullContent] Full content writing failed', {
+        error: error instanceof Error ? error : new Error(errorMessage),
         traceId,
         artifactId,
       });

@@ -7,7 +7,7 @@
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { FileText, MessageSquare, Trophy, X, Sparkles, Save } from 'lucide-react'
+import { FileText, MessageSquare, Trophy, Sparkles, Save } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -21,6 +21,7 @@ import {
 } from '@/components/ui/select'
 import type { Artifact, ArtifactType, CreateArtifactInput, ToneOption } from '../../types/portfolio'
 import { ToneSelector } from '../artifact/ToneSelector'
+import { TagsInput } from '../artifact/TagsInput'
 
 // Form validation schema
 const artifactSchema = z.object({
@@ -104,22 +105,6 @@ export function ArtifactForm({
     })
   })
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      const input = e.target as HTMLInputElement
-      const tag = input.value.trim().toLowerCase()
-      if (tag && !tags.includes(tag)) {
-        setValue('tags', [...tags, tag])
-        input.value = ''
-      }
-    }
-  }
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setValue('tags', tags.filter((t) => t !== tagToRemove))
-  }
-
   const isEditing = !!artifact
 
   return (
@@ -186,26 +171,10 @@ export function ArtifactForm({
       {/* Tags */}
       <div className="space-y-2">
         <Label>Tags</Label>
-        <div className="flex flex-wrap gap-2 mb-2">
-          {tags.map((tag) => (
-            <span
-              key={tag}
-              className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-sm"
-            >
-              {tag}
-              <button
-                type="button"
-                onClick={() => handleRemoveTag(tag)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </span>
-          ))}
-        </div>
-        <Input
+        <TagsInput
+          tags={tags}
+          onChange={(newTags) => setValue('tags', newTags)}
           placeholder="Type a tag and press Enter..."
-          onKeyDown={handleAddTag}
         />
       </div>
 

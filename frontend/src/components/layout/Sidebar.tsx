@@ -12,7 +12,6 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
-  Home,
   FileText,
   User,
   Settings,
@@ -34,7 +33,6 @@ interface NavItem {
 
 // Main navigation items
 const mainNavItems: NavItem[] = [
-  { icon: Home, label: 'Home', href: '/' },
   { icon: FileText, label: 'Portfolio', href: '/portfolio' },
 ]
 

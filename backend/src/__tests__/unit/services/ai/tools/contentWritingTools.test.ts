@@ -10,7 +10,7 @@ import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { researchFixtures } from '../../../../fixtures/research.js';
-import { assertToolOutputSuccess, assertToolOutputError, createMockContent } from '../../../../utils/testHelpers.js';
+import { callTool, assertToolOutputSuccess, assertToolOutputError, createMockContent } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
 vi.mock('../../../../../lib/supabase.js', () => ({
@@ -34,7 +34,7 @@ describe('writeContentSection', () => {
 
   describe('Input Validation', () => {
     it('should reject invalid artifactId format', async () => {
-      const result = await writeContentSection.execute({
+      const result = await callTool(writeContentSection, {
         artifactId: 'invalid-uuid',
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
@@ -46,11 +46,11 @@ describe('writeContentSection', () => {
     });
 
     it('should reject invalid tone', async () => {
-      const result = await writeContentSection.execute({
+      const result = await callTool(writeContentSection, {
         artifactId: artifactFixtures.skeletonReady.id,
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
-        tone: 'invalid-tone' as any,
+        tone: 'invalid-tone',
       });
 
       assertToolOutputError(result);
@@ -69,7 +69,7 @@ describe('writeContentSection', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeContentSection.execute({
+      const result = await callTool(writeContentSection, {
         artifactId: artifactFixtures.skeletonReady.id,
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
@@ -94,7 +94,7 @@ describe('writeContentSection', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeContentSection.execute({
+      const result = await callTool(writeContentSection, {
         artifactId: artifactFixtures.skeletonReady.id,
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write content',
@@ -120,7 +120,7 @@ describe('writeContentSection', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeContentSection.execute({
+      const result = await callTool(writeContentSection, {
         artifactId: artifactFixtures.skeletonReady.id,
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write content',
@@ -141,7 +141,7 @@ describe('writeFullContent', () => {
 
   describe('Input Validation', () => {
     it('should reject invalid artifactId format', async () => {
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: 'invalid-uuid',
         tone: 'professional',
       });
@@ -151,9 +151,9 @@ describe('writeFullContent', () => {
     });
 
     it('should reject invalid tone', async () => {
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
-        tone: 'invalid-tone' as any,
+        tone: 'invalid-tone',
       });
 
       assertToolOutputError(result);
@@ -175,7 +175,7 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -200,7 +200,7 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -230,7 +230,7 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -239,7 +239,7 @@ describe('writeFullContent', () => {
       expect(Array.isArray(result.data.sectionResults)).toBe(true);
       expect(result.data.sectionResults.length).toBe(5);
 
-      result.data.sectionResults.forEach(section => {
+      result.data.sectionResults.forEach((section: any) => {
         expect(section).toHaveProperty('section');
         expect(section).toHaveProperty('wordCount');
         expect(section).toHaveProperty('success');
@@ -265,14 +265,14 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
 
       assertToolOutputSuccess(result);
 
-      const failedSection = result.data.sectionResults.find(s => !s.success);
+      const failedSection = result.data.sectionResults.find((s: any) => !s.success);
       expect(failedSection).toBeDefined();
       expect(failedSection?.wordCount).toBe(0);
       expect(result.data.errors).toBeDefined();
@@ -296,7 +296,7 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -321,7 +321,7 @@ describe('writeFullContent', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -347,7 +347,7 @@ describe('writeFullContent', () => {
         }),
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: 'nonexistent-artifact-id',
         tone: 'professional',
       });
@@ -373,7 +373,7 @@ describe('writeFullContent', () => {
         }),
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -398,7 +398,7 @@ describe('writeFullContent', () => {
         traceId: 'content-writing-123456-abc123',
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });
@@ -423,7 +423,7 @@ describe('writeFullContent', () => {
         duration: 5432,
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
       });

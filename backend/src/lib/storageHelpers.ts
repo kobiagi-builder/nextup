@@ -136,7 +136,7 @@ export async function deleteArtifactImages(artifactId: string): Promise<void> {
   // List all files in artifact folder
   const { data: files } = await supabase.storage
     .from('artifacts')
-    .list(`${artifactId}/images/`, { recursive: true });
+    .list(`${artifactId}/images/`);
 
   if (files?.length) {
     const paths = files.map(f => `${artifactId}/images/${f.name}`);

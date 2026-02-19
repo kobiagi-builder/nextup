@@ -45,7 +45,7 @@ export class ContentAgentController {
 
       // Validation
       if (!message || typeof message !== 'string') {
-        logger.warn('ContentAgentController', 'Invalid request: missing or invalid message', {
+        logger.warn('[ContentAgentController] Invalid request: missing or invalid message', {
           hasMessage: !!message,
           messageType: typeof message,
         });
@@ -57,7 +57,7 @@ export class ContentAgentController {
       }
 
       if (message.length > 10000) {
-        logger.warn('ContentAgentController', 'Message too long', {
+        logger.warn('[ContentAgentController] Message too long', {
           messageLength: message.length,
           maxLength: 10000,
         });
@@ -69,7 +69,7 @@ export class ContentAgentController {
       }
 
       // Log request (sanitized)
-      logger.info('ContentAgentController', 'Processing content agent request', {
+      logger.info('[ContentAgentController] Processing content agent request', {
         messageLength: message.length,
         hasScreenContext: !!screenContext,
         currentPage: screenContext?.currentPage,
@@ -80,22 +80,17 @@ export class ContentAgentController {
       const response = await this.contentAgent.processRequest(message, screenContext || {});
 
       // Log response (sanitized)
-      logger.info('ContentAgentController', 'Content agent response generated', {
+      logger.info('[ContentAgentController] Content agent response generated', {
         textLength: response.text.length,
-        toolCallsCount: response.toolCalls?.length || 0,
         toolResultsCount: response.toolResults?.length || 0,
       });
 
       // Return response
       res.status(200).json(response);
     } catch (error) {
-      logger.error(
-        'ContentAgentController',
-        error instanceof Error ? error : new Error(String(error)),
-        {
+      logger.error(`[ContentAgentController] ${error instanceof Error ? error.message : String(error)}`, {
           sourceCode: 'execute',
-        }
-      );
+        });
 
       res.status(500).json({
         error: 'Internal server error',
@@ -113,7 +108,7 @@ export class ContentAgentController {
    */
   clearSession = async (req: Request, res: Response): Promise<void> => {
     try {
-      logger.info('ContentAgentController', 'Clearing content agent session');
+      logger.info('[ContentAgentController] Clearing content agent session');
 
       this.contentAgent.clearSession();
 
@@ -122,13 +117,9 @@ export class ContentAgentController {
         message: 'Session cleared successfully',
       });
     } catch (error) {
-      logger.error(
-        'ContentAgentController',
-        error instanceof Error ? error : new Error(String(error)),
-        {
+      logger.error(`[ContentAgentController] ${error instanceof Error ? error.message : String(error)}`, {
           sourceCode: 'clearSession',
-        }
-      );
+        });
 
       res.status(500).json({
         error: 'Internal server error',
@@ -146,7 +137,7 @@ export class ContentAgentController {
    */
   getHistory = async (req: Request, res: Response): Promise<void> => {
     try {
-      logger.debug('ContentAgentController', 'Fetching conversation history');
+      logger.debug('[ContentAgentController] Fetching conversation history');
 
       const history = this.contentAgent.getConversationHistory();
 
@@ -155,13 +146,9 @@ export class ContentAgentController {
         count: history.length,
       });
     } catch (error) {
-      logger.error(
-        'ContentAgentController',
-        error instanceof Error ? error : new Error(String(error)),
-        {
+      logger.error(`[ContentAgentController] ${error instanceof Error ? error.message : String(error)}`, {
           sourceCode: 'getHistory',
-        }
-      );
+        });
 
       res.status(500).json({
         error: 'Internal server error',

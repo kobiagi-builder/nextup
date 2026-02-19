@@ -10,7 +10,7 @@ import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { researchFixtures } from '../../../../fixtures/research.js';
-import { assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';
+import { callTool, assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
 vi.mock('../../../../../lib/supabase.js', () => ({
@@ -34,7 +34,7 @@ describe('conductDeepResearch', () => {
 
   describe('Input Validation', () => {
     it('should reject invalid artifactId format', async () => {
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: 'invalid-uuid',
         topic: 'Test Topic',
         minRequired: 5,
@@ -45,7 +45,7 @@ describe('conductDeepResearch', () => {
     });
 
     it('should reject empty topic', async () => {
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: '',
         minRequired: 5,
@@ -80,7 +80,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Node.js API Best Practices',
         minRequired: 5,
@@ -103,7 +103,7 @@ describe('conductDeepResearch', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Test Topic',
         minRequired: 5,
@@ -147,7 +147,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Node.js API Best Practices',
         minRequired: 5,
@@ -188,7 +188,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Node.js API Best Practices',
         minRequired: 5,
@@ -227,7 +227,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Node.js API Best Practices',
         minRequired: 5,
@@ -254,7 +254,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: 'nonexistent-artifact-id',
         topic: 'Test Topic',
         minRequired: 5,
@@ -290,7 +290,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Test Topic',
         minRequired: 5,
@@ -328,7 +328,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Test Topic',
         minRequired: 5,
@@ -365,7 +365,7 @@ describe('conductDeepResearch', () => {
         }),
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId: artifactFixtures.draft.id,
         topic: 'Test Topic',
         minRequired: 5,

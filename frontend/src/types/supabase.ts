@@ -73,7 +73,7 @@ export interface Database {
           tone: string | null
           metadata: Json | null
           tags: string[]
-          status: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
+          status: 'draft' | 'research' | 'skeleton' | 'writing' | 'humanity_checking' | 'creating_visuals' | 'ready' | 'published'
           published_url: string | null
           published_at: string | null
           visuals_metadata: Json | null
@@ -91,7 +91,7 @@ export interface Database {
           tone?: string | null
           metadata?: Json | null
           tags?: string[]
-          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
+          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'humanity_checking' | 'creating_visuals' | 'ready' | 'published'
           published_url?: string | null
           published_at?: string | null
           visuals_metadata?: Json | null
@@ -109,7 +109,7 @@ export interface Database {
           tone?: string | null
           metadata?: Json | null
           tags?: string[]
-          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'creating_visuals' | 'ready' | 'published'
+          status?: 'draft' | 'research' | 'skeleton' | 'writing' | 'humanity_checking' | 'creating_visuals' | 'ready' | 'published'
           published_url?: string | null
           published_at?: string | null
           visuals_metadata?: Json | null

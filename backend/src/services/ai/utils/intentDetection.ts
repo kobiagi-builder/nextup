@@ -188,7 +188,7 @@ function detectWithRegex(message: string): IntentDetectionResult | null {
   for (const { intent, patterns } of INTENT_PATTERNS) {
     for (const pattern of patterns) {
       if (pattern.test(normalizedMessage)) {
-        logger.debug('IntentDetection', 'Regex match found', {
+        logger.debug('[IntentDetection] Regex match found', {
           intent,
           pattern: pattern.source,
         });
@@ -245,7 +245,7 @@ Example: "WRITE_CONTENT|0.8"`;
     const { text } = await generateText({
       model: anthropic('claude-3-5-haiku-20241022'),
       prompt,
-      maxTokens: 50,
+      maxOutputTokens: 50,
       temperature: 0.1, // Low temperature for consistent classification
     });
 
@@ -254,7 +254,7 @@ Example: "WRITE_CONTENT|0.8"`;
     const intent = (intentStr?.trim() as UserIntent) || UserIntent.UNCLEAR;
     const confidence = parseFloat(confidenceStr?.trim() || '0.0');
 
-    logger.info('IntentDetection', 'Haiku classification completed', {
+    logger.info('[IntentDetection] Haiku classification completed', {
       intent,
       confidence,
       message: message.substring(0, 100),
@@ -269,8 +269,9 @@ Example: "WRITE_CONTENT|0.8"`;
       method: 'ai',
     };
   } catch (error) {
-    logger.error('IntentDetection', error instanceof Error ? error : new Error(String(error)), {
+    logger.error('[IntentDetection] Classification failed', {
       message: message.substring(0, 100),
+      error: error instanceof Error ? error.message : String(error),
     });
 
     // Fallback to UNCLEAR on error
@@ -356,7 +357,7 @@ export async function detectIntent(
   // Step 1: Try regex patterns (fast path)
   const regexResult = detectWithRegex(message);
   if (regexResult && regexResult.confidence >= CONFIDENCE_THRESHOLD.HIGH) {
-    logger.debug('IntentDetection', 'High confidence regex match', {
+    logger.debug('[IntentDetection] High confidence regex match', {
       intent: regexResult.intent,
       confidence: regexResult.confidence,
     });
@@ -364,7 +365,7 @@ export async function detectIntent(
   }
 
   // Step 2: Fall back to Haiku for ambiguous cases
-  logger.debug('IntentDetection', 'No high-confidence regex match, using Haiku', {
+  logger.debug('[IntentDetection] No high-confidence regex match, using Haiku', {
     message: message.substring(0, 100),
     hasContext: Boolean(context.artifactId),
   });

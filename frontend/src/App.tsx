@@ -15,7 +15,7 @@
  * - /settings : User preferences
  */
 
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/providers/ThemeProvider'
 import { AppShell } from '@/components/layout/AppShell'
@@ -23,7 +23,6 @@ import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 // Pages
-import { HomePage } from '@/features/portfolio/pages/HomePage'
 import { PortfolioPage } from '@/features/portfolio/pages/PortfolioPage'
 import { ArtifactPage } from '@/features/portfolio/pages/ArtifactPage'
 import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
@@ -62,8 +61,8 @@ function App() {
             <Routes>
               {/* All routes use AppShell layout */}
               <Route element={<AppShell />}>
-                {/* Home Dashboard */}
-                <Route path="/" element={<HomePage />} />
+                {/* Redirect root to Portfolio */}
+                <Route path="/" element={<Navigate to="/portfolio" replace />} />
 
                 {/* Portfolio (Combined Content + AI Research) */}
                 <Route path="/portfolio" element={<PortfolioPage />} />

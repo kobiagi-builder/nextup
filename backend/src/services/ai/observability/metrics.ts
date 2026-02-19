@@ -95,7 +95,7 @@ class MetricsCollector {
       counts.success += 1;
     }
 
-    logger.debug('Metrics', 'Tool execution recorded', {
+    logger.debug('[Metrics] Tool execution recorded', {
       toolName,
       durationMs,
       success,
@@ -115,7 +115,7 @@ class MetricsCollector {
       this.incrementPipelinesExecutedToday();
     }
 
-    logger.debug('Metrics', 'Pipeline execution recorded', {
+    logger.debug('[Metrics] Pipeline execution recorded', {
       durationMs,
       success,
     });
@@ -130,7 +130,7 @@ class MetricsCollector {
       timestamp: Date.now(),
     });
 
-    logger.debug('Metrics', 'Intent detection recorded', {
+    logger.debug('[Metrics] Intent detection recorded', {
       detected: detectedIntent,
       actual: actualIntent,
       correct: detectedIntent === actualIntent,
@@ -162,7 +162,7 @@ class MetricsCollector {
     const count = this.errorCounts.get(category) || 0;
     this.errorCounts.set(category, count + 1);
 
-    logger.debug('Metrics', 'Error recorded', { category });
+    logger.debug('[Metrics] Error recorded', { category });
   }
 
   /**
@@ -266,7 +266,7 @@ class MetricsCollector {
     // Cleanup intent detection results
     this.intentDetectionResults = this.intentDetectionResults.filter(r => r.timestamp >= cutoff);
 
-    logger.debug('Metrics', 'Cleanup completed', {
+    logger.debug('[Metrics] Cleanup completed', {
       cutoff: new Date(cutoff).toISOString(),
     });
   }
@@ -298,7 +298,7 @@ export function getMetricsSnapshot(): ContentAgentMetrics {
 export function logMetricsSummary(): void {
   const metrics = getMetricsSnapshot();
 
-  logger.info('MetricsSummary', 'Content Agent Metrics', {
+  logger.info('[MetricsSummary] Content Agent Metrics', {
     dailyActiveUsers: metrics.dailyActiveUsers,
     pipelinesExecutedToday: metrics.pipelinesExecutedToday,
     intentDetectionAccuracy: metrics.intentDetectionAccuracy.toFixed(2),

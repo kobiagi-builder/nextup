@@ -7,6 +7,7 @@ import helmet from 'helmet'
 import { router } from './routes/index.js'
 import { errorHandler } from './middleware/errorHandler.js'
 import { logger } from './lib/logger.js'
+import { supabaseAdmin } from './lib/supabase.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -25,7 +26,7 @@ app.use(cors({
   origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }))
-app.use(express.json())
+app.use(express.json({ limit: '5mb' }))
 
 // Routes
 app.use('/api', router)
@@ -33,9 +34,41 @@ app.use('/api', router)
 // Error handling
 app.use(errorHandler)
 
+/**
+ * Verify Supabase connectivity at startup.
+ * Logs a FATAL warning if Supabase is unreachable (e.g. project paused).
+ */
+async function checkSupabaseConnectivity(): Promise<boolean> {
+  try {
+    const { error } = await supabaseAdmin.from('artifacts').select('id').limit(1)
+    if (!error) {
+      logger.info('[Startup] Supabase connectivity verified')
+      return true
+    }
+    logger.error(`[Startup] FATAL: Supabase responded with error: ${error.message}`, {
+      errorCode: error.code,
+      hint: error.hint,
+    })
+    return false
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    logger.error(`[Startup] FATAL: Cannot connect to Supabase - ${message}`, {
+      hint: 'Check if the Supabase project is paused or if network/credentials are correct.',
+    })
+    return false
+  }
+}
+
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   logger.info(`Server running on port ${PORT}`)
+
+  // Non-blocking startup check - server still starts even if Supabase is down
+  // so the health endpoint remains accessible for diagnostics
+  const supabaseOk = await checkSupabaseConnectivity()
+  if (!supabaseOk) {
+    logger.error('[Startup] WARNING: Server started but Supabase is NOT reachable. All database operations will fail.')
+  }
 })
 
 export { app }

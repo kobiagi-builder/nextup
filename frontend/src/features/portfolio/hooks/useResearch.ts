@@ -41,24 +41,13 @@ export function useResearch(artifactId: string, artifactStatus?: ArtifactStatus)
       }
     },
     enabled: !!artifactId,
-    // Poll only during active processing states
-    // Status flow: draft → research → skeleton → writing → creating_visuals → ready → published
-    // Once status is 'ready' or beyond, processing is complete - no need to poll
+    // Poll only during the research phase — that's the only status where research data changes.
+    // After research completes, the data is static for the rest of the pipeline.
     refetchInterval: () => {
-      // Processing states that require polling
-      const processingStates = ['research', 'skeleton', 'writing', 'creating_visuals']
-      const isInProcessingState = artifactStatus ? processingStates.includes(artifactStatus) : false
-
-      if (isInProcessingState) {
-        console.log('[useResearch] Polling enabled:', {
-          artifactId,
-          artifactStatus,
-          reason: 'in_processing_state',
-        })
-        return 2000 // Poll every 2 seconds
+      if (artifactStatus === 'research') {
+        return 2000 // Poll every 2 seconds during active research
       }
-
-      return false // Stop polling once processing is complete
+      return false
     },
   })
 }

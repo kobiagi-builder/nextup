@@ -12,3 +12,12 @@ export const supabase = createClient<Database>(
   supabaseUrl || '',
   supabaseAnonKey || ''
 )
+
+/**
+ * Get the current user's access token from Supabase session.
+ * Returns null if not authenticated.
+ */
+export async function getAccessToken(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession()
+  return session?.access_token ?? null
+}

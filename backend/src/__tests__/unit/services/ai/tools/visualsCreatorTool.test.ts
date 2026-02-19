@@ -9,7 +9,7 @@ import { generateContentVisuals } from '../../../../../services/ai/tools/visuals
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
-import { assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';
+import { callTool, assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
 vi.mock('../../../../../lib/supabase.js', () => ({
@@ -33,7 +33,7 @@ describe('generateContentVisuals', () => {
 
   describe('Input Validation', () => {
     it('should reject invalid artifactId format', async () => {
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: 'invalid-uuid',
       });
 
@@ -56,7 +56,7 @@ describe('generateContentVisuals', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -79,7 +79,7 @@ describe('generateContentVisuals', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -101,7 +101,7 @@ describe('generateContentVisuals', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -124,7 +124,7 @@ describe('generateContentVisuals', () => {
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
               data: {
-                ...artifactFixtures.creatingVisualsArtifact,
+                ...artifactFixtures.creatingVisuals,
                 content: contentWithImagePlaceholder,
               },
               error: null,
@@ -133,13 +133,13 @@ describe('generateContentVisuals', () => {
         }),
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({
-            data: { id: artifactFixtures.creatingVisualsArtifact.id },
+            data: { id: artifactFixtures.creatingVisuals.id },
             error: null,
           }),
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -160,7 +160,7 @@ describe('generateContentVisuals', () => {
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
               data: {
-                ...artifactFixtures.creatingVisualsArtifact,
+                ...artifactFixtures.creatingVisuals,
                 content: contentWithVideoPlaceholder,
               },
               error: null,
@@ -169,13 +169,13 @@ describe('generateContentVisuals', () => {
         }),
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({
-            data: { id: artifactFixtures.creatingVisualsArtifact.id },
+            data: { id: artifactFixtures.creatingVisuals.id },
             error: null,
           }),
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -194,7 +194,7 @@ describe('generateContentVisuals', () => {
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
               data: {
-                ...artifactFixtures.creatingVisualsArtifact,
+                ...artifactFixtures.creatingVisuals,
                 content: contentWithGraphicPlaceholder,
               },
               error: null,
@@ -203,13 +203,13 @@ describe('generateContentVisuals', () => {
         }),
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({
-            data: { id: artifactFixtures.creatingVisualsArtifact.id },
+            data: { id: artifactFixtures.creatingVisuals.id },
             error: null,
           }),
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -236,7 +236,7 @@ describe('generateContentVisuals', () => {
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
               data: {
-                ...artifactFixtures.creatingVisualsArtifact,
+                ...artifactFixtures.creatingVisuals,
                 content: contentWithMultiplePlaceholders,
               },
               error: null,
@@ -245,13 +245,13 @@ describe('generateContentVisuals', () => {
         }),
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({
-            data: { id: artifactFixtures.creatingVisualsArtifact.id },
+            data: { id: artifactFixtures.creatingVisuals.id },
             error: null,
           }),
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -259,7 +259,7 @@ describe('generateContentVisuals', () => {
       expect(result.data.visualsDetected).toBe(3);
       expect(result.data.placeholders).toHaveLength(3);
 
-      const types = result.data.placeholders.map(p => p.type);
+      const types = result.data.placeholders.map((p: any) => p.type);
       expect(types).toContain('image');
       expect(types).toContain('video');
       expect(types).toContain('graphic');
@@ -275,7 +275,7 @@ describe('generateContentVisuals', () => {
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
               data: {
-                ...artifactFixtures.creatingVisualsArtifact,
+                ...artifactFixtures.creatingVisuals,
                 content: contentWithoutPlaceholders,
               },
               error: null,
@@ -284,13 +284,13 @@ describe('generateContentVisuals', () => {
         }),
         update: vi.fn().mockReturnValue({
           eq: vi.fn().mockResolvedValue({
-            data: { id: artifactFixtures.creatingVisualsArtifact.id },
+            data: { id: artifactFixtures.creatingVisuals.id },
             error: null,
           }),
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -317,7 +317,7 @@ describe('generateContentVisuals', () => {
         traceId: 'mock-trace-001',
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -342,7 +342,7 @@ describe('generateContentVisuals', () => {
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: 'nonexistent-artifact-id',
       });
 
@@ -370,7 +370,7 @@ describe('generateContentVisuals', () => {
         }),
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -391,7 +391,7 @@ describe('generateContentVisuals', () => {
         traceId: 'visuals-creator-123456-abc123',
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 
@@ -412,7 +412,7 @@ describe('generateContentVisuals', () => {
         duration: 234,
       });
 
-      const result = await generateContentVisuals.execute({
+      const result = await callTool(generateContentVisuals, {
         artifactId: artifactFixtures.creatingVisuals.id,
       });
 

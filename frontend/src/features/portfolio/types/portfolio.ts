@@ -33,11 +33,13 @@ export type ArtifactType = 'social_post' | 'blog' | 'showcase'
 /** Artifact status workflow - Phase 4 workflow with foundations approval gate (9 statuses) */
 export type ArtifactStatus =
   | 'draft'                 // Initial state, editable
+  | 'interviewing'          // AI interviewing user about showcase case
   | 'research'              // AI researching, editor locked
   | 'foundations'           // AI analyzing writing characteristics
   | 'skeleton'              // AI creating structure, editor locked
   | 'foundations_approval'  // Skeleton ready, waiting for user approval
   | 'writing'               // AI writing content, editor locked
+  | 'humanity_checking'     // AI humanizing content, editor locked
   | 'creating_visuals'      // AI generating images, editor locked
   | 'ready'                 // Content ready, editable, can publish
   | 'published'             // Published, editable (editing → ready)
@@ -280,6 +282,26 @@ export interface VisualsMetadata {
 // Skill Types
 // =============================================================================
 
+// =============================================================================
+// Social Post Eligibility
+// =============================================================================
+
+/** Artifact types eligible for "Create Social Post" action */
+const SOCIAL_POST_ELIGIBLE_TYPES: ArtifactType[] = ['blog', 'showcase']
+
+/** Artifact statuses eligible for "Create Social Post" action */
+const SOCIAL_POST_ELIGIBLE_STATUSES: ArtifactStatus[] = ['ready', 'published']
+
+/** Check if an artifact can be promoted to a social post */
+export function canCreateSocialPost(artifact: { type: ArtifactType; status: ArtifactStatus }): boolean {
+  return SOCIAL_POST_ELIGIBLE_TYPES.includes(artifact.type)
+    && SOCIAL_POST_ELIGIBLE_STATUSES.includes(artifact.status)
+}
+
+// =============================================================================
+// Skill Types
+// =============================================================================
+
 /** Skill category */
 export type SkillCategory = 'product' | 'technical' | 'leadership' | 'industry'
 
@@ -486,12 +508,14 @@ export interface UpdatePreferencesInput {
 
 /** Valid artifact status transitions - Phase 4 flow with foundations approval gate */
 export const ARTIFACT_TRANSITIONS: Record<ArtifactStatus, ArtifactStatus[]> = {
-  draft: ['research'],
+  draft: ['research', 'interviewing'],
+  interviewing: ['research'],
   research: ['foundations'],           // Phase 4: Research → Foundations
-  foundations: ['skeleton'],           // Phase 4: Foundations analysis → Skeleton
-  skeleton: ['foundations_approval'],  // Phase 4: Skeleton → Awaiting approval
+  foundations: ['skeleton', 'foundations_approval'],  // Phase 4: Foundations → Skeleton or directly to Approval
+  skeleton: ['foundations_approval'],  // Phase 4: Skeleton → Awaiting approval (legacy pipeline path)
   foundations_approval: ['writing'],   // Phase 4: User approves → Writing begins
-  writing: ['creating_visuals'],
+  writing: ['humanity_checking'],
+  humanity_checking: ['creating_visuals'],
   creating_visuals: ['ready'],
   ready: ['published'],
   published: ['ready'],  // Edit triggers return to ready
@@ -549,26 +573,6 @@ export const ARTIFACT_TYPE_INFO: Record<ArtifactType, ArtifactTypeInfo> = {
     icon: 'Trophy',
     description: 'Project showcases and success stories',
   },
-}
-
-/** Status display info */
-export interface StatusInfo {
-  id: ArtifactStatus
-  label: string
-  color: string // Tailwind color class
-}
-
-/** Artifact status configurations - Phase 4 with 9 statuses */
-export const ARTIFACT_STATUS_INFO: Record<ArtifactStatus, StatusInfo> = {
-  draft: { id: 'draft', label: 'Draft', color: 'status-draft' },
-  research: { id: 'research', label: 'Creating Foundations', color: 'status-processing' },
-  foundations: { id: 'foundations', label: 'Creating Foundations', color: 'status-processing' },
-  skeleton: { id: 'skeleton', label: 'Creating Foundations', color: 'status-processing' },
-  foundations_approval: { id: 'foundations_approval', label: 'Foundations Approval', color: 'status-approval' },
-  writing: { id: 'writing', label: 'Creating Content', color: 'status-processing' },
-  creating_visuals: { id: 'creating_visuals', label: 'Creating Content', color: 'status-processing' },
-  ready: { id: 'ready', label: 'Content Ready', color: 'status-ready' },
-  published: { id: 'published', label: 'Published', color: 'status-published' },
 }
 
 /** Skill category configurations */

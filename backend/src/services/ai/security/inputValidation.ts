@@ -113,7 +113,7 @@ export function detectPromptInjection(input: string): ValidationResult {
   }
 
   if (detectedPatterns.length > 0) {
-    logger.warn('InputValidation', 'Prompt injection attempt detected', {
+    logger.warn('[InputValidation] Prompt injection attempt detected', {
       patternCount: detectedPatterns.length,
       inputLength: input.length,
     });

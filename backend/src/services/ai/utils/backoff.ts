@@ -71,7 +71,7 @@ export async function withExponentialBackoff<T>(
       if (attempt > 0) {
         const delay = calculateBackoffDelay(attempt - 1, config.baseDelayMs, config.maxDelayMs);
 
-        logger.info('Backoff', `Retrying after ${delay}ms`, {
+        logger.info(`[Backoff] Retrying after ${delay}ms`, {
           attempt,
           maxRetries: config.maxRetries,
         });
@@ -90,7 +90,7 @@ export async function withExponentialBackoff<T>(
 
       // Success - log if retried
       if (attempt > 0) {
-        logger.info('Backoff', 'Operation succeeded after retry', {
+        logger.info('[Backoff] Operation succeeded after retry', {
           attempt,
           maxRetries: config.maxRetries,
         });
@@ -105,7 +105,7 @@ export async function withExponentialBackoff<T>(
       const isRetryableError = errorCategory && config.retryableErrors.includes(errorCategory);
 
       // Log attempt
-      logger.warn('Backoff', `Attempt ${attempt + 1}/${config.maxRetries + 1} failed`, {
+      logger.warn(`[Backoff] Attempt ${attempt + 1}/${config.maxRetries + 1} failed`, {
         error: lastError.message,
         retryable: isRetryableError,
         category: errorCategory,
@@ -113,7 +113,7 @@ export async function withExponentialBackoff<T>(
 
       // If not retryable or last attempt, throw
       if (!isRetryableError || attempt >= config.maxRetries) {
-        logger.error('Backoff', lastError, {
+        logger.error(`[Backoff] ${lastError instanceof Error ? lastError.message : String(lastError)}`, {
           finalAttempt: attempt + 1,
           maxRetries: config.maxRetries,
         });
@@ -188,7 +188,7 @@ export class CircuitBreaker {
       if (timeSinceLastFailure >= this.resetTimeoutMs) {
         // Try half-open state
         this.state.state = 'half-open';
-        logger.info('CircuitBreaker', 'Entering half-open state');
+        logger.info('[CircuitBreaker] Entering half-open state');
       } else {
         // Circuit still open
         throw new Error('Circuit breaker is open - service unavailable');
@@ -202,7 +202,7 @@ export class CircuitBreaker {
       if (this.state.state === 'half-open') {
         this.state.state = 'closed';
         this.state.failures = 0;
-        logger.info('CircuitBreaker', 'Circuit closed after successful half-open attempt');
+        logger.info('[CircuitBreaker] Circuit closed after successful half-open attempt');
       }
 
       return result;
@@ -213,7 +213,7 @@ export class CircuitBreaker {
 
       if (this.state.failures >= this.failureThreshold) {
         this.state.state = 'open';
-        logger.error('CircuitBreaker', new Error('Circuit breaker opened due to repeated failures'), {
+        logger.error('[CircuitBreaker] Circuit breaker opened due to repeated failures', {
           failures: this.state.failures,
           threshold: this.failureThreshold,
         });
@@ -239,6 +239,6 @@ export class CircuitBreaker {
       lastFailureTime: 0,
       state: 'closed',
     };
-    logger.info('CircuitBreaker', 'Circuit manually reset');
+    logger.info('[CircuitBreaker] Circuit manually reset');
   }
 }

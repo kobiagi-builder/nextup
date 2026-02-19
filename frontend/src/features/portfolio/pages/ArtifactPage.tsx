@@ -7,23 +7,30 @@
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { markdownToHTML, isMarkdown } from '@/lib/markdown'
-import { ArrowLeft, CheckCircle, Loader2, Sparkles } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, Sparkles, Share2, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { useArtifact, useUpdateArtifact, artifactKeys } from '../hooks/useArtifacts'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useIsMobile } from '@/hooks/use-media-query'
+import { useChatLayoutStore } from '@/stores/chatLayoutStore'
+import { useArtifact, useUpdateArtifact, useCreateArtifact, artifactKeys } from '../hooks/useArtifacts'
 import { ArtifactEditor } from '../components/editor'
 import { ResearchArea } from '../components/artifact/ResearchArea'
 import { FoundationsSection } from '../components/artifact/FoundationsSection'
+import { ContentGenerationLoader } from '../components/artifact/ContentGenerationLoader'
 import { isProcessingState } from '../validators/stateMachine'
 import { ChatPanel } from '../components'
 import { useResearch } from '../hooks/useResearch'
 import { useWritingCharacteristics } from '../hooks/useWritingCharacteristics'
 import { useFoundationsApproval } from '../hooks/useFoundationsApproval'
-import { useCallback, useState, useEffect, useRef } from 'react'
+import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import type { Editor } from '@tiptap/react'
 import type { ToneOption } from '../types/portfolio'
+import { canCreateSocialPost } from '../types/portfolio'
 import { useScreenContext } from '@/hooks/useScreenContext'
+import { useEditorSelectionStore, getEditorRef } from '../stores/editorSelectionStore'
 import { supabase } from '@/lib/supabase'
+import { useToast } from '@/hooks/use-toast'
 
 // =============================================================================
 // Component
@@ -34,6 +41,7 @@ export function ArtifactPage() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const queryClient = useQueryClient()
+  const { toast } = useToast()
   const prevStatusRef = useRef<string | undefined>(undefined)
 
   // State for enabling draft polling when content creation is triggered
@@ -43,6 +51,7 @@ export function ArtifactPage() {
   // Data hooks - enable draft polling when content creation is triggered
   const { data: artifact, isLoading, error } = useArtifact(id!, isContentCreationTriggered)
   const updateArtifact = useUpdateArtifact()
+  const createArtifact = useCreateArtifact()
 
   // Research hook (Phase 1) - pass artifact status for intelligent polling
   const { data: research = [] } = useResearch(id!, artifact?.status)
@@ -63,13 +72,13 @@ export function ArtifactPage() {
   const baseScreenContext = useScreenContext()
 
   // Create fresh screenContext with up-to-date artifact data
-  const screenContext = {
+  const screenContext = useMemo(() => ({
     ...baseScreenContext,
     artifactId: id, // Use URL param directly
     artifactType: artifact?.type ?? baseScreenContext.artifactType,
     artifactTitle: artifact?.title ?? baseScreenContext.artifactTitle,
     artifactStatus: artifact?.status ?? baseScreenContext.artifactStatus, // CRITICAL: Fresh status from useArtifact
-  }
+  }), [baseScreenContext, id, artifact?.type, artifact?.title, artifact?.status])
 
   // Log screen context for debugging
   useEffect(() => {
@@ -85,15 +94,20 @@ export function ArtifactPage() {
   const [localTone, setLocalTone] = useState<ToneOption>('professional')
   const [hasToneChanges, setHasToneChanges] = useState(false)
 
+  // Chat layout (split view on desktop, Sheet on mobile)
+  const isMobile = useIsMobile()
+  const { openChat, closeChat, isOpen: isChatOpen, chatConfig, configVersion } = useChatLayoutStore()
+  // Ref to hold handleContentImproved for use in effects declared before the callback
+  const contentImprovedRef = useRef<((toolName: string, result: unknown) => void) | undefined>(undefined)
+
   // UI state
-  const [isAIAssistantOpen, setIsAIAssistantOpen] = useState(false)
   const [isResearchCollapsed, setIsResearchCollapsed] = useState(true) // Default: collapsed
   const [isFoundationsCollapsed, setIsFoundationsCollapsed] = useState(true) // Default: collapsed, auto-expands on approval stage
   const [isEditorCollapsed, setIsEditorCollapsed] = useState(false) // Default: expanded
-  const [initialResearchMessage, setInitialResearchMessage] = useState<string | undefined>(undefined)
 
   // Phase 4: Local state for skeleton editing in FoundationsSection
   const [localSkeletonContent, setLocalSkeletonContent] = useState('')
+  const [hasUnsavedSkeletonChanges, setHasUnsavedSkeletonChanges] = useState(false)
 
   // Phase 4: Sync skeleton content from artifact when in foundations/skeleton statuses
   useEffect(() => {
@@ -104,7 +118,7 @@ export function ArtifactPage() {
         if (isMarkdown(artifact.content)) {
           contentToSet = markdownToHTML(artifact.content)
         }
-        setLocalSkeletonContent(contentToSet)
+        queueMicrotask(() => setLocalSkeletonContent(contentToSet))
         console.log('[ArtifactPage] Phase 4: Synced skeleton content:', {
           artifactId: artifact.id,
           status: artifact.status,
@@ -118,7 +132,7 @@ export function ArtifactPage() {
   useEffect(() => {
     if (artifact?.status && ['skeleton', 'foundations_approval'].includes(artifact.status)) {
       if (isFoundationsCollapsed) {
-        setIsFoundationsCollapsed(false)
+        queueMicrotask(() => setIsFoundationsCollapsed(false))
         console.log('[ArtifactPage] Phase 4: Auto-expanded FoundationsSection:', {
           artifactId: artifact.id,
           status: artifact.status,
@@ -129,6 +143,11 @@ export function ArtifactPage() {
 
   // Sync local content with artifact data (Phase 1: includes AI-generated skeleton)
   useEffect(() => {
+    // Skip syncing during writing/humanizing - content will sync when creating_visuals arrives with fresh content
+    if (artifact?.status === 'writing' || artifact?.status === 'humanity_checking') return
+    // Don't overwrite user's local edits with stale server content (e.g., from auto-save response)
+    if (hasUnsavedChanges) return
+
     if (artifact?.content) {
       console.log('[ArtifactPage] Syncing artifact content to editor:', {
         artifactId: artifact.id,
@@ -153,14 +172,19 @@ export function ArtifactPage() {
         })
       }
 
-      setLocalContent(contentToSet)
-      setHasUnsavedChanges(false) // Reset unsaved changes when receiving server content
+      queueMicrotask(() => {
+        setLocalContent(contentToSet)
+        setHasUnsavedChanges(false) // Reset unsaved changes when receiving server content
+      })
     }
     if (artifact?.tone) {
-      setLocalTone(artifact.tone)
-      setHasToneChanges(false)
+      const tone = artifact.tone
+      queueMicrotask(() => {
+        setLocalTone(tone)
+        setHasToneChanges(false)
+      })
     }
-  }, [artifact?.content, artifact?.tone, artifact?.id, artifact?.status])
+  }, [artifact?.content, artifact?.tone, artifact?.id, artifact?.status, hasUnsavedChanges])
 
   // Auto-trigger content creation when navigating with startCreation or autoResearch param
   useEffect(() => {
@@ -176,19 +200,65 @@ export function ArtifactPage() {
 
       // Enable aggressive polling to catch draft→research status transition
       // This is needed because Realtime subscriptions may fail in some environments
-      setIsContentCreationTriggered(true)
-
-      // Set the content creation message to auto-send (artifact ID provided via screen context)
       const contentMessage = `Create content: "${artifact.title}"`
-      setInitialResearchMessage(contentMessage)
-
-      // Open AI Assistant (message will be sent by ChatPanel)
-      setIsAIAssistantOpen(true)
-
-      // Clear the URL parameter so it doesn't trigger again
-      setSearchParams({}, { replace: true })
+      queueMicrotask(() => {
+        setIsContentCreationTriggered(true)
+        openChat({
+          contextKey: `artifact:${id}`,
+          screenContext,
+          initialMessage: contentMessage,
+          onContentImproved: (...args) => contentImprovedRef.current?.(...args),
+        })
+        setSearchParams({}, { replace: true })
+      })
     }
   }, [searchParams, setSearchParams, artifact?.title, artifact?.status, artifact?.id])
+
+  // Auto-trigger social post creation when navigating with createSocialPost param
+  useEffect(() => {
+    const createSocialPost = searchParams.get('createSocialPost')
+    const sourceId = searchParams.get('sourceId')
+
+    if (createSocialPost === 'true' && sourceId && artifact?.id) {
+      // Fetch source artifact content and trigger AI assistant
+      const fetchAndTrigger = async () => {
+        try {
+          const { data: source } = await supabase
+            .from('artifacts')
+            .select('title, type, tags, content')
+            .eq('id', sourceId)
+            .single()
+
+          if (source) {
+            const socialPostMessage = `Create social post promoting this article:
+
+Title: ${source.title || 'Untitled'}
+Type: ${source.type}
+Tags: ${(source.tags || []).join(', ')}
+Source Artifact ID: ${sourceId}`
+
+            queueMicrotask(() => {
+              openChat({
+                contextKey: `artifact:${id}`,
+                screenContext,
+                initialMessage: socialPostMessage,
+                onContentImproved: (...args) => contentImprovedRef.current?.(...args),
+              })
+              setSearchParams({}, { replace: true })
+            })
+          } else {
+            toast({ variant: 'destructive', title: 'Source not found', description: 'The original article could not be loaded.' })
+            setSearchParams({}, { replace: true })
+          }
+        } catch (err) {
+          console.error('[ArtifactPage] Failed to fetch source artifact for social post:', err)
+          toast({ variant: 'destructive', title: 'Source not found', description: 'The original article could not be loaded.' })
+          setSearchParams({}, { replace: true })
+        }
+      }
+      fetchAndTrigger()
+    }
+  }, [searchParams, setSearchParams, artifact?.id, toast])
 
   // Disable content creation polling once we've transitioned out of draft status
   useEffect(() => {
@@ -197,7 +267,7 @@ export function ArtifactPage() {
         artifactId: artifact.id,
         status: artifact.status,
       })
-      setIsContentCreationTriggered(false)
+      queueMicrotask(() => setIsContentCreationTriggered(false))
     }
   }, [artifact?.status, isContentCreationTriggered, artifact?.id])
 
@@ -362,7 +432,7 @@ export function ArtifactPage() {
         }
       }
     },
-    [artifact?.id, artifact?.status, updateArtifact]
+    [artifact, updateArtifact]
   )
 
   // Handle tone change (Phase 1)
@@ -386,10 +456,14 @@ export function ArtifactPage() {
       })
 
       // Set the message and open AI assistant
-      setInitialResearchMessage(adjustMessage)
-      setIsAIAssistantOpen(true)
+      openChat({
+        contextKey: `artifact:${id}`,
+        screenContext,
+        initialMessage: adjustMessage,
+        onContentImproved: (...args) => contentImprovedRef.current?.(...args),
+      })
     }
-  }, [localTone, localContent, artifact?.id])
+  }, [localTone, localContent, artifact?.id, id, openChat, screenContext])
 
   // Handle mark as published
   const handleMarkAsPublished = useCallback(async () => {
@@ -409,16 +483,47 @@ export function ArtifactPage() {
     } catch (err) {
       console.error('[ArtifactPage] Failed to mark as published:', err)
     }
-  }, [artifact?.id, artifact?.status, updateArtifact])
+  }, [artifact, updateArtifact])
+
+  // Handle tags change
+  const handleTagsChange = useCallback(async (tags: string[]) => {
+    if (!artifact?.id) return
+    try {
+      await updateArtifact.mutateAsync({
+        id: artifact.id,
+        updates: { tags },
+      })
+    } catch (err) {
+      console.error('[ArtifactPage] Failed to update tags:', err)
+    }
+  }, [artifact, updateArtifact])
+
+  // Handle create social post from this artifact
+  const handleCreateSocialPost = useCallback(async () => {
+    if (!artifact?.id) return
+    try {
+      const created = await createArtifact.mutateAsync({
+        type: 'social_post',
+        title: `Social Post: ${artifact.title || 'Untitled'}`,
+        tags: artifact.tags,
+        metadata: {
+          source_artifact_id: artifact.id,
+          source_artifact_title: artifact.title,
+        },
+      })
+      if (created) {
+        navigate(`/portfolio/artifacts/${created.id}?createSocialPost=true&sourceId=${artifact.id}`)
+      }
+    } catch (err) {
+      console.error('[ArtifactPage] Failed to create social post:', err)
+    }
+  }, [artifact, createArtifact, navigate])
 
   // Phase 4: Handle skeleton content change in FoundationsSection
   const handleSkeletonChange = useCallback((newContent: string) => {
     setLocalSkeletonContent(newContent)
-    console.log('[ArtifactPage] Skeleton content updated:', {
-      artifactId: artifact?.id,
-      contentLength: newContent.length,
-    })
-  }, [artifact?.id])
+    setHasUnsavedSkeletonChanges(true)
+  }, [])
 
   // Phase 4: Handle foundations approval
   const handleFoundationsApproval = useCallback(async () => {
@@ -436,10 +541,143 @@ export function ArtifactPage() {
         skeletonContent: localSkeletonContent || undefined,
       })
       console.log('[ArtifactPage] Foundations approved successfully')
+      toast({
+        title: 'Content generation started',
+        description: 'The AI is now writing your content. This may take a minute.',
+      })
     } catch (err) {
       console.error('[ArtifactPage] Failed to approve foundations:', err)
+      toast({
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: err instanceof Error ? err.message : 'Failed to start content generation',
+      })
     }
-  }, [artifact?.id, artifact?.status, localSkeletonContent, foundationsApproval])
+  }, [artifact, localSkeletonContent, foundationsApproval, toast])
+
+  // Handle content improvement tool results (Phase 8: apply AI changes to editor)
+  const clearSelection = useEditorSelectionStore((s) => s.clearSelection)
+  const handleContentImproved = useCallback((toolName: string, result: unknown) => {
+    const editor = getEditorRef() as Editor | null
+    if (!editor) {
+      toast({ variant: 'destructive', title: 'Editor not available', description: 'Could not apply changes — editor is not active.' })
+      return
+    }
+
+    const res = result as { success?: boolean; data?: Record<string, unknown>; error?: { message?: string } }
+    if (!res.success || !res.data) {
+      toast({ variant: 'destructive', title: 'Improvement failed', description: res.error?.message || 'The AI could not improve the content.' })
+      clearSelection()
+      return
+    }
+
+    if (toolName === 'improveTextContent') {
+      const { improvedText } = res.data as { improvedText: string }
+      const selection = useEditorSelectionStore.getState()
+
+      if (!selection.selectedText || selection.startPos == null || selection.endPos == null) {
+        toast({ variant: 'destructive', title: 'Selection lost', description: 'Could not find the original selection. Please try again.' })
+        clearSelection()
+        return
+      }
+
+      // Verify position still matches the original text
+      let from = selection.startPos
+      let to = selection.endPos
+      let verified = false
+
+      try {
+        const currentText = editor.state.doc.textBetween(from, to)
+        verified = currentText === selection.selectedText
+      } catch {
+        // Position out of bounds — document changed significantly
+      }
+
+      if (!verified) {
+        // Fallback: scan document for the selected text
+        let fallbackFound = false
+        editor.state.doc.descendants((node, pos) => {
+          if (fallbackFound || !node.isText || !node.text) return
+          const idx = node.text.indexOf(selection.selectedText!)
+          if (idx >= 0) {
+            from = pos + idx
+            to = from + selection.selectedText!.length
+            fallbackFound = true
+          }
+        })
+
+        if (!fallbackFound) {
+          toast({ variant: 'destructive', title: 'Could not apply changes', description: 'The selected text was modified. Please select the text again and retry.' })
+          clearSelection()
+          return
+        }
+      }
+
+      // Apply replacement as a single undoable transaction
+      editor.chain()
+        .focus()
+        .setTextSelection({ from, to })
+        .insertContent(improvedText)
+        .run()
+
+      toast({ title: 'Text improved', description: 'Changes applied. Use Ctrl+Z to undo.' })
+      clearSelection()
+    }
+
+    if (toolName === 'improveImageContent') {
+      const { newImageUrl } = res.data as { newImageUrl: string }
+      const selection = useEditorSelectionStore.getState()
+
+      if (!selection.imageSrc || selection.imageNodePos == null) {
+        toast({ variant: 'destructive', title: 'Selection lost', description: 'Could not find the original image. Please try again.' })
+        clearSelection()
+        return
+      }
+
+      // Find the image node at the stored position
+      const node = editor.state.doc.nodeAt(selection.imageNodePos)
+      if (node?.type.name === 'image') {
+        const { tr } = editor.state
+        tr.setNodeMarkup(selection.imageNodePos, undefined, {
+          ...node.attrs,
+          src: newImageUrl,
+          width: null,   // Reset dimensions for new image
+          height: null,
+        })
+        editor.view.dispatch(tr)
+        toast({ title: 'Image regenerated', description: 'New image applied. Use Ctrl+Z to undo.' })
+      } else {
+        // Fallback: search for image by src
+        let found = false
+        editor.state.doc.descendants((n, pos) => {
+          if (found) return false
+          if (n.type.name === 'image' && n.attrs.src === selection.imageSrc) {
+            const { tr } = editor.state
+            tr.setNodeMarkup(pos, undefined, {
+              ...n.attrs,
+              src: newImageUrl,
+              width: null,
+              height: null,
+            })
+            editor.view.dispatch(tr)
+            found = true
+            return false
+          }
+        })
+
+        if (found) {
+          toast({ title: 'Image regenerated', description: 'New image applied. Use Ctrl+Z to undo.' })
+        } else {
+          toast({ variant: 'destructive', title: 'Could not replace image', description: 'The original image was removed. Please try again.' })
+        }
+      }
+      clearSelection()
+    }
+  }, [toast, clearSelection])
+  // Keep ref current for effects declared before handleContentImproved
+  useEffect(() => {
+    contentImprovedRef.current = handleContentImproved
+  }, [handleContentImproved])
 
   // Auto-save content effect (debounced)
   useEffect(() => {
@@ -479,6 +717,27 @@ export function ArtifactPage() {
     return () => clearTimeout(timer)
   }, [localTone, hasToneChanges, artifact?.id, updateArtifact])
 
+  // Auto-save skeleton content (debounced) - saves edits during skeleton review
+  useEffect(() => {
+    if (!hasUnsavedSkeletonChanges || !artifact?.id) return
+    // Only save during skeleton-editable statuses
+    if (!['skeleton', 'foundations_approval'].includes(artifact.status)) return
+
+    const timer = setTimeout(async () => {
+      try {
+        await updateArtifact.mutateAsync({
+          id: artifact.id,
+          updates: { content: localSkeletonContent },
+        })
+        setHasUnsavedSkeletonChanges(false)
+      } catch (err) {
+        console.error('Failed to auto-save skeleton:', err)
+      }
+    }, 1000) // 1 second debounce
+
+    return () => clearTimeout(timer)
+  }, [localSkeletonContent, hasUnsavedSkeletonChanges, artifact?.id, artifact?.status, updateArtifact])
+
   // Loading state
   if (isLoading) {
     return (
@@ -517,9 +776,24 @@ export function ArtifactPage() {
   })
 
   return (
-    <div className="flex h-full flex-col" data-testid="artifact-page">
+    <div className="flex flex-col" data-testid="artifact-page">
       {/* Header */}
       <div className="flex items-center gap-4 border-b px-4 py-3" data-testid="artifact-page-header">
+        {/* AI Assistant toggle button — leftmost */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => isChatOpen ? closeChat() : openChat({
+            contextKey: `artifact:${id}`,
+            screenContext,
+            onContentImproved: handleContentImproved,
+          })}
+          data-testid="artifact-page-ai-assistant-button"
+          title={isChatOpen ? 'Close panel' : 'Open AI Assistant'}
+        >
+          {isChatOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+        </Button>
+        <div className="h-6 w-px bg-border" />
         <Button
           variant="ghost"
           size="icon"
@@ -534,17 +808,6 @@ export function ArtifactPage() {
             {artifact.title || 'Untitled'}
           </h1>
         </div>
-
-        {/* AI Assistant button */}
-        <Button
-          variant="secondary"
-          className="gap-2"
-          onClick={() => setIsAIAssistantOpen(true)}
-          data-testid="artifact-page-ai-assistant-button"
-        >
-          <Sparkles className="h-4 w-4" />
-          AI Assistant
-        </Button>
 
         {/* Phase 1: Start Research button (only visible when draft) */}
         {artifact.status === 'draft' && (
@@ -561,15 +824,33 @@ export function ArtifactPage() {
               // Enable aggressive polling to catch draft→research status transition
               setIsContentCreationTriggered(true)
               // Set the content creation message to auto-send
-              setInitialResearchMessage(contentMessage)
               // Open AI Assistant (message will be sent by ChatPanel)
-              setIsAIAssistantOpen(true)
+              openChat({
+                contextKey: `artifact:${id}`,
+                screenContext,
+                initialMessage: contentMessage,
+                onContentImproved: handleContentImproved,
+              })
             }}
             className="gap-2"
             data-testid="artifact-page-create-content-button"
           >
             <Sparkles className="h-4 w-4" />
             Create Content
+          </Button>
+        )}
+
+        {/* Create Social Post button (visible for eligible artifacts) */}
+        {canCreateSocialPost(artifact) && (
+          <Button
+            variant="secondary"
+            onClick={handleCreateSocialPost}
+            disabled={createArtifact.isPending}
+            className="gap-2"
+            data-testid="artifact-page-create-social-post-button"
+          >
+            <Share2 className="h-4 w-4" />
+            Create Social Post
           </Button>
         )}
 
@@ -592,7 +873,7 @@ export function ArtifactPage() {
       </div>
 
       {/* Main Area: Vertical Stack - Research (top) + Editor (bottom) */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Research Area - Collapsible at top (default: collapsed) */}
         <div className={isResearchCollapsed ? 'h-auto' : 'h-1/3 min-h-[300px]'}>
           <ResearchArea
@@ -625,11 +906,18 @@ export function ArtifactPage() {
           />
         </div>
 
+        {/* Writing/Humanizing Phase: Show shimmer loader instead of editor */}
+        {(artifact.status === 'writing' || artifact.status === 'humanity_checking') && (
+          <div className="flex-1 overflow-hidden">
+            <ContentGenerationLoader artifactType={artifact.type} />
+          </div>
+        )}
+
         {/* Editor Area - Collapsible below research (default: expanded) */}
-        {/* Phase 4: HIDE editor entirely during skeleton workflow (foundations, skeleton, foundations_approval) */}
-        {/* Content area should only appear AFTER foundations is approved */}
-        {!['foundations', 'skeleton', 'foundations_approval'].includes(artifact.status) && (
-          <div className={isEditorCollapsed ? 'h-auto' : 'flex-1 overflow-hidden'}>
+        {/* Phase 4: HIDE editor during skeleton workflow + writing (shimmer shown above) */}
+        {/* Content area should only appear AFTER writing completes */}
+        {!['foundations', 'skeleton', 'foundations_approval', 'writing', 'humanity_checking'].includes(artifact.status) && (
+          <div className={isEditorCollapsed ? 'h-auto' : 'flex-1'}>
             <ArtifactEditor
               artifactId={artifact.id}
               content={localContent}
@@ -646,42 +934,42 @@ export function ArtifactPage() {
               editable={!isProcessingState(artifact.status)}
               data-testid="artifact-editor"
               onCollapsedChange={setIsEditorCollapsed}
+              tags={artifact.tags ?? []}
+              onTagsChange={handleTagsChange}
+              onTextAIClick={() => openChat({
+                contextKey: `artifact:${id}`,
+                screenContext,
+                onContentImproved: handleContentImproved,
+              })}
+              onImageAIClick={() => openChat({
+                contextKey: `artifact:${id}`,
+                screenContext,
+                onContentImproved: handleContentImproved,
+              })}
             />
           </div>
         )}
       </div>
 
-      {/* AI Assistant Sheet */}
-      <Sheet
-        open={isAIAssistantOpen}
-        onOpenChange={(open) => {
-          setIsAIAssistantOpen(open)
-          // Clear initial message when sheet closes
-          if (!open) {
-            setInitialResearchMessage(undefined)
-          }
-        }}
-      >
-        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside data-testid="ai-assistant-panel">
-          <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              AI Assistant
-            </SheetTitle>
-          </SheetHeader>
-          <div className="h-[calc(100vh-80px)]">
-            <ChatPanel
-              contextKey={`artifact:${id}`}
-              title="Content Assistant"
-              showHeader={false}
-              height="100%"
-              initialMessage={initialResearchMessage}
-              screenContext={screenContext}
-              data-testid="ai-chat-panel"
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Mobile-only: AI Assistant Sheet overlay (desktop uses AppShell split view) */}
+      {isMobile && isChatOpen && chatConfig && (
+        <Sheet open onOpenChange={(open) => { if (!open) closeChat() }}>
+          <SheetContent side="right" className="w-full p-0" data-portal-ignore-click-outside data-testid="ai-assistant-panel">
+            <div className="h-full">
+              <ChatPanel
+                key={configVersion}
+                contextKey={chatConfig.contextKey}
+                title={chatConfig.title || 'Content Assistant'}
+                showHeader={true}
+                height="100%"
+                initialMessage={chatConfig.initialMessage}
+                screenContext={chatConfig.screenContext}
+                onContentImproved={chatConfig.onContentImproved}
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
     </div>
   )
 }

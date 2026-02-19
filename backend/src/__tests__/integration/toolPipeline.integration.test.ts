@@ -13,8 +13,7 @@ import { applyHumanityCheck } from '../../services/ai/tools/humanityCheckTools.j
 import { mockService } from '../../services/ai/mocks/index.js';
 import { supabaseAdmin } from '../../lib/supabase.js';
 import { artifactFixtures } from '../fixtures/artifacts.js';
-import { researchFixtures } from '../fixtures/research.js';
-import { assertToolOutputSuccess } from '../utils/testHelpers.js';
+import { callTool, assertToolOutputSuccess } from '../utils/testHelpers.js';
 
 // Mock dependencies
 vi.mock('../../lib/supabase.js', () => ({
@@ -51,7 +50,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 2000,
       });
 
-      const researchResult = await conductDeepResearch.execute({
+      const researchResult = await callTool(conductDeepResearch, {
         artifactId,
         topic: 'Node.js API Best Practices',
         minRequired: 5,
@@ -73,7 +72,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 3000,
       });
 
-      const skeletonResult = await generateContentSkeleton.execute({
+      const skeletonResult = await callTool(generateContentSkeleton, {
         artifactId,
       });
 
@@ -98,7 +97,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 15000,
       });
 
-      const writingResult = await writeFullContent.execute({
+      const writingResult = await callTool(writeFullContent, {
         artifactId,
         tone: 'professional',
       });
@@ -123,7 +122,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 1000,
       });
 
-      const visualsResult = await generateContentVisuals.execute({
+      const visualsResult = await callTool(generateContentVisuals, {
         artifactId,
       });
 
@@ -160,7 +159,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 4000,
       });
 
-      const result = await applyHumanityCheck.execute({
+      const result = await callTool(applyHumanityCheck, {
         artifactId,
       });
 
@@ -197,7 +196,7 @@ describe('Tool Pipeline Integration Tests', () => {
         }),
       });
 
-      const result = await generateContentSkeleton.execute({
+      const result = await callTool(generateContentSkeleton, {
         artifactId: draftArtifactId,
       });
 
@@ -223,7 +222,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 1000,
       });
 
-      const researchResult = await conductDeepResearch.execute({
+      const researchResult = await callTool(conductDeepResearch, {
         artifactId,
         topic: 'Test Topic',
         minRequired: 5,
@@ -239,7 +238,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 1000,
       });
 
-      const skeletonResult = await generateContentSkeleton.execute({
+      const skeletonResult = await callTool(generateContentSkeleton, {
         artifactId,
       });
 
@@ -275,7 +274,7 @@ describe('Tool Pipeline Integration Tests', () => {
         },
       });
 
-      const result = await writeFullContent.execute({
+      const result = await callTool(writeFullContent, {
         artifactId,
         tone: 'professional',
       });
@@ -303,7 +302,7 @@ describe('Tool Pipeline Integration Tests', () => {
         duration: 2345,
       });
 
-      const result = await conductDeepResearch.execute({
+      const result = await callTool(conductDeepResearch, {
         artifactId,
         topic: 'Test Topic',
         minRequired: 5,

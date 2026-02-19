@@ -158,7 +158,7 @@ export const topicsResearch = tool({
     const traceId = generateMockTraceId('topics-research');
 
     try {
-      logger.info('TopicsResearch', 'Starting topics research', {
+      logger.info('[TopicsResearch] Starting topics research', {
         contentType,
         focusArea: focusArea || 'general',
         count: effectiveCount,
@@ -169,7 +169,7 @@ export const topicsResearch = tool({
       // Mock Check - Return mock response if mocking is enabled
       // =========================================================================
       if (mockService.shouldMock('topicsResearchTools')) {
-        logger.info('TopicsResearch', 'Using mock response', {
+        logger.info('[TopicsResearch] Using mock response', {
           contentType,
           traceId,
         });
@@ -189,7 +189,7 @@ export const topicsResearch = tool({
 
       // Generate search queries
       const searchQueries = generateSearchQueries(contentType, focusArea);
-      logger.debug('TopicsResearch', 'Generated search queries', {
+      logger.debug('[TopicsResearch] Generated search queries', {
         queries: searchQueries,
         traceId,
       });
@@ -206,7 +206,7 @@ export const topicsResearch = tool({
 
       // Flatten results
       const allResults = searchResultsArray.flat();
-      logger.debug('TopicsResearch', 'Search results collected', {
+      logger.debug('[TopicsResearch] Search results collected', {
         totalResults: allResults.length,
         traceId,
       });
@@ -227,7 +227,7 @@ export const topicsResearch = tool({
         ),
       ];
 
-      logger.info('TopicsResearch', 'Topics research completed', {
+      logger.info('[TopicsResearch] Topics research completed', {
         topicsCount: topics.length,
         sourcesCount: sourcesQueried.length,
         traceId,
@@ -250,16 +250,12 @@ export const topicsResearch = tool({
 
       return response;
     } catch (error) {
-      logger.error(
-        'TopicsResearch',
-        error instanceof Error ? error : new Error(String(error)),
-        {
-          contentType,
-          focusArea,
-          count: effectiveCount,
-          traceId,
-        }
-      );
+      logger.error('[TopicsResearch] ' + (error instanceof Error ? error.message : String(error)), {
+        contentType,
+        focusArea,
+        count: effectiveCount,
+        traceId,
+      });
 
       return {
         success: false,

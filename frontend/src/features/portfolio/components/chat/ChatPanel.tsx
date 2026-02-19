@@ -10,7 +10,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Bot, Sparkles, User } from "lucide-react";
+import { Bot, MessageCircleQuestion, Sparkles, User } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import {
   useStructuredChat,
@@ -20,7 +20,9 @@ import { useCreateArtifact } from "../../hooks/useArtifacts";
 import { useChatStore, artifactContextKey } from "../../stores/chatStore";
 import type { ParsedChatMessage, ArtifactSuggestion } from "../../types/chat";
 import { ChatInput } from "./ChatInput";
+import { SelectionContextBanner } from "./SelectionContextBanner";
 import { StructuredChatMessage } from "./StructuredChatMessage";
+import { useEditorSelectionStore, selectSelectionType } from "../../stores/editorSelectionStore";
 
 // =============================================================================
 // Types
@@ -61,6 +63,13 @@ export function ChatPanel({
 
   // Create artifact mutation
   const createArtifactMutation = useCreateArtifact();
+
+  // Editor selection state for context banner
+  const selectionType = useEditorSelectionStore(selectSelectionType)
+  const selectionContent = useEditorSelectionStore((s) =>
+    s.type === 'text' ? s.selectedText : s.type === 'image' ? s.imageSrc : null
+  )
+  const clearSelection = useEditorSelectionStore((s) => s.clearSelection)
 
   // Use structured chat hook
   const {
@@ -205,6 +214,23 @@ export function ChatPanel({
         </div>
       )}
 
+      {/* Interview banner */}
+      {screenContext?.artifactStatus === 'interviewing' && (
+        <div className="flex items-center justify-between px-4 py-2 bg-indigo-500/10 border-b border-indigo-500/20">
+          <div className="flex items-center gap-2 text-sm text-indigo-400">
+            <MessageCircleQuestion className="h-4 w-4" />
+            <span>Showcase Interview</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => sendMessage('Skip the interview and proceed to research directly.')}
+            className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            Skip interview
+          </button>
+        </div>
+      )}
+
       {/* Messages area */}
       <ScrollArea className="flex-1" ref={scrollRef} data-testid="chat-panel-messages">
         <div className="flex flex-col">
@@ -263,6 +289,16 @@ export function ChatPanel({
 
       {/* Input area */}
       <div className="border-t px-3 py-3" data-testid="chat-panel-input-area">
+        {/* Selection context banner */}
+        {selectionType && selectionContent && (
+          <div className="mb-2">
+            <SelectionContextBanner
+              type={selectionType}
+              content={selectionContent}
+              onDismiss={clearSelection}
+            />
+          </div>
+        )}
         <ChatInput
           value={input}
           onChange={setInput}

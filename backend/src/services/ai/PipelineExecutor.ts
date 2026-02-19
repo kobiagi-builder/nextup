@@ -11,14 +11,13 @@ import { conductDeepResearch } from './tools/researchTools.js';
 import { analyzeWritingCharacteristics } from './tools/writingCharacteristicsTools.js';
 import { generateContentSkeleton } from './tools/skeletonTools.js';
 import { writeFullContent } from './tools/contentWritingTools.js';
-import { generateContentVisuals } from './tools/visualsCreatorTool.js';
-import { applyHumanityCheck } from './tools/humanityCheckTools.js';
+// applyHumanityCheck is now integrated per-section inside writeFullContent
 import { identifyImageNeeds } from './tools/imageNeedsTools.js';
 import { generateTraceId, withTracing } from './observability/tracing.js';
 import { metricsCollector } from './observability/metrics.js';
 import { withExponentialBackoff, BackoffOptions } from './utils/backoff.js';
 import { ErrorCategory, createToolError } from './types/errors.js';
-import type { ArtifactStatus } from '../../types/artifact.js';
+import type { ArtifactStatus } from '../../types/portfolio.js';
 
 // =============================================================================
 // Types
@@ -97,11 +96,11 @@ const PIPELINE_STEPS: PipelineStep[] = [
         };
       }
 
-      return conductDeepResearch.execute({
+      return conductDeepResearch.execute!({
         artifactId,
         topic: artifact.title || 'Content',
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
-      });
+      }, {} as any);
     },
     expectedStatusBefore: 'draft',
     expectedStatusAfter: 'research',
@@ -125,10 +124,10 @@ const PIPELINE_STEPS: PipelineStep[] = [
         };
       }
 
-      return analyzeWritingCharacteristics.execute({
+      return analyzeWritingCharacteristics.execute!({
         artifactId,
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
-      });
+      }, {} as any);
     },
     expectedStatusBefore: 'research',
     expectedStatusAfter: 'foundations',
@@ -151,16 +150,16 @@ const PIPELINE_STEPS: PipelineStep[] = [
         };
       }
 
-      return generateContentSkeleton.execute({
+      return generateContentSkeleton.execute!({
         artifactId,
         topic: artifact.title || 'Content',
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
         tone: (artifact.tone as any) || 'professional',
         useWritingCharacteristics: true,
-      });
+      }, {} as any);
     },
     expectedStatusBefore: 'foundations',
-    expectedStatusAfter: 'skeleton',
+    expectedStatusAfter: 'foundations_approval',
     required: true,
     pauseForApproval: true, // Phase 4: Pipeline pauses here for user approval
   },
@@ -181,20 +180,21 @@ const PIPELINE_STEPS: PipelineStep[] = [
         };
       }
 
-      return writeFullContent.execute({
+      return writeFullContent.execute!({
         artifactId,
         tone: (artifact.tone as any) || 'professional',
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
         useWritingCharacteristics: true,
-      });
+      }, {} as any);
     },
     // Phase 4: writeFullContent expects 'foundations_approval' status
     // This is set when user clicks "Foundations Approved" button
+    // Humanization is applied per-section inside writeFullContent (inline Claude calls)
     expectedStatusBefore: 'foundations_approval',
-    expectedStatusAfter: 'writing',
+    expectedStatusAfter: 'humanity_checking',
     required: true,
   },
-  // Phase 3: Image needs identification (automatic after writing)
+  // Image generation: identify image needs and generate images from humanized content
   {
     toolName: 'identifyImageNeeds',
     execute: async (artifactId: string) => {
@@ -212,35 +212,15 @@ const PIPELINE_STEPS: PipelineStep[] = [
         };
       }
 
-      return identifyImageNeeds.execute({
+      return identifyImageNeeds.execute!({
         artifactId,
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
         content: artifact.content,
-      });
+      }, {} as any);
     },
-    expectedStatusBefore: 'writing',
-    expectedStatusAfter: 'creating_visuals',
-    required: false, // Optional - user can skip images
-  },
-  // Phase 2 MVP: Placeholder visuals (deprecated in Phase 3)
-  // Kept for backward compatibility, but not used in Phase 3 workflow
-  {
-    toolName: 'generateContentVisuals',
-    execute: (artifactId: string) => generateContentVisuals.execute({
-      artifactId,
-    }),
-    expectedStatusBefore: 'creating_visuals',
+    expectedStatusBefore: 'humanity_checking',
     expectedStatusAfter: 'ready',
-    required: false,
-  },
-  {
-    toolName: 'applyHumanityCheck',
-    execute: (artifactId: string) => applyHumanityCheck.execute({
-      artifactId,
-    }),
-    expectedStatusBefore: 'creating_visuals',
-    expectedStatusAfter: 'ready',
-    required: false, // Optional step
+    required: false, // Optional - pipeline completes even if image generation fails
   },
 ];
 
@@ -288,7 +268,7 @@ class CheckpointManager {
     }
     this.checkpoints.get(artifactId)!.push(checkpoint);
 
-    logger.debug('PipelineExecutor', 'Checkpoint created', {
+    logger.debug('[PipelineExecutor] Checkpoint created', {
       artifactId,
       stepIndex,
       status: checkpoint.status,
@@ -311,11 +291,11 @@ class CheckpointManager {
   async rollback(artifactId: string): Promise<void> {
     const checkpoint = this.getLastCheckpoint(artifactId);
     if (!checkpoint) {
-      logger.warn('PipelineExecutor', 'No checkpoint to rollback to', { artifactId });
+      logger.warn('[PipelineExecutor] No checkpoint to rollback to', { artifactId });
       return;
     }
 
-    logger.info('PipelineExecutor', 'Rolling back to checkpoint', {
+    logger.info('[PipelineExecutor] Rolling back to checkpoint', {
       artifactId,
       targetStatus: checkpoint.status,
       stepIndex: checkpoint.stepIndex,
@@ -328,7 +308,7 @@ class CheckpointManager {
       .eq('id', artifactId);
 
     if (error) {
-      logger.error('PipelineExecutor', new Error('Rollback failed'), {
+      logger.error('[PipelineExecutor] Rollback failed', {
         artifactId,
         error: error.message,
       });
@@ -339,7 +319,7 @@ class CheckpointManager {
       );
     }
 
-    logger.info('PipelineExecutor', 'Rollback completed', {
+    logger.info('[PipelineExecutor] Rollback completed', {
       artifactId,
       restoredStatus: checkpoint.status,
     });
@@ -371,7 +351,7 @@ export class PipelineExecutor {
     const traceId = generateTraceId('pipeline');
     const toolResults: Record<string, any> = {};
 
-    logger.info('PipelineExecutor', 'Starting pipeline execution', {
+    logger.info('[PipelineExecutor] Starting pipeline execution', {
       artifactId,
       traceId,
       skipHumanityCheck: options.skipHumanityCheck,
@@ -381,9 +361,7 @@ export class PipelineExecutor {
     checkpointManager.clearCheckpoints(artifactId);
 
     let currentStep = 0;
-    const steps = options.skipHumanityCheck
-      ? PIPELINE_STEPS.filter(step => step.toolName !== 'applyHumanityCheck')
-      : PIPELINE_STEPS;
+    const steps = PIPELINE_STEPS;
 
     try {
       return await withTracing(
@@ -410,7 +388,7 @@ export class PipelineExecutor {
               toolName: step.toolName,
             });
 
-            logger.info('PipelineExecutor', `Executing step ${i + 1}/${steps.length}`, {
+            logger.info(`[PipelineExecutor] Executing step ${i + 1}/${steps.length}`, {
               artifactId,
               traceId,
               toolName: step.toolName,
@@ -424,7 +402,7 @@ export class PipelineExecutor {
                 // Verify expected status transition
                 if (result.statusTransition) {
                   if (result.statusTransition.to !== step.expectedStatusAfter) {
-                    logger.warn('PipelineExecutor', 'Unexpected status transition', {
+                    logger.warn('[PipelineExecutor] Unexpected status transition', {
                       expected: step.expectedStatusAfter,
                       actual: result.statusTransition.to,
                       toolName: step.toolName,
@@ -448,6 +426,16 @@ export class PipelineExecutor {
             );
 
             if (!toolResult.success) {
+              if (!step.required) {
+                // Optional step failed - log warning and continue pipeline
+                logger.warn(`[PipelineExecutor] Optional step ${step.toolName} failed, skipping`, {
+                  artifactId,
+                  traceId,
+                  error: toolResult.error?.message,
+                });
+                toolResults[step.toolName] = toolResult;
+                continue;
+              }
               throw createToolError(
                 toolResult.error?.category || ErrorCategory.TOOL_EXECUTION_FAILED,
                 `Tool ${step.toolName} failed: ${toolResult.error?.message}`,
@@ -455,7 +443,7 @@ export class PipelineExecutor {
               );
             }
 
-            logger.info('PipelineExecutor', `Step ${i + 1}/${steps.length} completed`, {
+            logger.info(`[PipelineExecutor] Step ${i + 1}/${steps.length} completed`, {
               artifactId,
               traceId,
               toolName: step.toolName,
@@ -481,7 +469,7 @@ export class PipelineExecutor {
 
             // Phase 4: Check if pipeline should pause for user approval
             if (step.pauseForApproval) {
-              logger.info('PipelineExecutor', 'Pipeline pausing for user approval', {
+              logger.info('[PipelineExecutor] Pipeline pausing for user approval', {
                 artifactId,
                 traceId,
                 pausedAtTool: step.toolName,
@@ -540,7 +528,7 @@ export class PipelineExecutor {
           // Clear checkpoints after success
           checkpointManager.clearCheckpoints(artifactId);
 
-          logger.info('PipelineExecutor', 'Pipeline execution completed', {
+          logger.info('[PipelineExecutor] Pipeline execution completed', {
             artifactId,
             traceId,
             duration,
@@ -568,7 +556,7 @@ export class PipelineExecutor {
       const toolError = error as any;
       const failedStep = steps[currentStep];
 
-      logger.error('PipelineExecutor', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[PipelineExecutor] ${error instanceof Error ? error.message : String(error)}`, {
         artifactId,
         traceId,
         failedStep: currentStep,
@@ -580,7 +568,7 @@ export class PipelineExecutor {
       try {
         await checkpointManager.rollback(artifactId);
       } catch (rollbackError) {
-        logger.error('PipelineExecutor', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)), {
+        logger.error(`[PipelineExecutor] ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, {
           artifactId,
           traceId,
           context: 'rollback_failed',
@@ -626,7 +614,7 @@ export class PipelineExecutor {
     const startTime = Date.now();
     const traceId = generateTraceId('single-tool');
 
-    logger.info('PipelineExecutor', 'Executing single tool', {
+    logger.info('[PipelineExecutor] Executing single tool', {
       artifactId,
       traceId,
       toolName,
@@ -671,7 +659,7 @@ export class PipelineExecutor {
       const duration = Date.now() - startTime;
       const toolError = error as any;
 
-      logger.error('PipelineExecutor', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[PipelineExecutor] ${error instanceof Error ? error.message : String(error)}`, {
         artifactId,
         traceId,
         toolName,
@@ -682,7 +670,7 @@ export class PipelineExecutor {
       try {
         await checkpointManager.rollback(artifactId);
       } catch (rollbackError) {
-        logger.error('PipelineExecutor', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)), {
+        logger.error(`[PipelineExecutor] ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, {
           artifactId,
           traceId,
           toolName,
@@ -723,7 +711,7 @@ export class PipelineExecutor {
     const traceId = generateTraceId('pipeline-resume');
     const toolResults: Record<string, any> = {};
 
-    logger.info('PipelineExecutor', 'Resuming pipeline from approval', {
+    logger.info('[PipelineExecutor] Resuming pipeline from approval', {
       artifactId,
       traceId,
     });
@@ -754,10 +742,13 @@ export class PipelineExecutor {
       };
     }
 
-    if (artifact.status !== 'foundations_approval') {
-      logger.warn('PipelineExecutor', 'Cannot resume: artifact not in foundations_approval status', {
+    // Accept both 'skeleton' (legacy) and 'foundations_approval' (current flow)
+    const approvalEligibleStatuses = ['skeleton', 'foundations_approval'];
+    if (!approvalEligibleStatuses.includes(artifact.status)) {
+      logger.warn('[PipelineExecutor] Cannot resume: artifact not in approval-eligible status', {
         artifactId,
         currentStatus: artifact.status,
+        expectedStatuses: approvalEligibleStatuses,
       });
 
       return {
@@ -770,7 +761,7 @@ export class PipelineExecutor {
         toolResults: {},
         error: {
           category: ErrorCategory.INVALID_STATUS,
-          message: `Cannot resume: artifact status is '${artifact.status}', expected 'foundations_approval'`,
+          message: `Cannot resume: artifact status is '${artifact.status}', expected one of: ${approvalEligibleStatuses.join(', ')}`,
           failedStep: 0,
           failedTool: 'resumeFromApproval',
           recoverable: false,
@@ -799,9 +790,7 @@ export class PipelineExecutor {
       };
     }
 
-    const remainingSteps = options.skipHumanityCheck
-      ? PIPELINE_STEPS.slice(writeFullContentIndex).filter(step => step.toolName !== 'applyHumanityCheck')
-      : PIPELINE_STEPS.slice(writeFullContentIndex);
+    const remainingSteps = PIPELINE_STEPS.slice(writeFullContentIndex);
 
     let currentStep = 0;
 
@@ -830,7 +819,7 @@ export class PipelineExecutor {
               toolName: step.toolName,
             });
 
-            logger.info('PipelineExecutor', `Executing resumed step ${i + 1}/${remainingSteps.length}`, {
+            logger.info(`[PipelineExecutor] Executing resumed step ${i + 1}/${remainingSteps.length}`, {
               artifactId,
               traceId,
               toolName: step.toolName,
@@ -856,6 +845,16 @@ export class PipelineExecutor {
             );
 
             if (!toolResult.success) {
+              if (!step.required) {
+                // Optional step failed - log warning and continue pipeline
+                logger.warn(`[PipelineExecutor] Optional step ${step.toolName} failed, skipping`, {
+                  artifactId,
+                  traceId,
+                  error: toolResult.error?.message,
+                });
+                toolResults[step.toolName] = toolResult;
+                continue;
+              }
               throw createToolError(
                 toolResult.error?.category || ErrorCategory.TOOL_EXECUTION_FAILED,
                 `Tool ${step.toolName} failed: ${toolResult.error?.message}`,
@@ -863,7 +862,7 @@ export class PipelineExecutor {
               );
             }
 
-            logger.info('PipelineExecutor', `Resumed step ${i + 1}/${remainingSteps.length} completed`, {
+            logger.info(`[PipelineExecutor] Resumed step ${i + 1}/${remainingSteps.length} completed`, {
               artifactId,
               traceId,
               toolName: step.toolName,
@@ -897,7 +896,7 @@ export class PipelineExecutor {
           // Clear checkpoints after success
           checkpointManager.clearCheckpoints(artifactId);
 
-          logger.info('PipelineExecutor', 'Resumed pipeline execution completed', {
+          logger.info('[PipelineExecutor] Resumed pipeline execution completed', {
             artifactId,
             traceId,
             duration,
@@ -925,7 +924,7 @@ export class PipelineExecutor {
       const toolError = error as any;
       const failedStep = remainingSteps[currentStep];
 
-      logger.error('PipelineExecutor', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[PipelineExecutor] ${error instanceof Error ? error.message : String(error)}`, {
         artifactId,
         traceId,
         failedStep: currentStep,
@@ -937,7 +936,7 @@ export class PipelineExecutor {
       try {
         await checkpointManager.rollback(artifactId);
       } catch (rollbackError) {
-        logger.error('PipelineExecutor', rollbackError instanceof Error ? rollbackError : new Error(String(rollbackError)), {
+        logger.error(`[PipelineExecutor] ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, {
           artifactId,
           traceId,
           context: 'rollback_failed',

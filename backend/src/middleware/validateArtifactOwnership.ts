@@ -59,7 +59,7 @@ export async function validateArtifactOwnership(
       .single();
 
     if (error || !artifact) {
-      logger.warn('ArtifactOwnershipValidation', 'Artifact not found', {
+      logger.warn('[ArtifactOwnershipValidation] Artifact not found', {
         artifactId,
         error: error?.message,
       });
@@ -73,7 +73,7 @@ export async function validateArtifactOwnership(
 
     // Verify ownership
     if (artifact.user_id !== userId) {
-      logger.warn('ArtifactOwnershipValidation', 'Access denied - ownership mismatch', {
+      logger.warn('[ArtifactOwnershipValidation] Access denied - ownership mismatch', {
         artifactId,
         requestedBy: userId,
         ownedBy: artifact.user_id,
@@ -89,8 +89,9 @@ export async function validateArtifactOwnership(
     // Ownership verified - proceed
     next();
   } catch (error) {
-    logger.error('ArtifactOwnershipValidation', error instanceof Error ? error : new Error(String(error)), {
+    logger.error('[ArtifactOwnershipValidation] Error in validation', {
       artifactId: req.body?.artifactId || req.params?.artifactId,
+      error: error instanceof Error ? error : new Error(String(error)),
     });
 
     res.status(500).json({
@@ -131,8 +132,9 @@ export async function validateMultipleArtifactOwnership(
     .in('id', artifactIds);
 
   if (error) {
-    logger.error('ValidateMultipleArtifactOwnership', error, {
+    logger.error('[ValidateMultipleArtifactOwnership] Error in validation', {
       artifactCount: artifactIds.length,
+      error: error,
     });
     throw error;
   }

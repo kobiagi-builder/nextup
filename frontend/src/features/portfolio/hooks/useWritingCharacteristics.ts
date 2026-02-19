@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getAccessToken } from '@/lib/supabase'
 import type { ArtifactWritingCharacteristics, ArtifactStatus } from '../types/portfolio'
 
 // =============================================================================
@@ -36,8 +37,10 @@ export function useWritingCharacteristics(
       })
 
       try {
+        const token = await getAccessToken()
         const characteristics = await api.get<ArtifactWritingCharacteristics>(
-          `/api/artifacts/${artifactId}/writing-characteristics`
+          `/api/artifacts/${artifactId}/writing-characteristics`,
+          token ? { token } : undefined
         )
         console.log('[useWritingCharacteristics] Characteristics fetched:', {
           artifactId,

@@ -36,8 +36,18 @@ function buildCharacteristicsPrompt(
   artifactTitle: string | null,
   researchContext: string,
   writingExamples: string,
-  userContext: string
+  userContext: string,
+  authorBrief?: string
 ): string {
+  const authorBriefSection = authorBrief
+    ? `### Author's Intended Narrative
+The author has described their intended angle and narrative for this content. Factor this into your style analysis - if the author's description suggests a provocative, contrarian, or unconventional tone, your characteristics should reflect that rather than defaulting to safe/neutral recommendations.
+
+${authorBrief}
+
+`
+    : '';
+
   return `You are an expert writing style analyst. Analyze the available context and generate writing characteristics that will guide content creation.
 
 ## Context
@@ -45,7 +55,7 @@ function buildCharacteristicsPrompt(
 **Artifact Type**: ${artifactType}
 **Artifact Title**: ${artifactTitle || 'Not yet defined'}
 
-### Research Context
+${authorBriefSection}### Research Context
 ${researchContext}
 
 ### User's Writing Examples
@@ -56,7 +66,7 @@ ${userContext || 'No user context available.'}
 
 ## Task
 
-Analyze the above context and generate writing characteristics. Be flexible - you can include any characteristics that are relevant.
+Analyze the above context and generate writing characteristics. Be flexible - you can include any characteristics that are relevant.${authorBrief ? ' Pay special attention to the author\'s intended narrative when determining tone, emotional appeal, and audience assumptions.' : ''}
 
 **Common characteristics to consider** (not required, use judgment):
 - tone (formal, casual, professional, conversational, etc.)
@@ -74,6 +84,20 @@ Analyze the above context and generate writing characteristics. Be flexible - yo
 - depth (surface, moderate, deep-dive)
 - length_preference (concise, moderate, comprehensive)
 - use_of_visuals (heavy, moderate, minimal)
+
+**Additional voice characteristics** (analyze from writing examples when available):
+- hook_style (question, bold_claim, story, statistic, contrarian_statement)
+- central_metaphor_strategy (single_extended, multiple_brief, none)
+- example_development_depth (mention_only, explore_mechanism, full_narrative)
+- counter_argument_approach (preemptive, responsive, absent)
+- intellectual_honesty_level (high_with_caveats, moderate, low_certainty_bias)
+- vulnerability_frequency (frequent_admissions, occasional, rare)
+- humor_level (frequent, occasional_wit, dry_asides, none)
+- rhetorical_question_usage (frequent, occasional, rare)
+- conversational_markers (frequent_asides, occasional, formal_only)
+- closing_type (diagnostic_questions, reflective_question, provocative_reframe, summary)
+- reader_as_peer_level (peer_equals, teacher_student, mentor)
+- distinctive_phrasing (list 2-3 signature phrases or constructions the author reuses)
 
 ## Output Format
 
@@ -148,7 +172,7 @@ function parseCharacteristicsResponse(
 
     return { characteristics, summary, recommendations };
   } catch (error) {
-    logger.warn('ParseCharacteristicsResponse', 'Failed to parse response, using defaults', {
+    logger.warn('[ParseCharacteristicsResponse] Failed to parse response, using defaults', {
       error: error instanceof Error ? error.message : String(error),
       responseLength: response.length,
     });
@@ -203,6 +227,30 @@ function getDefaultCharacteristics(): WritingCharacteristics {
       source: 'default',
       reasoning: 'Default moderate evidence usage',
     },
+    hook_style: {
+      value: 'bold_claim',
+      confidence: 0.5,
+      source: 'default',
+      reasoning: 'Default bold claim hook for engaging openings',
+    },
+    example_development_depth: {
+      value: 'explore_mechanism',
+      confidence: 0.5,
+      source: 'default',
+      reasoning: 'Default mechanism-level example development for credibility',
+    },
+    intellectual_honesty_level: {
+      value: 'high_with_caveats',
+      confidence: 0.5,
+      source: 'default',
+      reasoning: 'Default high honesty with appropriate caveats for trust-building',
+    },
+    reader_as_peer_level: {
+      value: 'peer_equals',
+      confidence: 0.5,
+      source: 'default',
+      reasoning: 'Default peer-level reader treatment for engagement',
+    },
   };
 }
 
@@ -243,7 +291,7 @@ export const analyzeWritingCharacteristics = tool({
     const traceId = generateMockTraceId('characteristics');
 
     try {
-      logger.info('AnalyzeWritingCharacteristics', 'Starting characteristics analysis', {
+      logger.info('[AnalyzeWritingCharacteristics] Starting characteristics analysis', {
         artifactId,
         artifactType,
         traceId,
@@ -253,7 +301,7 @@ export const analyzeWritingCharacteristics = tool({
       // MOCK CHECK: Return mock response if mocking is enabled
       // =========================================================================
       if (mockService.shouldMock('writingCharacteristicsTools')) {
-        logger.info('AnalyzeWritingCharacteristics', 'Using mock response', {
+        logger.info('[AnalyzeWritingCharacteristics] Using mock response', {
           traceId,
           artifactId,
           artifactType,
@@ -278,7 +326,7 @@ export const analyzeWritingCharacteristics = tool({
           });
 
         if (insertError) {
-          logger.warn('AnalyzeWritingCharacteristics', 'Failed to store mock characteristics', {
+          logger.warn('[AnalyzeWritingCharacteristics] Failed to store mock characteristics', {
             error: insertError.message,
             artifactId,
           });
@@ -295,7 +343,7 @@ export const analyzeWritingCharacteristics = tool({
 
         const duration = Date.now() - startTime;
 
-        logger.info('AnalyzeWritingCharacteristics', 'Mock characteristics analysis completed', {
+        logger.info('[AnalyzeWritingCharacteristics] Mock characteristics analysis completed', {
           artifactId,
           characteristicsCount: Object.keys(mockCharacteristics).length,
           status: 'foundations',
@@ -327,7 +375,7 @@ export const analyzeWritingCharacteristics = tool({
 
       if (artifactError || !artifact) {
         const duration = Date.now() - startTime;
-        logger.error('AnalyzeWritingCharacteristics', artifactError || new Error('Artifact not found'), {
+        logger.error(`[AnalyzeWritingCharacteristics] ${artifactError?.message || 'Artifact not found'}`, {
           artifactId,
           duration,
           traceId,
@@ -366,7 +414,7 @@ export const analyzeWritingCharacteristics = tool({
             .join('\n\n')
         : 'No research context available.';
 
-      logger.debug('AnalyzeWritingCharacteristics', 'Research context fetched', {
+      logger.debug('[AnalyzeWritingCharacteristics] Research context fetched', {
         researchCount: researchResults?.length || 0,
       });
 
@@ -384,7 +432,7 @@ export const analyzeWritingCharacteristics = tool({
             .join('\n\n')
         : '';
 
-      logger.debug('AnalyzeWritingCharacteristics', 'Writing examples fetched', {
+      logger.debug('[AnalyzeWritingCharacteristics] Writing examples fetched', {
         examplesCount: writingExamples?.length || 0,
       });
 
@@ -405,9 +453,27 @@ export const analyzeWritingCharacteristics = tool({
         `.trim()
         : '';
 
-      logger.debug('AnalyzeWritingCharacteristics', 'User context fetched', {
+      logger.debug('[AnalyzeWritingCharacteristics] User context fetched', {
         hasContext: !!userContext,
       });
+
+      // 4.5. Fetch author's brief from artifact metadata
+      let authorBrief: string | undefined;
+      {
+        const { data: artifactMeta } = await supabaseAdmin
+          .from('artifacts')
+          .select('metadata')
+          .eq('id', artifactId)
+          .single();
+
+        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
+        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
+          authorBrief = metadata.author_brief;
+          logger.debug('[AnalyzeWritingCharacteristics] Author brief loaded from metadata', {
+            briefLength: authorBrief.length,
+          });
+        }
+      }
 
       // 5. Build and execute Claude prompt
       const prompt = buildCharacteristicsPrompt(
@@ -415,10 +481,11 @@ export const analyzeWritingCharacteristics = tool({
         artifact.title,
         researchContext,
         writingExamplesContext,
-        userContextStr
+        userContextStr,
+        authorBrief
       );
 
-      logger.debug('AnalyzeWritingCharacteristics', 'Prompt built', {
+      logger.debug('[AnalyzeWritingCharacteristics] Prompt built', {
         promptLength: prompt.length,
       });
 
@@ -440,17 +507,17 @@ export const analyzeWritingCharacteristics = tool({
         model: anthropic('claude-sonnet-4-20250514'),
         prompt,
         temperature: 0.3, // Lower temperature for more consistent analysis
-        maxTokens: 2000,
+        maxOutputTokens: 2000,
       });
 
-      logger.debug('AnalyzeWritingCharacteristics', 'Claude response received', {
+      logger.debug('[AnalyzeWritingCharacteristics] Claude response received', {
         responseLength: response.length,
       });
 
       // 6. Parse and validate characteristics
       const { characteristics, summary, recommendations } = parseCharacteristicsResponse(response);
 
-      logger.debug('AnalyzeWritingCharacteristics', 'Characteristics parsed', {
+      logger.debug('[AnalyzeWritingCharacteristics] Characteristics parsed', {
         characteristicsCount: Object.keys(characteristics).length,
       });
 
@@ -469,7 +536,7 @@ export const analyzeWritingCharacteristics = tool({
 
       if (insertError) {
         const duration = Date.now() - startTime;
-        logger.error('AnalyzeWritingCharacteristics', insertError, {
+        logger.error(`[AnalyzeWritingCharacteristics] ${insertError.message}`, {
           artifactId,
           stage: 'store_characteristics',
           duration,
@@ -505,7 +572,7 @@ export const analyzeWritingCharacteristics = tool({
         .eq('id', artifactId);
 
       if (statusError) {
-        logger.warn('AnalyzeWritingCharacteristics', 'Failed to update status', {
+        logger.warn('[AnalyzeWritingCharacteristics] Failed to update status', {
           artifactId,
           error: statusError.message,
         });
@@ -514,7 +581,7 @@ export const analyzeWritingCharacteristics = tool({
 
       const duration = Date.now() - startTime;
 
-      logger.info('AnalyzeWritingCharacteristics', 'Characteristics analysis completed', {
+      logger.info('[AnalyzeWritingCharacteristics] Characteristics analysis completed', {
         artifactId,
         characteristicsCount: Object.keys(characteristics).length,
         examplesUsed: writingExamples?.length || 0,
@@ -548,7 +615,7 @@ export const analyzeWritingCharacteristics = tool({
     } catch (error) {
       const duration = Date.now() - startTime;
 
-      logger.error('AnalyzeWritingCharacteristics', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[AnalyzeWritingCharacteristics] ${error instanceof Error ? error.message : String(error)}`, {
         artifactId,
         duration,
         traceId,

@@ -61,3 +61,21 @@ export {
 export {
   analyzeWritingCharacteristics,
 } from './writingCharacteristicsTools.js'
+
+// Content improvement tools (in-editor AI feedback)
+export {
+  improveTextContent,
+  improveImageContent,
+} from './contentImprovementTools.js'
+
+// Social post tools (promote articles as social posts)
+export {
+  writeSocialPostContent,
+} from './socialPostTools.js'
+
+// Interview tools (showcase-specific)
+export {
+  startShowcaseInterview,
+  saveInterviewAnswer,
+  completeShowcaseInterview,
+} from './interviewTools.js'

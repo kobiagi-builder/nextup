@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * useAIChat Hook
  *
@@ -22,6 +21,7 @@ import {
   selectIsStreaming,
   selectError,
 } from '../stores/chatStore'
+import { getSelectionContext } from '../stores/editorSelectionStore'
 
 // =============================================================================
 // Types
@@ -86,6 +86,13 @@ export interface UseAIChatReturn {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+// Module-level mutable map for screenContext, keyed by contextKey.
+// Avoids stale closures in DefaultChatTransport (AI SDK v6 creates the Chat
+// instance once via useRef and never recreates it, so the transport closure
+// captures values from the first render only). This map is updated on every
+// render and read at send-time inside prepareSendMessagesRequest.
+const _screenContextMap = new Map<string, UseAIChatOptions['screenContext']>()
+
 // =============================================================================
 // Hook
 // =============================================================================
@@ -95,6 +102,10 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
 
   // Local input state (AI SDK v6 doesn't manage this)
   const [input, setInput] = useState('')
+
+  // CRITICAL: Update module-level map so the transport closure (captured on
+  // first render only by AI SDK v6's useChat) always reads the latest value.
+  _screenContextMap.set(contextKey, screenContext)
 
   // Chat store selectors
   const storeMessages = useChatStore(selectMessages(contextKey))
@@ -126,16 +137,32 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
       // VERCEL AI SDK BEST PRACTICE: Use prepareSendMessagesRequest to inject additional context
       // CRITICAL: Must be INSIDE DefaultChatTransport constructor, not outside useChat
       prepareSendMessagesRequest({ messages }) {
+        // Read selection context at send time (captures current selection state)
+        const selectionContext = getSelectionContext()
+        // Read screenContext from module-level map (not closure) to get latest value
+        const currentScreenContext = _screenContextMap.get(contextKey)
+
+        console.log('[useAIChat] prepareSendMessagesRequest:', {
+          messageCount: messages.length,
+          messageRoles: messages.map(m => m.role),
+          hasScreenContext: !!currentScreenContext,
+          hasSelectionContext: !!selectionContext,
+          selectionType: selectionContext?.type,
+        })
+
         return {
           body: {
             messages,
             // Pass screenContext to backend (will be ignored if undefined)
-            ...(screenContext && { screenContext }),
+            ...(currentScreenContext && { screenContext: currentScreenContext }),
+            // Pass selectionContext for content improvement (will be ignored if null)
+            ...(selectionContext && { selectionContext }),
           },
         }
       },
     }),
     onError: (error: Error) => {
+      console.error('[useAIChat] onError fired:', error.message)
       finishStreaming(contextKey)
       setError(contextKey, error.message)
       onError?.(error)
@@ -219,12 +246,11 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
       // Check if there are existing messages in the store (e.g., copied from another context)
       const existingMessages = useChatStore.getState().contexts[contextKey]?.messages || []
       if (existingMessages.length > 0 && aiMessages.length === 0) {
-        // Convert store messages to AI SDK format and initialize
+        // Convert store messages to AI SDK v6 UIMessage format (uses parts, not content)
         const aiFormatMessages = existingMessages.map((msg) => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
-          content: msg.content,
-          createdAt: msg.created_at ? new Date(msg.created_at) : new Date(),
+          parts: [{ type: 'text' as const, text: msg.content }],
         }))
         setAiMessages(aiFormatMessages)
       }
@@ -234,7 +260,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
   // Convert AI messages to our format and sync to store
   useEffect(() => {
     if (aiMessages.length > 0) {
-      const chatMessages: ChatMessageType[] = aiMessages.map((msg) => {
+      const chatMessages = aiMessages.map((msg) => {
         // Extract text content from parts or content
         let textContent = ''
         if ('parts' in msg && Array.isArray(msg.parts)) {
@@ -251,7 +277,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: textContent,
-          createdAt: 'createdAt' in msg && msg.createdAt instanceof Date ? msg.createdAt : new Date(),
+          created_at: new Date().toISOString(),
         }
       })
       setMessages(contextKey, chatMessages)
@@ -270,10 +296,9 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
       // Add user message to store immediately for optimistic UI
       addMessage(contextKey, createChatMessage('user', messageContent))
 
-      // Send to AI using v6 sendMessage API
+      // Send to AI using v6 sendMessage API (accepts { text } format)
       aiSendMessage({
-        role: 'user',
-        content: messageContent,
+        text: messageContent,
       })
     },
     [input, contextKey, addMessage, aiSendMessage]
@@ -292,7 +317,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
       id: m.id,
       role: m.role as 'user' | 'assistant' | 'system',
       content: m.content,
-      createdAt: m.createdAt,
+      createdAt: m.created_at ? new Date(m.created_at) : new Date(),
     }))
   }, [storeMessages])
 

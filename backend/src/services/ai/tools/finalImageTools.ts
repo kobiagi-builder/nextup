@@ -13,7 +13,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { supabase } from '../../../lib/supabase.js';
+import { supabaseAdmin } from '../../../lib/supabase.js';
 import { logger } from '../../../lib/logger.js';
 import type { VisualsMetadata } from '../../../types/portfolio.js';
 import {
@@ -25,7 +25,7 @@ import {
   uploadFinalImage,
   uploadRejectedImage,
 } from '../../../lib/storageHelpers.js';
-import type { ImageNeed } from './imageNeedsTools.js';
+import { generateVisualIdentity, type ImageNeed } from './imageNeedsTools.js';
 
 interface FinalImage {
   id: string;
@@ -45,15 +45,15 @@ interface FinalImage {
  */
 export const generateFinalImages = tool({
   description: 'Generate high-quality final images using Nano Banana for approved image needs',
-  parameters: z.object({
+  inputSchema: z.object({
     artifactId: z.string().uuid(),
   }),
   execute: async ({ artifactId }) => {
     try {
-      // Fetch artifact metadata
-      const { data: artifact, error: fetchError } = await supabase
+      // Fetch artifact metadata including tone and author_brief
+      const { data: artifact, error: fetchError } = await supabaseAdmin
         .from('artifacts')
-        .select('visuals_metadata, type, content, user_id')
+        .select('visuals_metadata, type, content, user_id, tone, metadata')
         .eq('id', artifactId)
         .single();
 
@@ -61,8 +61,8 @@ export const generateFinalImages = tool({
         throw new Error('Artifact not found');
       }
 
-      const metadata = artifact.visuals_metadata as VisualsMetadata;
-      const approvedNeeds = metadata.needs.filter((need: ImageNeed) => need.approved);
+      const visualsMetadata = artifact.visuals_metadata as VisualsMetadata;
+      const approvedNeeds = visualsMetadata.needs.filter((need: ImageNeed) => need.approved);
 
       if (approvedNeeds.length === 0) {
         return {
@@ -72,12 +72,22 @@ export const generateFinalImages = tool({
         };
       }
 
+      // Extract tone and author's brief for content-aware generation
+      const artifactTone = artifact.tone || undefined;
+      const artMetadata = artifact.metadata as Record<string, unknown> | null;
+      const authorBrief = (artMetadata?.author_brief && typeof artMetadata.author_brief === 'string')
+        ? artMetadata.author_brief
+        : undefined;
+
+      // Generate unified visual identity for consistency
+      const visualIdentity = generateVisualIdentity(artifactTone, artifact.type);
+
       // Update phase to generating_images
-      await supabase
+      await supabaseAdmin
         .from('artifacts')
         .update({
           visuals_metadata: {
-            ...metadata,
+            ...visualsMetadata,
             phase: {
               phase: 'generating_images',
               completed: 0,
@@ -98,14 +108,17 @@ export const generateFinalImages = tool({
           // Determine resolution based on artifact type
           const resolution = getResolutionForType(artifact.type, need.purpose);
 
-          // Generate final image with Nano Banana
+          // Generate final image with content-aware parameters
           const imageParams: ImageGenParams = {
             prompt: need.description,
             style: need.style,
             resolution,
-            quality: 'standard', // MVP uses standard quality
+            quality: 'standard',
             purpose: need.purpose,
-            artifactContext: `For a ${artifact.type} artifact`, // Brief context
+            artifactContext: `For a ${artifact.type} artifact`,
+            authorBrief,
+            tone: artifactTone,
+            visualIdentity,
           };
 
           const buffer = await generateWithRetry(imageParams, 3);
@@ -128,11 +141,11 @@ export const generateFinalImages = tool({
           await replaceImageInContent(artifactId, need.id, url, need.description);
 
           // Update progress
-          await supabase
+          await supabaseAdmin
             .from('artifacts')
             .update({
               visuals_metadata: {
-                ...metadata,
+                ...visualsMetadata,
                 phase: {
                   phase: 'generating_images',
                   completed: i + 1,
@@ -157,15 +170,15 @@ export const generateFinalImages = tool({
       }
 
       // Update final metadata
-      const { error: finalUpdateError } = await supabase
+      const { error: finalUpdateError } = await supabaseAdmin
         .from('artifacts')
         .update({
           visuals_metadata: {
-            ...metadata,
+            ...visualsMetadata,
             phase: { phase: 'complete', finals },
             finals,
             generation_stats: {
-              ...metadata.generation_stats,
+              ...visualsMetadata.generation_stats,
               finals_generated: finals.length,
               failures,
             },
@@ -202,17 +215,17 @@ export const generateFinalImages = tool({
  */
 export const regenerateImage = tool({
   description: 'Regenerate a specific image with updated description',
-  parameters: z.object({
+  inputSchema: z.object({
     artifactId: z.string().uuid(),
     imageId: z.string().uuid(),
     newDescription: z.string().optional(),
   }),
   execute: async ({ artifactId, imageId, newDescription }) => {
     try {
-      // Fetch artifact metadata
-      const { data: artifact, error: fetchError } = await supabase
+      // Fetch artifact metadata including tone for visual identity
+      const { data: artifact, error: fetchError } = await supabaseAdmin
         .from('artifacts')
-        .select('visuals_metadata, type, content')
+        .select('visuals_metadata, type, content, tone, metadata')
         .eq('id', artifactId)
         .single();
 
@@ -220,9 +233,9 @@ export const regenerateImage = tool({
         throw new Error('Artifact not found');
       }
 
-      const metadata = artifact.visuals_metadata as VisualsMetadata;
-      const need = metadata.needs.find((n: ImageNeed) => n.id === imageId);
-      const existingImage = metadata.finals.find((f: FinalImage) => f.id === imageId);
+      const regenMetadata = artifact.visuals_metadata as VisualsMetadata;
+      const need = regenMetadata.needs.find((n: ImageNeed) => n.id === imageId);
+      const existingImage = regenMetadata.finals.find((f: FinalImage) => f.id === imageId);
 
       if (!need || !existingImage) {
         throw new Error('Image not found');
@@ -236,13 +249,21 @@ export const regenerateImage = tool({
         };
       }
 
+      // Extract tone and author's brief for content-aware regeneration
+      const regenTone = artifact.tone || undefined;
+      const regenArtMeta = artifact.metadata as Record<string, unknown> | null;
+      const regenAuthorBrief = (regenArtMeta?.author_brief && typeof regenArtMeta.author_brief === 'string')
+        ? regenArtMeta.author_brief
+        : undefined;
+      const regenVisualIdentity = generateVisualIdentity(regenTone, artifact.type);
+
       // Use new description if provided
       const description = newDescription || need.description;
 
       // Determine resolution
       const resolution = getResolutionForType(artifact.type, need.purpose);
 
-      // Generate new image
+      // Generate new image with content-aware parameters
       const imageParams: ImageGenParams = {
         prompt: description,
         style: need.style,
@@ -250,6 +271,9 @@ export const regenerateImage = tool({
         quality: 'standard',
         purpose: need.purpose,
         artifactContext: `For a ${artifact.type} artifact`,
+        authorBrief: regenAuthorBrief,
+        tone: regenTone,
+        visualIdentity: regenVisualIdentity,
       };
 
       const buffer = await generateWithRetry(imageParams, 3);
@@ -258,7 +282,7 @@ export const regenerateImage = tool({
       const { url, path } = await uploadFinalImage(artifactId, imageId, buffer);
 
       // Update finals metadata
-      const updatedFinals = metadata.finals.map((f: FinalImage) =>
+      const updatedFinals = regenMetadata.finals.map((f: FinalImage) =>
         f.id === imageId
           ? {
               ...f,
@@ -273,26 +297,26 @@ export const regenerateImage = tool({
 
       // Update need description if changed
       if (newDescription) {
-        const updatedNeeds = metadata.needs.map((n: ImageNeed) =>
+        const updatedNeeds = regenMetadata.needs.map((n: ImageNeed) =>
           n.id === imageId ? { ...n, description: newDescription } : n
         );
 
-        await supabase
+        await supabaseAdmin
           .from('artifacts')
           .update({
             visuals_metadata: {
-              ...metadata,
+              ...regenMetadata,
               needs: updatedNeeds,
               finals: updatedFinals,
             },
           })
           .eq('id', artifactId);
       } else {
-        await supabase
+        await supabaseAdmin
           .from('artifacts')
           .update({
             visuals_metadata: {
-              ...metadata,
+              ...regenMetadata,
               finals: updatedFinals,
             },
           })
@@ -331,7 +355,7 @@ async function replaceImageInContent(
   url: string,
   description: string
 ): Promise<void> {
-  const { data: artifact } = await supabase
+  const { data: artifact } = await supabaseAdmin
     .from('artifacts')
     .select('content, visuals_metadata')
     .eq('id', artifactId)
@@ -351,7 +375,7 @@ async function replaceImageInContent(
   const textPlaceholderPattern = /\[IMAGE:\s*[^\]]+\]/i;
   if (textPlaceholderPattern.test(updatedContent)) {
     updatedContent = updatedContent.replace(textPlaceholderPattern, imageMarkdown);
-    logger.debug('ReplaceImageInContent', 'Replaced [IMAGE: ...] placeholder', {
+    logger.debug('[ReplaceImageInContent] Replaced [IMAGE: ...] placeholder', {
       artifactId,
       imageId,
     });
@@ -364,7 +388,7 @@ async function replaceImageInContent(
     );
     if (markdownPattern.test(updatedContent)) {
       updatedContent = updatedContent.replace(markdownPattern, imageMarkdown);
-      logger.debug('ReplaceImageInContent', 'Replaced markdown image', {
+      logger.debug('[ReplaceImageInContent] Replaced markdown image', {
         artifactId,
         imageId,
       });
@@ -379,14 +403,14 @@ async function replaceImageInContent(
           titlePattern,
           `$1\n\n${imageMarkdown}`
         );
-        logger.debug('ReplaceImageInContent', 'Inserted hero image after title', {
+        logger.debug('[ReplaceImageInContent] Inserted hero image after title', {
           artifactId,
           imageId,
         });
       } else {
         // Fallback: prepend image to content
         updatedContent = `${imageMarkdown}\n\n${updatedContent}`;
-        logger.debug('ReplaceImageInContent', 'Prepended hero image to content', {
+        logger.debug('[ReplaceImageInContent] Prepended hero image to content', {
           artifactId,
           imageId,
         });
@@ -394,7 +418,7 @@ async function replaceImageInContent(
     }
   }
 
-  await supabase
+  await supabaseAdmin
     .from('artifacts')
     .update({ content: updatedContent })
     .eq('id', artifactId);

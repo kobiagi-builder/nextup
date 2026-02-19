@@ -9,17 +9,8 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import { supabase } from '@/lib/supabase'
+import { getAccessToken } from '@/lib/supabase'
 import { artifactKeys } from './useArtifacts'
-
-// =============================================================================
-// Helper: Get access token
-// =============================================================================
-
-async function getAccessToken(): Promise<string | null> {
-  const { data: { session } } = await supabase.auth.getSession()
-  return session?.access_token ?? null
-}
 
 // =============================================================================
 // Mutations

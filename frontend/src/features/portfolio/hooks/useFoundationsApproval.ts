@@ -7,6 +7,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import { getAccessToken } from '@/lib/supabase'
 import { artifactKeys } from './useArtifacts'
 
 // =============================================================================
@@ -40,9 +41,11 @@ export function useFoundationsApproval() {
         timestamp: new Date().toISOString(),
       })
 
+      const token = await getAccessToken()
       const response = await api.post<ApproveFoundationsResponse>(
         `/api/artifacts/${artifactId}/approve-foundations`,
-        skeletonContent ? { skeleton_content: skeletonContent } : {}
+        skeletonContent ? { skeleton_content: skeletonContent } : {},
+        token ? { token } : undefined
       )
 
       console.log('[useFoundationsApproval] Approval successful:', {

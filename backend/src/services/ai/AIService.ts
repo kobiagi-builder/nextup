@@ -24,6 +24,9 @@ import * as contentWritingTools from './tools/contentWritingTools.js'
 import * as humanityCheckTools from './tools/humanityCheckTools.js'
 import * as visualsCreatorTool from './tools/visualsCreatorTool.js'
 import * as imageNeedsTools from './tools/imageNeedsTools.js'
+import * as contentImprovementTools from './tools/contentImprovementTools.js'
+import * as socialPostTools from './tools/socialPostTools.js'
+import * as interviewTools from './tools/interviewTools.js'
 import { pipelineExecutor } from './PipelineExecutor.js'
 import type { UserContext } from '../../types/portfolio.js'
 
@@ -47,6 +50,21 @@ interface ChatOptions {
   includeTools?: boolean
 }
 
+interface SelectionContext {
+  type: 'text' | 'image'
+  selectedText?: string | null
+  startPos?: number | null
+  endPos?: number | null
+  surroundingContext?: {
+    before: string
+    after: string
+    sectionHeading: string | null
+  } | null
+  imageSrc?: string | null
+  imageNodePos?: number | null
+  artifactId?: string | null
+}
+
 interface StreamChatOptions extends ChatOptions {
   onFinish?: (result: { text: string; usage: { input: number; output: number } }) => void
   screenContext?: {
@@ -56,6 +74,7 @@ interface StreamChatOptions extends ChatOptions {
     artifactTitle?: string
     artifactStatus?: string
   }
+  selectionContext?: SelectionContext
 }
 
 // =============================================================================
@@ -107,6 +126,15 @@ const AVAILABLE_TOOLS: Record<string, any> = {
   getUserContext: profileTools.getUserContext,
   getUserSkills: profileTools.getUserSkills,
   suggestProfileUpdates: profileTools.suggestProfileUpdates,
+  // Content improvement tools (in-editor AI feedback)
+  improveTextContent: contentImprovementTools.improveTextContent,
+  improveImageContent: contentImprovementTools.improveImageContent,
+  // Social post tools (promote articles)
+  writeSocialPostContent: socialPostTools.writeSocialPostContent,
+  // Interview tools (showcase-specific)
+  startShowcaseInterview: interviewTools.startShowcaseInterview,
+  saveInterviewAnswer: interviewTools.saveInterviewAnswer,
+  completeShowcaseInterview: interviewTools.completeShowcaseInterview,
   // Response tools
   structuredResponse: responseTools.structuredResponse,
 }
@@ -154,20 +182,22 @@ export class AIService {
   /**
    * Stream a chat response with tool support
    */
-  async streamChat(messages: ChatMessage[], options: StreamChatOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async streamChat(messages: ChatMessage[], options: StreamChatOptions = {}): Promise<any> {
     const {
       model = 'claude-sonnet',
       systemPrompt,
       includeTools = true,
       onFinish,
       screenContext,
+      selectionContext,
     } = options
 
     // =========================================================================
     // Mock Check - Return mock response if mocking is enabled
     // =========================================================================
     if (mockService.shouldMock('aiService')) {
-      logger.info('AIService', 'Using mock response for streamChat', {
+      logger.info('[AIService] Using mock response for streamChat', {
         model,
         messageCount: messages.length,
       })
@@ -180,16 +210,14 @@ export class AIService {
 
       // If this is a content creation request with a valid artifact ID, trigger the pipeline
       if (isContentCreation && artifactId) {
-        logger.info('AIService', 'Mock mode: Triggering pipeline for content creation', {
-          artifactId,
-          messagePreview: lastMessage.substring(0, 50),
+        logger.info('[AIService] Mock mode: Triggering pipeline for content creation', {
+          hasArtifactId: !!artifactId,
         })
 
         // Trigger pipeline execution asynchronously (don't await)
         pipelineExecutor.execute(artifactId).catch((error) => {
-          logger.error('AIService', error, {
+          logger.error(`[AIService] ${error instanceof Error ? error.message : String(error)}`, {
             sourceCode: 'AIService.streamChat.mockPipelineTrigger',
-            artifactId,
           })
         })
 
@@ -296,7 +324,26 @@ export class AIService {
 
     // Fetch user context for personalization
     const userContext = await fetchUserContext()
-    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext)
+
+    // Fetch interview context for resume scenarios (showcase interview Phase 2)
+    let interviewContext: { pairs: Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>; lastCoverageScores: Record<string, number>; questionCount: number } | null = null;
+    if (screenContext?.artifactStatus === 'interviewing' && screenContext?.artifactId) {
+      const { data: existingPairs } = await supabaseAdmin
+        .from('artifact_interviews')
+        .select('question_number, dimension, question, answer, coverage_scores')
+        .eq('artifact_id', screenContext.artifactId)
+        .order('question_number', { ascending: true });
+
+      if (existingPairs && existingPairs.length > 0) {
+        interviewContext = {
+          pairs: existingPairs as Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>,
+          lastCoverageScores: (existingPairs[existingPairs.length - 1].coverage_scores as Record<string, number>) || {},
+          questionCount: existingPairs.length,
+        };
+      }
+    }
+
+    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext, selectionContext, interviewContext)
 
     const toolsToUse = includeTools ? AVAILABLE_TOOLS : undefined
 
@@ -465,7 +512,8 @@ export class AIService {
   /**
    * Generate a non-streaming response
    */
-  async generateResponse(messages: ChatMessage[], options: ChatOptions = {}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async generateResponse(messages: ChatMessage[], options: ChatOptions = {}): Promise<any> {
     const {
       model = 'claude-sonnet',
       systemPrompt,
@@ -476,7 +524,7 @@ export class AIService {
     // Mock Check - Return mock response if mocking is enabled
     // =========================================================================
     if (mockService.shouldMock('aiService')) {
-      logger.info('AIService', 'Using mock response for generateResponse', {
+      logger.info('[AIService] Using mock response for generateResponse', {
         model,
         messageCount: messages.length,
       })
@@ -586,11 +634,12 @@ export class AIService {
   /**
    * Generate content for a specific purpose
    */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async generateContent(
     prompt: string,
     type: 'social_post' | 'blog' | 'showcase' | 'research',
     options: ChatOptions = {}
-  ) {
+  ): Promise<any> {
     const messages: ChatMessage[] = [
       { role: 'user', content: prompt },
     ]

@@ -20,6 +20,7 @@ export type ArtifactStatus =
   | 'skeleton'
   | 'foundations_approval'  // Phase 4: Waiting for user to approve foundations
   | 'writing'
+  | 'humanity_checking'     // AI humanizing content, editor locked
   | 'creating_visuals'
   | 'ready'
   | 'published';
@@ -92,6 +93,9 @@ export enum ErrorCategory {
 
   // Research errors
   RESEARCH_NOT_FOUND = 'RESEARCH_NOT_FOUND',
+
+  // Storage errors
+  STORAGE_ERROR = 'STORAGE_ERROR',
 
   // Validation errors
   INVALID_TONE = 'INVALID_TONE',

@@ -40,6 +40,20 @@ const chatRequestSchema = z.object({
     artifactTitle: z.string().optional(),
     artifactStatus: z.string().optional(),
   }).optional(),
+  selectionContext: z.object({
+    type: z.enum(['text', 'image']),
+    selectedText: z.string().max(5000).nullable(),
+    startPos: z.number().nullable(),
+    endPos: z.number().nullable(),
+    surroundingContext: z.object({
+      before: z.string().max(2000),
+      after: z.string().max(2000),
+      sectionHeading: z.string().max(500).nullable(),
+    }).nullable(),
+    imageSrc: z.string().max(2000).nullable(),
+    imageNodePos: z.number().nullable(),
+    artifactId: z.string().nullable(),
+  }).optional(),
 })
 
 const generateContentSchema = z.object({
@@ -89,6 +103,17 @@ export async function streamChat(req: Request, res: Response) {
     const parsed = chatRequestSchema.safeParse(req.body)
 
     if (!parsed.success) {
+      // Log validation failures for diagnostics (critical for debugging silent 400s)
+      const incomingRoles = Array.isArray(req.body?.messages)
+        ? req.body.messages.map((m: { role?: string }) => m.role)
+        : 'not-an-array'
+      logger.warn('Chat stream validation failed', {
+        errors: parsed.error.errors.map(e => ({ path: e.path, message: e.message })),
+        messageCount: Array.isArray(req.body?.messages) ? req.body.messages.length : 0,
+        messageRoles: incomingRoles,
+        hasScreenContext: !!req.body?.screenContext,
+        hasSelectionContext: !!req.body?.selectionContext,
+      })
       res.status(400).json({
         error: 'Invalid request',
         details: parsed.error.errors,
@@ -96,7 +121,7 @@ export async function streamChat(req: Request, res: Response) {
       return
     }
 
-    const { messages, model, includeTools, screenContext } = parsed.data
+    const { messages, model, includeTools, screenContext, selectionContext } = parsed.data
 
     // Convert AI SDK v6 messages to simple format
     const simpleMessages = messages.map(convertToSimpleMessage)
@@ -105,6 +130,8 @@ export async function streamChat(req: Request, res: Response) {
       messageCount: simpleMessages.length,
       model,
       hasScreenContext: !!screenContext,
+      hasSelectionContext: !!selectionContext,
+      selectionType: selectionContext?.type,
       screenContext: screenContext ? {
         currentPage: screenContext.currentPage,
         artifactId: screenContext.artifactId,
@@ -115,6 +142,7 @@ export async function streamChat(req: Request, res: Response) {
       model,
       includeTools,
       screenContext,
+      selectionContext,
       onFinish: ({ text, usage }) => {
         logger.debug('Chat stream finished', {
           responseLength: text.length,

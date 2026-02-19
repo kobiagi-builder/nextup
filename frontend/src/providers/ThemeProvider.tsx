@@ -21,7 +21,7 @@
  * ```
  */
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useMemo, type ReactNode } from 'react'
 
 // Theme options
 type Theme = 'dark' | 'light' | 'system'
@@ -71,11 +71,11 @@ export function ThemeProvider({
     return (stored as Theme) || defaultTheme
   })
 
-  // Track the resolved theme (actual dark/light value)
-  const [resolvedTheme, setResolvedTheme] = useState<'dark' | 'light'>(() => {
+  // Compute the resolved theme (actual dark/light value)
+  const resolvedTheme = useMemo<'dark' | 'light'>(() => {
     if (theme === 'system') return getSystemTheme()
     return theme
-  })
+  }, [theme])
 
   // Apply theme class to document
   useEffect(() => {
@@ -84,13 +84,9 @@ export function ThemeProvider({
     // Remove both classes first
     root.classList.remove('light', 'dark')
 
-    // Determine which theme to apply
-    const effectiveTheme = theme === 'system' ? getSystemTheme() : theme
-    setResolvedTheme(effectiveTheme)
-
     // Apply the theme class
-    root.classList.add(effectiveTheme)
-  }, [theme])
+    root.classList.add(resolvedTheme)
+  }, [resolvedTheme])
 
   // Listen for system theme changes when using 'system' preference
   useEffect(() => {
@@ -100,7 +96,6 @@ export function ThemeProvider({
 
     const handleChange = (e: MediaQueryListEvent) => {
       const newTheme = e.matches ? 'dark' : 'light'
-      setResolvedTheme(newTheme)
 
       const root = window.document.documentElement
       root.classList.remove('light', 'dark')
@@ -141,6 +136,7 @@ export function ThemeProvider({
  * const { theme, setTheme, resolvedTheme } = useTheme()
  * ```
  */
+// eslint-disable-next-line react-refresh/only-export-components
 export function useTheme(): ThemeContextValue {
   const context = useContext(ThemeContext)
 

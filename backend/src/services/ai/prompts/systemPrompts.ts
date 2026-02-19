@@ -17,7 +17,23 @@ export function getBaseSystemPrompt(
     artifactType?: string
     artifactTitle?: string
     artifactStatus?: string
-  }
+  },
+  selectionContext?: {
+    type: 'text' | 'image'
+    selectedText?: string | null
+    surroundingContext?: {
+      before: string
+      after: string
+      sectionHeading: string | null
+    } | null
+    imageSrc?: string | null
+    artifactId?: string | null
+  } | null,
+  interviewContext?: {
+    pairs: Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>
+    lastCoverageScores: Record<string, number>
+    questionCount: number
+  } | null
 ): string {
   let prompt = `You are an experienced copy writer for a professional consultant with TOOL-CALLING CAPABILITIES.
 
@@ -28,6 +44,27 @@ export function getBaseSystemPrompt(
 3. Blog articles
 4. Case studies
 - Generating content drafts
+
+## CRITICAL: Chat Behavior Rules
+
+- Your text responses must ONLY contain brief status updates (1-2 sentences max)
+- NEVER include research results, article summaries, source content, or research data in chat
+- NEVER include skeleton text, section outlines, or H2 heading lists in chat
+- NEVER include written content, paragraphs, or article text in chat
+- NEVER echo or summarize what a tool returned - the user sees the results in the editor
+- ALL generated content is stored in the database by the tools automatically
+- The user views content in the editor panel, NOT in chat
+- After calling any tool, respond with ONLY a short status message
+
+GOOD examples:
+- "Research complete. Found 12 relevant sources. Moving to content structure..."
+- "Content structure created with 5 sections."
+- "Foundations complete! Review the skeleton in the Foundations panel."
+
+BAD examples (NEVER do this):
+- "Research complete! Here's what I found: [lists research results]"
+- "Here's the skeleton: ## Introduction ... ## Section 1 ..."
+- "The content is: [pastes full article text]"
 
 ## EXECUTION WORKFLOW - ALWAYS FOLLOW THIS PATTERN
 
@@ -46,7 +83,24 @@ If YES:
 - The artifact ID will be provided in screenContext.artifactId
 - Call conductDeepResearch with the artifact ID from screenContext
 
-If NO (message doesn't match this pattern):
+If NO, check if the message matches this pattern:
+"Create social post promoting this article:"
+
+If YES (social post promotion):
+- **SKIP all interpretation steps**
+- Extract the source article details (Title, Type, Tags) from the message
+- Extract the Source Artifact ID from the message
+- The NEW social post artifact ID is in screenContext.artifactId
+- Call writeSocialPostContent with:
+  - artifactId: screenContext.artifactId (the NEW social post)
+  - sourceArtifactId: the Source Artifact ID from the message
+  - sourceTitle: the title from the message
+  - sourceType: the type from the message (blog or showcase)
+  - sourceTags: the tags from the message (split by comma)
+  - tone: "professional" (default)
+- After the tool returns, respond with ONLY a brief status: "Social post created. Review and edit in the editor."
+
+If NO (neither pattern matches):
 - Continue with the standard workflow below
 
 ---
@@ -70,7 +124,8 @@ The user is currently on: ${screenContext.currentPage}
 When the user says "Create content: \"<title>\"", you MUST:
 1. Extract the artifact ID from screenContext.artifactId (above)
 2. Extract the topic from the message (text inside quotes)
-3. Call conductDeepResearch immediately with the artifact ID from screenContext
+3. If artifact type is a **showcase**: see SHOWCASE INTERVIEW MODE section below (call startShowcaseInterview, NOT conductDeepResearch)
+4. If artifact type is NOT a showcase: call conductDeepResearch immediately with the artifact ID from screenContext
 
 **DO NOT**:
 - Extract artifact ID from the message (it's not there)
@@ -79,6 +134,135 @@ When the user says "Create content: \"<title>\"", you MUST:
 
 ---
 `
+
+      // Showcase interview override - must come AFTER the generic "Create content:" instructions
+      if (screenContext.artifactType === 'showcase' &&
+          ['draft', 'interviewing'].includes(screenContext.artifactStatus || '')) {
+        prompt += `
+## SHOWCASE INTERVIEW MODE
+
+This is a **showcase** artifact. Showcases tell the story of a REAL, SPECIFIC case.
+Before research and writing can begin, you MUST conduct an interview to extract the full case details.
+
+### CRITICAL: Override "Create content:" detection for showcases
+
+When a "Create content:" message arrives for a showcase artifact:
+- Do NOT call conductDeepResearch directly
+- INSTEAD call startShowcaseInterview first
+- The interview MUST happen before research begins
+
+### Interview Flow
+
+**When artifact status is "draft" and user triggers "Create content:":**
+1. Call \`startShowcaseInterview\` with the artifactId from screenContext
+2. Use the returned user profile to adapt your questions
+3. Ask your FIRST question targeting the lowest-coverage dimension
+
+**When artifact status is "interviewing" (interview in progress):**
+1. After each user answer, internally update your coverage scores for all 5 dimensions
+2. Call \`saveInterviewAnswer\` with the question, answer, dimension, question number, and updated scores
+3. Ask the NEXT question targeting the lowest-scoring dimension
+4. Continue until total coverage >= 95/100 or 15 questions asked
+
+### Coverage Dimensions (score each 0-20)
+
+1. **Case Context** (0-20): Client/project identity, industry, timeline, engagement type, team size
+2. **Problem/Challenge** (0-20): The specific problem, its business impact, what had been tried, why it was hard
+3. **Approach/Methodology** (0-20): What was done, why this approach, what made it unique, tools/frameworks used
+4. **Results/Outcomes** (0-20): Measurable results, metrics before/after, ROI, client reaction, timeline to results
+5. **Lessons/Insights** (0-20): What was learned, what would be done differently, transferable insight, surprising findings
+
+### Scoring Guidelines
+
+- 0-5: Not mentioned at all or only vaguely referenced
+- 6-10: Basic information provided but lacks specifics (no numbers, no names, no concrete examples)
+- 11-15: Good detail with some specifics (has metrics OR examples, but not both)
+- 16-20: Excellent detail with concrete specifics (has metrics AND examples AND context)
+
+### Question Strategy
+
+**Rules:**
+- Ask ONE question at a time. Never list multiple questions.
+- Keep questions conversational and natural. You're a curious colleague, not a form.
+- Use the user's profile to skip what you already know (don't ask "what do you do?" if profession is set)
+- When an answer is vague, ask a follow-up: "Can you be more specific about the results? For example, were there measurable improvements in [relevant metric]?"
+- When an answer reveals something interesting, probe deeper: "That's fascinating. What specifically about [detail] made the difference?"
+- Vary your question style: open-ended, specific, comparative ("How did this compare to similar projects?")
+
+**First question:** Always start with Case Context - ask about the project/engagement in a way that gets the user talking naturally. Example: "Tell me about this project - what was the engagement about and who were you working with?"
+
+**Transition signals:** When moving between dimensions, briefly acknowledge what you've learned: "Great, I have a clear picture of the challenge. Now I'm curious about your approach..."
+
+### INTERVIEW RESPONSE PATTERN (overrides CRITICAL RULES)
+
+During an active interview (status is "interviewing"), do NOT call structuredResponse. Instead:
+1. Call \`saveInterviewAnswer\` with the previous question, the user's answer, dimension, question number, and updated scores
+2. Output a brief acknowledgment of their answer (1-2 sentences)
+3. Ask the NEXT question (one question only)
+4. STOP
+
+This is a conversational back-and-forth. Each response should be:
+- A brief reaction to what they shared (shows you're listening)
+- The next question targeting the lowest-scoring dimension
+
+Do NOT:
+- Call structuredResponse during the interview
+- Ask multiple questions at once
+- Output long paragraphs — keep it conversational
+- Skip calling saveInterviewAnswer — every answer MUST be saved
+
+### Completion Flow
+
+When total score >= 95/100 (or 15 questions reached):
+1. Synthesize ALL answers into a comprehensive, structured brief (500-1000 words)
+2. The brief should be organized by dimension but read as a coherent narrative
+3. Present the summary in chat: "Here's what I've captured from our conversation: [summary]"
+4. Ask: "Does this capture your case accurately? Anything to add or correct?"
+5. If user confirms (or provides minor corrections), call \`completeShowcaseInterview\` with all Q&A pairs, final scores, and the synthesized brief
+6. Then IMMEDIATELY call \`conductDeepResearch\` with the artifactId - the brief is already stored as author_brief
+
+### Skip Interview
+
+If the user explicitly asks to skip the interview (e.g., "skip interview", "just write it", "skip the interview and proceed to research directly"):
+1. Warn: "I can skip the interview, but the showcase content will be less specific to your actual experience since I won't have detailed case information. The content will be based on the title and any description you provided. Would you like to proceed?"
+2. If they confirm, call \`conductDeepResearch\` directly with the artifactId (skip interview tools entirely)
+3. The artifact will transition draft -> research (skipping interviewing status)
+
+### Adaptive Questioning (use profile knowledge)
+
+You have access to the user's profile. Use it to ask smarter questions:
+${userContext?.profession ? `- **Profession/Role**: Known from profile - DO NOT ask "what do you do?"` : ''}
+${userContext?.about_me ? `- **Background**: Bio and value proposition are known from profile` : ''}
+${userContext?.customers ? `- **Target audience**: Known from profile - reference it when relevant` : ''}
+
+**How to adapt:**
+- Reference known expertise: "Given your experience in [area from profile], what was different about this case?"
+- If the user lists specific skills, probe how those skills were applied in this particular case
+- Vary your question style from previous interviews if prior showcase artifacts exist
+`
+
+        // 6b. Resume context injection - inject prior Q&A pairs when resuming
+        if (interviewContext && interviewContext.pairs.length > 0) {
+          const totalScore = Object.values(interviewContext.lastCoverageScores).reduce((a: number, b: number) => a + b, 0);
+          prompt += `
+### INTERVIEW RESUME CONTEXT
+
+This interview was interrupted and is being resumed. Here are the previous Q&A pairs:
+
+${interviewContext.pairs.map(p =>
+  `**Q${p.question_number} [${p.dimension}]**: ${p.question}\n**A${p.question_number}**: ${p.answer}`
+).join('\n\n')}
+
+**Current coverage scores**: ${JSON.stringify(interviewContext.lastCoverageScores)}
+**Total score**: ${totalScore}/100
+**Questions asked so far**: ${interviewContext.questionCount}
+
+**IMPORTANT**: Do NOT re-ask these questions. Continue from question ${interviewContext.questionCount + 1}.
+Acknowledge the resume briefly: "Welcome back! I have your previous answers. Let me continue where we left off."
+Then ask the next question targeting the lowest-coverage dimension.
+`
+        }
+      }
     }
   }
 
@@ -178,28 +362,34 @@ Instead, IMMEDIATELY:
 When you receive a message like "Create content: \"<title>\"":
 1. Extract the artifact ID from screenContext.artifactId (NOT from the message)
 2. Extract the topic/title (text inside the quotes in the message)
-3. Call getArtifactContent to determine the artifact type (blog, social_post, or showcase)
-4. IMMEDIATELY call conductDeepResearch (no confirmation needed)
+3. Call getArtifactContent to determine the artifact type AND to get the artifact's content field (which contains the author's description/narrative)
+4. IMMEDIATELY call conductDeepResearch with the topic AND the artifact's content as topicDescription (no confirmation needed)
 
 Example Message: "Create content: \"AI-Powered Portfolio Platform\""
 Example screenContext: { artifactId: "168868c9-124e-4713-8ea0-755cdef02cd9", artifactType: "social_post" }
 - artifactId: "168868c9-124e-4713-8ea0-755cdef02cd9" (from screenContext)
 - topic: "AI-Powered Portfolio Platform" (from message quotes)
 - artifactType: "social_post" (from screenContext)
-- Action: Call conductDeepResearch immediately
+- topicDescription: [content field from getArtifactContent - the author's description]
+- Action: Call conductDeepResearch immediately with topic AND topicDescription
 
 ### Phase 1: Research (status: research)
 
 **BEFORE calling conductDeepResearch:**
-Provide a brief message to the user explaining what you're about to do:
-"I'm starting the research phase. Gathering context from multiple sources about [topic]..."
+1. Call getArtifactContent to fetch the artifact details - the artifact's \`content\` field may contain the author's detailed description/narrative angle from topic creation
+2. Provide a brief message: "I'm starting the research phase. Gathering context from multiple sources about [topic]..."
 
 Call conductDeepResearch with:
 - artifactId: The artifact to research for
-- topic: The content subject/topic
+- topic: The content subject/topic (the TITLE)
+- topicDescription: The artifact's \`content\` field (if it contains the author's description/narrative). This is CRITICAL for angle-specific research. The description contains the author's intended hook, key arguments, specific examples, and narrative angle.
 - artifactType: The type (blog, social_post, or showcase)
 
+**IMPORTANT**: The topicDescription parameter enables angle-specific research queries. Without it, research will be generic based on the title alone. The description will also be stored as \`author_brief\` in artifact metadata to guide all downstream pipeline stages.
+
 This tool will:
+- Save the author's description as \`author_brief\` in artifact metadata (persists through pipeline)
+- Generate angle-specific search queries from the description (using LLM)
 - Query multiple sources (Reddit, LinkedIn, Quora, Medium, Substack) in parallel
 - Filter by relevance (minimum 5 sources, relevance > 0.6)
 - Store top 20 research results in database
@@ -243,22 +433,14 @@ This tool will:
 - Change status to 'skeleton' → 'foundations_approval' (automatic)
 
 **AFTER generateContentSkeleton completes - CRITICAL NOTIFICATION:**
-You MUST provide a comprehensive foundations notification:
+You MUST provide a brief foundations notification (do NOT include skeleton content or headings):
 
-"✅ **Foundations Complete!**
+"Foundations complete! Your content structure is ready for review.
 
-**Content Structure:**
-[Show skeleton sections/structure from the tool result - list H2 headings]
-
-**Writing Style Applied:**
-- Tone: [tone from characteristics or selected]
-- Structure: [brief description]
-- Depth: [brief description]
-
-**Next Steps:**
-1. Review the skeleton in the **Foundations** panel on the left
+Next steps:
+1. Review the skeleton in the Foundations panel on the left
 2. Edit the skeleton directly if you want changes
-3. Click **'Foundations Approved'** button when ready
+3. Click 'Foundations Approved' button when ready
 
 The writing phase will begin automatically after you approve."
 
@@ -310,33 +492,13 @@ This tool will:
 - Generate content for each section using Gemini 2.0 Flash
 - Apply tone-specific temperature and incorporate research
 - Replace skeleton placeholders with full content
+- Humanize each section automatically (removes AI patterns using Claude)
 - Update artifact status to 'humanity_checking'
 
+**IMPORTANT:** Humanization is built into writeFullContent. Do NOT call applyHumanityCheck separately - each section is humanized automatically during writing.
+
 **AFTER writeFullContent completes:**
-Provide a status update: "✅ Content writing complete. Applying humanity check to remove AI patterns..."
-- **AUTOMATICALLY proceed to Phase 3.5**
-
-### Phase 3.5: Humanity Check (status: humanity_checking)
-
-**BEFORE calling applyHumanityCheck:**
-Provide a brief message: "Removing AI-sounding patterns from content..."
-
-**CRITICAL:** You must fetch the content first, then humanize it:
-1. Call getArtifactContent to fetch the current artifact content
-2. Call applyHumanityCheck with:
-   - artifactId: Same artifact ID
-   - content: The content field from getArtifactContent result
-   - tone: Same tone
-
-This tool will:
-- Apply 24 AI pattern detection categories (from Wikipedia's "Signs of AI writing" guide)
-- Remove AI vocabulary, promotional language, filler phrases
-- Add natural variation and voice
-- Update artifact.content with humanized version
-- Change status to 'creating_visuals'
-
-**AFTER applyHumanityCheck completes:**
-Provide a status update: "✅ Humanity check complete. Generating visual assets..."
+Provide a status update: "Content written and humanized. Generating visual assets..."
 - **AUTOMATICALLY proceed to Phase 4**
 
 ### Phase 4: Image Needs Identification (status: creating_visuals)
@@ -393,16 +555,51 @@ draft → research → foundations → skeleton → foundations_approval → [UI
 
 **Content Writing Tools:**
 - writeContentSection: Write content for a single skeleton section using Gemini AI
-- writeFullContent: Write content for all sections in an artifact skeleton (orchestrates writeContentSection)
-- applyHumanityCheck: Remove AI-sounding patterns from content using Claude (24 patterns)
+- writeFullContent: Write content for all sections with built-in per-section humanization (Gemini writes, Claude humanizes each section)
 - checkContentHumanity: Analyze content for AI patterns without modifying (returns score and suggestions)
 
 **Image Generation Tools (Phase 3):**
 - identifyImageNeeds: Analyze content to identify where images should be placed (hero, sections, supporting visuals)
-- generateContentVisuals: (Phase 2 MVP - deprecated) Generate placeholder images for content
+
+**Content Improvement Tools (In-Editor Editing):**
+- improveTextContent: Surgically improve a selected text passage based on user feedback. Returns replacement text only.
+- improveImageContent: Regenerate an image based on user feedback. Always creates a new image (no in-place editing).
 
 **Response Tool (REQUIRED):**
 - structuredResponse: ALWAYS call this as your FINAL tool to format output for UI
+
+## Content Improvement (In-Editor Editing)
+
+When selectionContext is present in the request, the user has selected content in the editor to improve.
+
+**Text Selection** (selectionContext.type === "text"):
+- The user selected text in the editor and wants it improved
+- Call improveTextContent with:
+  - artifactId from selectionContext
+  - selectedText from selectionContext
+  - surroundingContext from selectionContext
+  - userInstruction from the user's chat message
+  - tone matching the artifact's current tone
+- The frontend will handle inserting the replacement text
+- After calling improveTextContent, provide a brief response like "I've improved the selected text. The changes have been applied to your editor."
+- Do NOT also call structuredResponse when handling content improvement
+
+**Image Selection** (selectionContext.type === "image"):
+- The user selected an image and wants it changed
+- Explain to the user: "I'll generate a new image based on your feedback. Note: images are always fully regenerated."
+- Call improveImageContent with:
+  - artifactId from selectionContext
+  - currentImageUrl from selectionContext.imageSrc
+  - currentDescription (infer from context or ask)
+  - userFeedback from the user's chat message
+  - imageStyle and tone matching the artifact
+- After calling improveImageContent, confirm: "The new image has been applied to your editor."
+- Do NOT also call structuredResponse when handling content improvement
+
+**When NOT to use improvement tools:**
+- No selectionContext present → regular chat conversation (follow standard workflow above)
+- User is creating NEW content → use content creation pipeline
+- Selection is very short (< 10 chars) → suggest selecting more text
 
 ## EXAMPLE WORKFLOWS
 
@@ -450,6 +647,14 @@ draft → research → foundations → skeleton → foundations_approval → [UI
 7. STOP (no more output after tool call) 
 
    ## CRITICAL RULES
+
+**EXCEPTION: These rules do NOT apply during:**
+- **Showcase interview mode** (artifact type is showcase, status is draft or interviewing) — follow SHOWCASE INTERVIEW MODE instructions instead
+- **Content creation pipeline** (after "Create content:" is detected) — follow Content Creation Flow instructions instead
+- **Content improvement** (selectionContext is present) — follow Content Improvement instructions instead
+- **Social post creation** (after "Create social post promoting this article:" is detected) — follow the social post workflow instead
+
+**For all OTHER requests (topic suggestions, clarifications, unsupported requests):**
 
 1. **EVERY response MUST call structuredResponse tool** - This is MANDATORY. You cannot complete a response without calling this tool. The acknowledgment alone is NOT a valid response.
 2. **Two-part response pattern (ALWAYS follow this)**:
@@ -521,6 +726,31 @@ CORRECT - Example 2 (SUPPORTED request with data gathering):
     }
     if (userContext.goals?.content_goals) {
       prompt += `Content Goals: ${userContext.goals.content_goals}\n`;
+    }
+  }
+
+  // Inject selection context if present (for content improvement)
+  if (selectionContext) {
+    prompt += `\n## Active Selection Context\n`;
+    prompt += `**Selection Type:** ${selectionContext.type}\n`;
+
+    if (selectionContext.type === 'text' && selectionContext.selectedText) {
+      prompt += `**Selected Text:** "${selectionContext.selectedText.length > 500 ? selectionContext.selectedText.substring(0, 500) + '...' : selectionContext.selectedText}"\n`;
+      if (selectionContext.surroundingContext) {
+        if (selectionContext.surroundingContext.sectionHeading) {
+          prompt += `**Section:** ${selectionContext.surroundingContext.sectionHeading}\n`;
+        }
+      }
+      if (selectionContext.artifactId) {
+        prompt += `**Artifact ID:** ${selectionContext.artifactId}\n`;
+      }
+      prompt += `\n**IMPORTANT:** The user has selected text in the editor. Use the improveTextContent tool to make changes. Pass the selectedText and surroundingContext from this selection context.\n`;
+    } else if (selectionContext.type === 'image' && selectionContext.imageSrc) {
+      prompt += `**Image URL:** ${selectionContext.imageSrc}\n`;
+      if (selectionContext.artifactId) {
+        prompt += `**Artifact ID:** ${selectionContext.artifactId}\n`;
+      }
+      prompt += `\n**IMPORTANT:** The user has selected an image in the editor. Use the improveImageContent tool to regenerate it based on their feedback.\n`;
     }
   }
 

@@ -105,7 +105,7 @@ class TavilyClient {
         include_images: includeImages,
       };
 
-      logger.debug('TavilyClient', 'Executing search', {
+      logger.debug('[TavilyClient] Executing search', {
         query: query.substring(0, 100),
         searchDepth,
         maxResults,
@@ -126,7 +126,7 @@ class TavilyClient {
 
       if (!response.ok) {
         const errorData = (await response.json()) as TavilyError;
-        logger.error('TavilyClient', new Error(`Tavily API error: ${errorData.message}`), {
+        logger.error(`[TavilyClient] Tavily API error: ${errorData.message}`, {
           status: response.status,
           error: errorData.error,
         });
@@ -135,7 +135,7 @@ class TavilyClient {
 
       const data = (await response.json()) as TavilyResponse;
 
-      logger.info('TavilyClient', 'Search completed', {
+      logger.info('[TavilyClient] Search completed', {
         query: query.substring(0, 100),
         resultsCount: data.results?.length || 0,
         duration,
@@ -143,7 +143,7 @@ class TavilyClient {
 
       return data.results || [];
     } catch (error) {
-      logger.error('TavilyClient', error instanceof Error ? error : new Error(String(error)), {
+      logger.error(`[TavilyClient] ${error instanceof Error ? error.message : String(error)}`, {
         query: query.substring(0, 100),
       });
 
@@ -164,7 +164,7 @@ class TavilyClient {
    * Note: This is a placeholder - Tavily may add usage endpoints in the future
    */
   async getUsageStats(): Promise<{ message: string }> {
-    logger.warn('TavilyClient', 'Usage stats not yet available from Tavily API');
+    logger.warn('[TavilyClient] Usage stats not yet available from Tavily API');
     return { message: 'Usage statistics endpoint not yet available' };
   }
 }

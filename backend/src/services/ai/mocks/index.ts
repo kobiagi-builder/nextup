@@ -67,7 +67,7 @@ class MockService {
   private initialize(): void {
     if (this.initialized) return;
 
-    logger.info('MockService', 'Initialized', {
+    logger.info('[MockService] Initialized', {
       masterToggle: this.config.masterToggle,
       aiService: this.config.aiService,
       researchTools: this.config.researchTools,
@@ -77,6 +77,7 @@ class MockService {
       topicsResearchTools: this.config.topicsResearchTools,
       visualsCreatorTools: this.config.visualsCreatorTools,
       imageGenerationTools: this.config.imageGenerationTools,
+      writingCharacteristicsTools: this.config.writingCharacteristicsTools,
       captureEnabled: this.config.captureResponses,
     });
 
@@ -97,6 +98,7 @@ class MockService {
       topicsResearchTools: (process.env.MOCK_TOPICS_RESEARCH_TOOLS as MockMode) || 'API',
       visualsCreatorTools: (process.env.MOCK_VISUALS_CREATOR_TOOLS as MockMode) || 'API',
       imageGenerationTools: (process.env.MOCK_IMAGE_GENERATION_TOOLS as MockMode) || 'API',
+      writingCharacteristicsTools: (process.env.MOCK_WRITING_CHARACTERISTICS_TOOLS as MockMode) || 'API',
       delayMinMs: parseInt(process.env.MOCK_DELAY_MIN_MS || '500', 10),
       delayMaxMs: parseInt(process.env.MOCK_DELAY_MAX_MS || '2000', 10),
       captureResponses: process.env.MOCK_CAPTURE_RESPONSES === 'true',
@@ -155,7 +157,7 @@ class MockService {
     // Validate context has required values
     const validation = validateContext(rawMockData, context);
     if (!validation.valid) {
-      logger.warn('MockService', 'Missing context values for mock', {
+      logger.warn('[MockService] Missing context values for mock', {
         toolName,
         variant,
         missing: validation.missing,
@@ -168,7 +170,7 @@ class MockService {
     // Simulate realistic delay
     const delay = await simulateDelay(this.config.delayMinMs, this.config.delayMaxMs);
 
-    logger.debug('MockService', 'Returning mock response', {
+    logger.debug('[MockService] Returning mock response', {
       toolName,
       variant,
       delay,
@@ -211,7 +213,7 @@ class MockService {
 
     // Check if file exists
     if (!fs.existsSync(filePath)) {
-      logger.warn('MockService', 'Mock data file not found, using default', {
+      logger.warn('[MockService] Mock data file not found, using default', {
         toolName,
         variant,
         filePath,
@@ -223,10 +225,11 @@ class MockService {
       const content = fs.readFileSync(filePath, 'utf-8');
       return JSON.parse(content);
     } catch (error) {
-      logger.error('MockService', error instanceof Error ? error : new Error(String(error)), {
+      logger.error('[MockService] Failed to load mock data', {
         toolName,
         variant,
         filePath,
+        error: error instanceof Error ? error.message : String(error),
       });
       return this.getDefaultMock(toolName);
     }
@@ -469,7 +472,8 @@ What would you like to focus on?`,
       this.config.humanityCheckTools === 'MOCK' ||
       this.config.topicsResearchTools === 'MOCK' ||
       this.config.visualsCreatorTools === 'MOCK' ||
-      this.config.imageGenerationTools === 'MOCK'
+      this.config.imageGenerationTools === 'MOCK' ||
+      this.config.writingCharacteristicsTools === 'MOCK'
     );
   }
 

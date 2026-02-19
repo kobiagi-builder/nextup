@@ -41,7 +41,7 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
       return;
     }
 
-    logger.debug('WritingExamplesController', 'Listing writing examples', {
+    logger.debug('[WritingExamplesController] Listing writing examples', {
       hasUserId: true,
       activeOnly,
     });
@@ -59,8 +59,9 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
     const { data, error } = await query;
 
     if (error) {
-      logger.error('WritingExamplesController', error, {
+      logger.error('[WritingExamplesController] Database error in listWritingExamples', {
         sourceCode: 'listWritingExamples',
+        error: error,
       });
       res.status(500).json({
         error: 'Database error',
@@ -75,10 +76,10 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
     });
   } catch (error) {
     logger.error(
-      'WritingExamplesController',
-      error instanceof Error ? error : new Error(String(error)),
+      '[WritingExamplesController] Error in listWritingExamples',
       {
         sourceCode: 'listWritingExamples',
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     );
 
@@ -133,10 +134,10 @@ export const getWritingExample = async (req: Request, res: Response): Promise<vo
     res.status(200).json(data);
   } catch (error) {
     logger.error(
-      'WritingExamplesController',
-      error instanceof Error ? error : new Error(String(error)),
+      '[WritingExamplesController] Error in getWritingExample',
       {
         sourceCode: 'getWritingExample',
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     );
 
@@ -211,7 +212,7 @@ export const createWritingExample = async (req: Request, res: Response): Promise
       return;
     }
 
-    logger.info('WritingExamplesController', 'Creating writing example', {
+    logger.info('[WritingExamplesController] Creating writing example', {
       hasUserId: true,
       nameLength: name.length,
       wordCount,
@@ -234,8 +235,9 @@ export const createWritingExample = async (req: Request, res: Response): Promise
       .single();
 
     if (error) {
-      logger.error('WritingExamplesController', error, {
+      logger.error('[WritingExamplesController] Database error in createWritingExample', {
         sourceCode: 'createWritingExample',
+        error: error,
       });
       res.status(500).json({
         error: 'Database error',
@@ -244,17 +246,17 @@ export const createWritingExample = async (req: Request, res: Response): Promise
       return;
     }
 
-    logger.info('WritingExamplesController', 'Writing example created', {
+    logger.info('[WritingExamplesController] Writing example created', {
       exampleId: data.id,
     });
 
     res.status(201).json(data);
   } catch (error) {
     logger.error(
-      'WritingExamplesController',
-      error instanceof Error ? error : new Error(String(error)),
+      '[WritingExamplesController] Error in createWritingExample',
       {
         sourceCode: 'createWritingExample',
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     );
 
@@ -374,7 +376,7 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
       return;
     }
 
-    logger.info('WritingExamplesController', 'Updating writing example', {
+    logger.info('[WritingExamplesController] Updating writing example', {
       exampleId: id,
       updateFields: Object.keys(updates),
     });
@@ -387,8 +389,9 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
       .single();
 
     if (error) {
-      logger.error('WritingExamplesController', error, {
+      logger.error('[WritingExamplesController] Database error in updateWritingExample', {
         sourceCode: 'updateWritingExample',
+        error: error,
       });
       res.status(500).json({
         error: 'Database error',
@@ -400,10 +403,10 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
     res.status(200).json(data);
   } catch (error) {
     logger.error(
-      'WritingExamplesController',
-      error instanceof Error ? error : new Error(String(error)),
+      '[WritingExamplesController] Error in updateWritingExample',
       {
         sourceCode: 'updateWritingExample',
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     );
 
@@ -463,7 +466,7 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
       return;
     }
 
-    logger.info('WritingExamplesController', 'Deleting writing example', {
+    logger.info('[WritingExamplesController] Deleting writing example', {
       exampleId: id,
     });
 
@@ -473,8 +476,9 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
       .eq('id', id);
 
     if (error) {
-      logger.error('WritingExamplesController', error, {
+      logger.error('[WritingExamplesController] Database error in deleteWritingExample', {
         sourceCode: 'deleteWritingExample',
+        error: error,
       });
       res.status(500).json({
         error: 'Database error',
@@ -486,10 +490,10 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
     res.status(204).send();
   } catch (error) {
     logger.error(
-      'WritingExamplesController',
-      error instanceof Error ? error : new Error(String(error)),
+      '[WritingExamplesController] Error in deleteWritingExample',
       {
         sourceCode: 'deleteWritingExample',
+        error: error instanceof Error ? error : new Error(String(error)),
       }
     );
 

@@ -7,7 +7,7 @@
  * - Minimum 500 words validation
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -143,17 +143,17 @@ function UploadForm({ onSubmit, onCancel, isSubmitting }: UploadFormProps) {
       if (!name) {
         setName(file.name.replace(/\.[^/.]+$/, ''))
       }
-    } catch (err) {
+    } catch {
       setError('Failed to read file')
     }
   }
 
   // Source types - these are technical identifiers, not displayed categories
   // The file upload handler will set this automatically
-  const sourceTypes: { value: 'pasted' | 'file_upload'; label: string }[] = [
-    { value: 'pasted', label: 'Paste Text' },
-    { value: 'file_upload', label: 'Upload File' },
-  ]
+  const sourceTypes = useMemo(() => [
+    { value: 'pasted' as const, label: 'Paste Text' },
+    { value: 'file_upload' as const, label: 'Upload File' },
+  ], [])
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

@@ -148,7 +148,7 @@ export function createRateLimiter(config: RateLimitConfig) {
 
       // Check if limit exceeded
       if (entry.count > config.maxRequests) {
-        logger.warn('RateLimiter', 'Rate limit exceeded', {
+        logger.warn('[RateLimiter] Rate limit exceeded', {
           userId,
           endpoint,
           count: entry.count,
@@ -167,8 +167,9 @@ export function createRateLimiter(config: RateLimitConfig) {
       // Within limit - proceed
       next();
     } catch (error) {
-      logger.error('RateLimiter', error instanceof Error ? error : new Error(String(error)), {
+      logger.error('[RateLimiter] Error in rate limiter', {
         endpoint: req.path,
+        error: error instanceof Error ? error : new Error(String(error)),
       });
 
       // On error, allow request (fail open)
@@ -219,5 +220,5 @@ export function checkRateLimit(
 export function resetRateLimit(userId: string, endpoint: string, windowMs: number): void {
   const key = `${userId}:${endpoint}:${windowMs}`;
   store.reset(key);
-  logger.info('RateLimiter', 'Rate limit reset', { userId, endpoint });
+  logger.info('[RateLimiter] Rate limit reset', { userId, endpoint });
 }

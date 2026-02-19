@@ -7,7 +7,7 @@
 
 import { useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, FileText, MessageSquare, Trophy, Sparkles } from 'lucide-react'
+import { Plus, Search, FileText, MessageSquare, Trophy, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -16,11 +16,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent } from '@/components/ui/sheet'
+import { useIsMobile } from '@/hooks/use-media-query'
+import { useChatLayoutStore } from '@/stores/chatLayoutStore'
 import { useArtifacts, useCreateArtifact, useDeleteArtifact } from '../hooks/useArtifacts'
 import { ArtifactCard, EmptyArtifacts, GridSkeleton, ChatPanel } from '../components'
 import { ArtifactForm } from '../components/forms'
-import type { ArtifactType, ArtifactStatus, CreateArtifactInput } from '../types/portfolio'
+import type { Artifact, ArtifactType, ArtifactStatus, CreateArtifactInput } from '../types/portfolio'
 import { cn } from '@/lib/utils'
 
 /** Type filter options */
@@ -47,7 +59,11 @@ export function PortfolioPage() {
   const [statusFilter, setStatusFilter] = useState<ArtifactStatus | 'all'>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
-  const [isAIResearchOpen, setIsAIResearchOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
+
+  // Chat layout (split view on desktop, Sheet on mobile)
+  const isMobile = useIsMobile()
+  const { openChat, closeChat, isOpen: isChatOpen, chatConfig, configVersion } = useChatLayoutStore()
 
   // Data hooks
   const { data: artifacts = [], isLoading } = useArtifacts()
@@ -112,14 +128,39 @@ export function PortfolioPage() {
     }
   }
 
-  // Handle delete artifact
-  const handleDelete = async (id: string) => {
-    if (window.confirm('Are you sure you want to delete this artifact?')) {
-      try {
-        await deleteArtifact.mutateAsync(id)
-      } catch (error) {
-        console.error('Failed to delete artifact:', error)
+  // Handle create social post from an existing artifact
+  const handleCreateSocialPost = async (source: Artifact) => {
+    try {
+      const created = await createArtifact.mutateAsync({
+        type: 'social_post',
+        title: `Social Post: ${source.title || 'Untitled'}`,
+        tags: source.tags,
+        metadata: {
+          source_artifact_id: source.id,
+          source_artifact_title: source.title,
+        },
+      })
+      if (created) {
+        navigate(`/portfolio/artifacts/${created.id}?createSocialPost=true&sourceId=${source.id}`)
       }
+    } catch (error) {
+      console.error('Failed to create social post artifact:', error)
+    }
+  }
+
+  // Handle delete artifact — opens confirmation dialog
+  const handleDeleteRequest = (id: string) => {
+    setDeleteTarget(id)
+  }
+
+  const handleDeleteConfirm = async () => {
+    if (!deleteTarget) return
+    try {
+      await deleteArtifact.mutateAsync(deleteTarget)
+    } catch (error) {
+      console.error('Failed to delete artifact:', error)
+    } finally {
+      setDeleteTarget(null)
     }
   }
 
@@ -127,19 +168,22 @@ export function PortfolioPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-display-md font-semibold text-foreground">
-          Portfolio
-        </h1>
         <div className="flex items-center gap-3">
           <Button
-            variant="secondary"
-            className="gap-2"
-            onClick={() => setIsAIResearchOpen(true)}
+            variant="ghost"
+            size="icon"
+            onClick={() => isChatOpen ? closeChat() : openChat({ contextKey: 'portfolio:research', title: 'Content Research' })}
             data-testid="ai-research-button"
+            title={isChatOpen ? 'Close panel' : 'Open AI Research'}
           >
-            <Sparkles className="h-4 w-4" />
-            AI Research
+            {isChatOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
           </Button>
+          <div className="h-6 w-px bg-border" />
+          <h1 className="text-display-md font-semibold text-foreground">
+            Portfolio
+          </h1>
+        </div>
+        <div className="flex items-center gap-3">
           <Button onClick={() => setIsCreateOpen(true)} className="gap-2" data-testid="portfolio-new-button">
             <Plus className="h-4 w-4" />
             New
@@ -216,7 +260,8 @@ export function PortfolioPage() {
               key={artifact.id}
               artifact={artifact}
               onEdit={() => navigate(`/portfolio/artifacts/${artifact.id}`)}
-              onDelete={() => handleDelete(artifact.id)}
+              onDelete={() => handleDeleteRequest(artifact.id)}
+              onCreateSocialPost={handleCreateSocialPost}
             />
           ))}
         </div>
@@ -238,25 +283,43 @@ export function PortfolioPage() {
         </DialogContent>
       </Dialog>
 
-      {/* AI Research Sheet */}
-      <Sheet open={isAIResearchOpen} onOpenChange={setIsAIResearchOpen}>
-        <SheetContent side="right" className="w-[450px] sm:w-[650px] p-0" data-portal-ignore-click-outside data-testid="ai-research-sheet">
-          <SheetHeader className="px-6 py-4 border-b">
-            <SheetTitle className="flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              AI Research Assistant
-            </SheetTitle>
-          </SheetHeader>
-          <div className="h-[calc(100vh-80px)]">
-            <ChatPanel
-              contextKey="portfolio:research"
-              title="Content Research"
-              showHeader={false}
-              height="100%"
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {/* Mobile-only: AI Research Sheet overlay (desktop uses AppShell split view) */}
+      {isMobile && isChatOpen && chatConfig && (
+        <Sheet open onOpenChange={(open) => { if (!open) closeChat() }}>
+          <SheetContent side="right" className="w-full p-0" data-portal-ignore-click-outside data-testid="ai-research-sheet">
+            <div className="h-full">
+              <ChatPanel
+                key={configVersion}
+                contextKey={chatConfig.contextKey}
+                title={chatConfig.title || 'Content Research'}
+                showHeader={true}
+                height="100%"
+              />
+            </div>
+          </SheetContent>
+        </Sheet>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+        <AlertDialogContent data-portal-ignore-click-outside>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Artifact</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this artifact and all its research, writing characteristics, and generated images. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteArtifact.isPending ? 'Deleting...' : 'Delete'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

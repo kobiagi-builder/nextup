@@ -5,7 +5,7 @@
  */
 
 import { useNavigate } from 'react-router-dom'
-import { FileText, MessageSquare, Trophy, MoreVertical, Clock, Sparkles } from 'lucide-react'
+import { FileText, MessageSquare, Trophy, MoreVertical, Clock, Sparkles, Share2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,6 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { Artifact, ArtifactType } from '../../types/portfolio'
+import { canCreateSocialPost } from '../../types/portfolio'
 import { StatusBadge } from './StatusBadge'
 import { formatRelativeTime } from '../../utils/format'
 
@@ -24,6 +25,7 @@ interface ArtifactCardProps {
   onEdit?: () => void
   onDelete?: () => void
   onArchive?: () => void
+  onCreateSocialPost?: (artifact: Artifact) => void
   className?: string
 }
 
@@ -49,6 +51,7 @@ export function ArtifactCard({
   onEdit,
   onDelete,
   onArchive,
+  onCreateSocialPost,
   className,
 }: ArtifactCardProps) {
   const navigate = useNavigate()
@@ -110,6 +113,12 @@ export function ArtifactCard({
               {onEdit && (
                 <DropdownMenuItem onClick={(e: React.MouseEvent) => { e.stopPropagation(); onEdit(); }}>
                   Edit
+                </DropdownMenuItem>
+              )}
+              {onCreateSocialPost && canCreateSocialPost(artifact) && (
+                <DropdownMenuItem onClick={(e: React.MouseEvent) => { e.stopPropagation(); onCreateSocialPost(artifact); }}>
+                  <Share2 className="mr-2 h-4 w-4" />
+                  Create Social Post
                 </DropdownMenuItem>
               )}
               {onArchive && (

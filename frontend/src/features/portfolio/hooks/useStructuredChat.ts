@@ -1,4 +1,3 @@
-// @ts-nocheck
 /**
  * useStructuredChat Hook
  *
@@ -11,14 +10,11 @@ import { useAIChat, type UseAIChatOptions } from './useAIChat'
 import {
   useChatStore,
   selectMessages,
-  type ChatContextKey,
 } from '../stores/chatStore'
 import type {
   ParsedChatMessage,
   StructuredResponse,
   ArtifactSuggestion,
-  isStructuredResponseToolResult,
-  isArtifactSuggestionsToolResult,
 } from '../types/chat'
 
 // =============================================================================
@@ -30,6 +26,8 @@ export interface UseStructuredChatOptions extends Omit<UseAIChatOptions, 'onTool
   onArtifactCreated?: (artifact: ArtifactSuggestion) => void
   /** Screen context for Content Agent (optional, passed through from parent) */
   screenContext?: UseAIChatOptions['screenContext']
+  /** Callback when content improvement tool result is received */
+  onContentImproved?: (toolName: string, result: unknown) => void
 }
 
 export interface UseStructuredChatReturn {
@@ -112,7 +110,7 @@ function isArtifactSuggestions(result: unknown): result is {
 // =============================================================================
 
 export function useStructuredChat(options: UseStructuredChatOptions): UseStructuredChatReturn {
-  const { contextKey, onError, onArtifactCreated, screenContext } = options
+  const { contextKey, onError, screenContext, onContentImproved } = options
 
   // Track added items locally
   const [addedItemIds, setAddedItemIds] = useState<Set<string>>(new Set())
@@ -152,13 +150,17 @@ export function useStructuredChat(options: UseStructuredChatOptions): UseStructu
           artifactSuggestions: result.suggestions as unknown[],
         })
       }
+
+      // Forward content improvement tool results to parent
+      if ((toolName === 'improveTextContent' || toolName === 'improveImageContent') && onContentImproved) {
+        onContentImproved(toolName, result)
+      }
     },
-    [contextKey, updateMessage]
+    [contextKey, updateMessage, onContentImproved]
   )
 
   // Use the base AI chat hook
   const {
-    messages: _aiMessages, // We don't use these - we read from store instead
     input,
     setInput,
     sendMessage,
@@ -205,10 +207,10 @@ export function useStructuredChat(options: UseStructuredChatOptions): UseStructu
 
       const parsedMsg: ParsedChatMessage = {
         id: msg.id,
-        role: msg.role,
+        role: msg.role as 'user' | 'assistant' | 'system',
         content: msg.content,
-        createdAt: msg.createdAt,
-        toolInvocations: 'toolInvocations' in msg ? msg.toolInvocations : undefined,
+        createdAt: ('createdAt' in msg && msg.createdAt instanceof Date) ? msg.createdAt : new Date(msg.created_at),
+        toolInvocations: ('toolInvocations' in msg ? msg.toolInvocations : undefined) as ParsedChatMessage['toolInvocations'],
       }
 
       // Structured data is now stored directly in messages

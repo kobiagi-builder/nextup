@@ -83,14 +83,14 @@ export async function captureResponse(
 
     fs.writeFileSync(filePath, JSON.stringify(captureData, null, 2));
 
-    logger.info('ResponseCapture', 'Captured API response', {
+    logger.info('[ResponseCapture] Captured API response', {
       toolName,
       variant,
       filePath,
       dynamicFieldCount: dynamicFields.length,
     });
   } catch (error) {
-    logger.error('ResponseCapture', error instanceof Error ? error : new Error(String(error)), {
+    logger.error('[ResponseCapture] ' + (error instanceof Error ? error.message : String(error)), {
       toolName,
       variant,
     });

@@ -163,7 +163,7 @@ export class TokenBudgetManager {
 
     // Never truncate critical or required content
     if (priority === ContextPriority.CRITICAL || priority === ContextPriority.REQUIRED) {
-      logger.warn('TokenBudgetManager', 'Cannot truncate critical/required content', {
+      logger.warn('[TokenBudgetManager] Cannot truncate critical/required content', {
         priority,
         currentTokens,
         maxTokens,
@@ -179,7 +179,7 @@ export class TokenBudgetManager {
     // Truncate with ellipsis
     const truncated = content.substring(0, maxChars - 20) + '\n\n[...truncated...]';
 
-    logger.info('TokenBudgetManager', 'Content truncated', {
+    logger.info('[TokenBudgetManager] Content truncated', {
       priority,
       originalTokens: currentTokens,
       targetTokens: maxTokens,
@@ -230,7 +230,7 @@ export class TokenBudgetManager {
       }
     }
 
-    logger.info('TokenBudgetManager', 'Conversation history optimized', {
+    logger.info('[TokenBudgetManager] Conversation history optimized', {
       originalMessages: messages.length,
       optimizedMessages: optimized.length,
       originalTokens: totalTokens,
@@ -261,7 +261,7 @@ export class TokenBudgetManager {
     const fits = tokens <= available;
 
     if (!fits) {
-      logger.warn('TokenBudgetManager', 'Content exceeds available tokens', {
+      logger.warn('[TokenBudgetManager] Content exceeds available tokens', {
         category,
         tokens,
         available,
