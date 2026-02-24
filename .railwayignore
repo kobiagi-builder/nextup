@@ -1,0 +1,12 @@
+.cursor
+.claude
+.gemini
+.opencode
+.agent
+.chrome-debug-profile
+.git
+.vite
+testing
+docs
+frontend
+*.md
