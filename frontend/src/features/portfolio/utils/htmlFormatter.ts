@@ -92,7 +92,7 @@ export function formatListsInHtml(html: string): string {
   // Find all paragraphs
   const paragraphs = Array.from(doc.body.querySelectorAll('p'))
 
-  if (paragraphs.length === 0) return html
+  if (paragraphs.length === 0) return content
 
   // Group consecutive list items
   const listGroups: ListGroup[] = []
@@ -162,8 +162,8 @@ export function formatListsInHtml(html: string): string {
     listGroups.push(currentGroup)
   }
 
-  // If no list groups found, return original HTML
-  if (listGroups.length === 0) return html
+  // If no list groups found, return content with image/bold conversions applied
+  if (listGroups.length === 0) return content
 
   // Replace list groups with proper HTML lists (in reverse order to preserve indices)
   listGroups.reverse().forEach((group) => {
