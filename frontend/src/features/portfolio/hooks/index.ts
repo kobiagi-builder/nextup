@@ -36,18 +36,6 @@ export {
   useUpdateUserContextSection,
 } from './useUserContext'
 
-// Style Examples
-export {
-  styleExampleKeys,
-  TARGET_STYLE_EXAMPLES,
-  useStyleExamples,
-  useStyleExample,
-  useStyleExamplesProgress,
-  useCreateStyleExample,
-  useUpdateStyleExample,
-  useDeleteStyleExample,
-} from './useStyleExamples'
-
 // Preferences
 export {
   preferencesKeys,
@@ -91,6 +79,10 @@ export {
   useCreateWritingExample,
   useUpdateWritingExample,
   useDeleteWritingExample,
+  useUploadWritingExample,
+  useExtractFromUrl,
+  useRetryExtraction,
+  useExtractPublication,
 } from './useWritingExamples'
 
 // Phase 4: Foundations Approval

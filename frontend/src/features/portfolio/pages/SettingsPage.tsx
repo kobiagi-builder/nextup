@@ -1,13 +1,14 @@
 /**
  * Settings Page
  *
- * User preferences including theme, interaction mode, etc.
- * Placeholder - full implementation in Step 15.
+ * User preferences including theme, interaction mode, and writing references.
+ * Writing references management is embedded directly via WritingReferencesManager.
  */
 
-import { Moon, Sun, Monitor, MessageSquare, Zap, Edit3 } from 'lucide-react'
+import { Moon, Sun, Monitor } from 'lucide-react'
 import { useTheme } from '@/providers/ThemeProvider'
 import { cn } from '@/lib/utils'
+import { WritingReferencesManager } from '../components/writing-references/WritingReferencesManager'
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -17,27 +18,6 @@ export function SettingsPage() {
     { value: 'dark', label: 'Dark', icon: Moon },
     { value: 'system', label: 'System', icon: Monitor },
   ] as const
-
-  const interactionModes = [
-    {
-      value: 'chat',
-      label: 'Chat Mode',
-      description: 'Conversational AI assistance in a side panel',
-      icon: MessageSquare,
-    },
-    {
-      value: 'inline',
-      label: 'Inline Mode',
-      description: 'AI suggestions appear as you type',
-      icon: Zap,
-    },
-    {
-      value: 'direct',
-      label: 'Direct Mode',
-      description: 'AI writes full content based on topic',
-      icon: Edit3,
-    },
-  ]
 
   return (
     <div className="space-y-8 max-w-2xl">
@@ -91,74 +71,17 @@ export function SettingsPage() {
         </div>
       </section>
 
-      {/* AI Interaction Mode */}
+      {/* Writing References Section — full embedded management UI */}
       <section className="space-y-4">
-        <h2 className="text-heading-md font-semibold text-foreground">
-          AI Interaction
-        </h2>
-        <div className="space-y-3">
-          {interactionModes.map((mode) => {
-            const Icon = mode.icon
-            const isSelected = mode.value === 'chat' // Default to chat for now
-            return (
-              <button
-                key={mode.value}
-                className={cn(
-                  'w-full flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all',
-                  isSelected
-                    ? 'border-brand-300 bg-surface-selected'
-                    : 'border-border hover:border-border-strong bg-card'
-                )}
-              >
-                <div className={cn(
-                  'w-10 h-10 rounded-lg flex items-center justify-center shrink-0',
-                  isSelected ? 'bg-brand-300/20' : 'bg-secondary'
-                )}>
-                  <Icon className={cn(
-                    'h-5 w-5',
-                    isSelected ? 'text-brand-300' : 'text-muted-foreground'
-                  )} />
-                </div>
-                <div>
-                  <h3 className={cn(
-                    'font-semibold',
-                    isSelected ? 'text-foreground' : 'text-muted-foreground'
-                  )}>
-                    {mode.label}
-                  </h3>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    {mode.description}
-                  </p>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* Writing Style Section */}
-      <section className="space-y-4">
-        <div className="flex items-center justify-between">
+        <div>
           <h2 className="text-heading-md font-semibold text-foreground">
-            Writing Style
+            Writing References
           </h2>
-          <a href="/settings/style" className="text-sm text-brand-300 hover:underline">
-            Manage Examples →
-          </a>
-        </div>
-        <div className="rounded-xl bg-card border border-border p-6 text-center">
-          <p className="text-muted-foreground">
-            Add 4-5 writing samples to teach the AI your voice.
+          <p className="mt-1 text-sm text-muted-foreground">
+            Add examples of your writing to teach the AI your voice for each content type.
           </p>
-          <div className="mt-4 flex items-center justify-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-muted" />
-            <div className="h-2 w-2 rounded-full bg-muted" />
-            <div className="h-2 w-2 rounded-full bg-muted" />
-            <div className="h-2 w-2 rounded-full bg-muted" />
-            <div className="h-2 w-2 rounded-full bg-muted" />
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">0 / 5 examples</p>
         </div>
+        <WritingReferencesManager />
       </section>
     </div>
   )

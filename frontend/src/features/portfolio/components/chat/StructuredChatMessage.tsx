@@ -5,8 +5,12 @@
  * Shows: Discussion (collapsible) -> Title -> Actionable Cards -> CTA
  */
 
+import { useMemo } from 'react'
+import DOMPurify from 'dompurify'
 import { Bot, ListTree, TrendingUp, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { markdownToHTML } from '@/lib/markdown'
+import { cleanAIText } from '@/lib/cleanAIText'
 import { DiscussionSection } from './DiscussionSection'
 import { ArtifactSuggestionCard } from './ArtifactSuggestionCard'
 import { parseMessageSegments } from '../../utils/messageFormatter'
@@ -177,6 +181,27 @@ function ActionableCardsGrid({
   )
 }
 
+/**
+ * Renders assistant text with markdown formatting and AI text cleanup.
+ * All content is sanitized with DOMPurify before rendering.
+ */
+function RenderedText({ text, className }: { text: string; className?: string }) {
+  const html = useMemo(() => {
+    if (!text) return ''
+    return DOMPurify.sanitize(markdownToHTML(cleanAIText(text)))
+  }, [text])
+
+  return (
+    <div
+      className={cn(
+        'prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0',
+        className
+      )}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
+}
+
 interface CTASectionProps {
   text: string
 }
@@ -184,7 +209,7 @@ interface CTASectionProps {
 function CTASection({ text }: CTASectionProps) {
   return (
     <div className="rounded-lg bg-muted/50 p-4 text-sm text-muted-foreground">
-      {text}
+      <RenderedText text={text} />
     </div>
   )
 }
@@ -229,7 +254,7 @@ export function StructuredChatMessage({
                       segment.type === 'explanation' && "bg-muted"
                     )}
                   >
-                    <div className="whitespace-pre-wrap break-words">{segment.text}</div>
+                    <RenderedText text={segment.text} />
                   </div>
                 ))}
               </div>

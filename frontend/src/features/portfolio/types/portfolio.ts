@@ -1,7 +1,7 @@
 /**
  * Portfolio Feature Types
  *
- * Type definitions for the Consulting Toolkit Portfolio MVP.
+ * Type definitions for the NextUp Portfolio MVP.
  * All types match the database schema defined in 001_portfolio_schema.sql.
  *
  * Includes:
@@ -196,6 +196,12 @@ export interface ArtifactWritingCharacteristics {
 /** Source type for user writing examples */
 export type WritingExampleSourceType = 'pasted' | 'file_upload' | 'artifact' | 'url'
 
+/** Extraction status for writing references */
+export type ExtractionStatus = 'pending' | 'extracting' | 'success' | 'failed'
+
+/** Detected publication platform */
+export type PublicationPlatform = 'linkedin' | 'medium' | 'substack' | 'reddit' | 'google_docs' | 'generic'
+
 /** User-provided writing example for style analysis */
 export interface UserWritingExample {
   id: UUID
@@ -207,6 +213,9 @@ export interface UserWritingExample {
   source_reference?: string
   analyzed_characteristics: WritingCharacteristics
   is_active: boolean
+  artifact_type?: ArtifactType | null
+  extraction_status: ExtractionStatus
+  source_url?: string | null
   created_at: DateString
   updated_at: DateString
 }
@@ -217,6 +226,7 @@ export interface CreateWritingExampleInput {
   content: string
   source_type?: WritingExampleSourceType
   source_reference?: string
+  artifact_type?: ArtifactType
 }
 
 /** Update writing example input */
@@ -224,6 +234,7 @@ export interface UpdateWritingExampleInput {
   name?: string
   content?: string
   is_active?: boolean
+  artifact_type?: ArtifactType
 }
 
 // =============================================================================

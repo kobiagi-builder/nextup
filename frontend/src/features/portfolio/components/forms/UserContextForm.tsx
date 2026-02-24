@@ -8,7 +8,6 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import type {
@@ -105,39 +104,13 @@ function AboutMeForm({
         <Label htmlFor="bio">Bio</Label>
         <Textarea
           id="bio"
-          placeholder="Tell us about yourself..."
+          placeholder="Who you are and what you do professionally. E.g.: Fractional CPO helping B2B SaaS startups build their first product org and go from founder-led sales to scalable growth."
           rows={3}
           {...register('bio')}
         />
         {errors.bio && (
           <p className="text-sm text-destructive">{errors.bio.message}</p>
         )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="background">Background</Label>
-        <Textarea
-          id="background"
-          placeholder="• 10+ years in product management&#10;• Led teams of 5-15 people&#10;• Scaled products from 0 to 1M users"
-          rows={4}
-          {...register('background')}
-        />
-        {errors.background && (
-          <p className="text-sm text-destructive">{errors.background.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="years_experience">Years of Experience</Label>
-        <Input
-          id="years_experience"
-          type="number"
-          min={0}
-          max={50}
-          {...register('years_experience', {
-            setValueAs: (v) => (v === '' ? null : Number(v)),
-          })}
-        />
       </div>
 
       <div className="space-y-2">
@@ -237,32 +210,6 @@ function ProfessionForm({
         )}
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="methodologies">Methodologies</Label>
-        <Textarea
-          id="methodologies"
-          placeholder="• Jobs-to-be-Done&#10;• Design Thinking&#10;• Lean Startup"
-          rows={3}
-          {...register('methodologies')}
-        />
-        {errors.methodologies && (
-          <p className="text-sm text-destructive">{errors.methodologies.message}</p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="certifications">Certifications</Label>
-        <Textarea
-          id="certifications"
-          placeholder="• Certified Scrum Product Owner (CSPO)&#10;• PMP&#10;• AWS Solutions Architect"
-          rows={3}
-          {...register('certifications')}
-        />
-        {errors.certifications && (
-          <p className="text-sm text-destructive">{errors.certifications.message}</p>
-        )}
-      </div>
-
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
@@ -313,16 +260,6 @@ function CustomersForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="ideal_client">Ideal Client</Label>
-        <Textarea
-          id="ideal_client"
-          placeholder="Describe your ideal client..."
-          rows={3}
-          {...register('ideal_client')}
-        />
-      </div>
-
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
@@ -370,16 +307,6 @@ function GoalsForm({
           placeholder="What do you want to achieve with your content?"
           rows={3}
           {...register('content_goals')}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="business_goals">Business Goals</Label>
-        <Textarea
-          id="business_goals"
-          placeholder="What are your broader business goals?"
-          rows={3}
-          {...register('business_goals')}
         />
       </div>
 

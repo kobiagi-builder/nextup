@@ -15,8 +15,8 @@
  * - /portfolio : Portfolio (protected)
  * - /portfolio/artifacts/:id : Artifact editor (protected)
  * - /profile : User profile (protected)
- * - /settings : Settings (protected)
- * - /settings/style : Writing style (protected)
+ * - /settings : Settings with embedded writing references (protected)
+ * - /settings/style : Redirects to /settings (writing refs now embedded)
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
@@ -40,7 +40,6 @@ import { PortfolioPage } from '@/features/portfolio/pages/PortfolioPage'
 import { ArtifactPage } from '@/features/portfolio/pages/ArtifactPage'
 import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
 import { SettingsPage } from '@/features/portfolio/pages/SettingsPage'
-import { WritingStylePage } from '@/features/portfolio/pages/WritingStylePage'
 
 // Create React Query client with default options
 const queryClient = new QueryClient({
@@ -93,7 +92,7 @@ function App() {
                   <Route path="/portfolio/artifacts/:id" element={<ArtifactPage />} />
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
-                  <Route path="/settings/style" element={<WritingStylePage />} />
+                  <Route path="/settings/style" element={<Navigate to="/settings" replace />} />
                 </Route>
               </Routes>
             </BrowserRouter>

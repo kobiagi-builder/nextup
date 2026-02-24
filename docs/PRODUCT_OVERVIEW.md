@@ -1,13 +1,13 @@
-# Product Consultant Helper
+# NextUp
 
 **Created:** 2026-01-15
-**Last Updated:** 2026-02-19
+**Last Updated:** 2026-02-24
 **Version:** 1.0.0
 **Status:** Active
 
 ## Overview
 
-Product Consultant Helper is a SaaS application that helps product consultants create high-quality, authentic content. It combines AI-powered content creation with the user's unique writing style and professional expertise to produce blog posts, case studies, and social media content that reads naturally and reflects the consultant's voice.
+NextUp is an AI-native operating system for advisors, consultants, and fractional service providers. It combines AI-powered content creation with the user's unique writing style and professional expertise to produce blog posts, case studies, and social media content that reads naturally and reflects the consultant's voice — with CRM, agent skills, and a full fractional toolkit on the roadmap.
 
 ## Target User
 
@@ -38,7 +38,7 @@ Product Consultant Helper is a SaaS application that helps product consultants c
 | Rich Text Editor | TipTap-based editor with formatting, images, markdown | Shipped |
 | Research Pipeline | Multi-source research via Tavily API | Shipped |
 | User Profile & Skills | Professional context for AI personalization | Shipped |
-| Writing Examples | Upload writing samples for style matching (min 150 words) | Shipped |
+| Writing References | Per-artifact-type writing samples with 4 upload methods (paste, file, file URL, publication URL) | Shipped |
 | Dark/Light Theme | System-aware theme with manual override | Shipped |
 
 ## Tech Stack
@@ -67,7 +67,7 @@ For full tech stack details, see [CLAUDE.md](../CLAUDE.md).
 | `/portfolio/artifacts/:id` | ArtifactPage | Full editor with chat panel, foundations, image approval |
 | `/profile` | ProfilePage | User context, skills management |
 | `/settings` | SettingsPage | Theme, interaction mode preferences |
-| `/settings/style` | WritingStylePage | Writing examples upload and analysis |
+| `/settings/style` | WritingStylePage | Writing references management (tabbed by artifact type) |
 
 ### Content Types
 

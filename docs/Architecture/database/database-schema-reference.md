@@ -511,29 +511,34 @@ CHECK (preferred_interaction_mode IN ('chat', 'inline', 'direct'))
 
 ## 10. user_writing_examples
 
-Writing examples uploaded by users for Phase 4 writing style analysis. Minimum 150 words.
+Writing references uploaded by users for per-artifact-type style analysis. Supports 4 upload methods: paste text, file upload (DOCX/PDF/MD/TXT), file URL extraction, and publication URL scraping.
 
 ### Schema
 
 | Column | Type | Nullable | Default | Description |
 |--------|------|----------|---------|-------------|
 | `id` | UUID | NO | `gen_random_uuid()` | Primary key |
-| `user_id` | UUID | NO | - | FK → auth.users(id) |
+| `user_id` | UUID | NO | - | FK to auth.users(id) |
 | `name` | TEXT | NO | - | Example display name |
-| `source_type` | ENUM | NO | `'pasted'` | pasted/file_upload/artifact/url |
-| `content` | TEXT | NO | - | Full text content |
-| `word_count` | INTEGER | NO | - | Word count (min 150) |
-| `source_reference` | TEXT | YES | - | Original source URL/path |
+| `source_type` | TEXT | NO | `'pasted'` | `pasted` / `file_upload` / `artifact` / `url` |
+| `source_url` | TEXT | YES | - | Source URL (for url-based refs) |
+| `source_reference` | TEXT | YES | - | Legacy source reference |
+| `content` | TEXT | NO | - | Full extracted text content |
+| `word_count` | INTEGER | NO | - | Word count |
+| `artifact_type` | TEXT | YES | - | `blog` / `social_post` / `showcase` |
+| `extraction_status` | TEXT | YES | `'success'` | `success` / `extracting` / `failed` / `pending` |
 | `analyzed_characteristics` | JSONB | YES | `'{}'` | AI-analyzed writing traits |
 | `is_active` | BOOLEAN | YES | `true` | Active/inactive flag |
 | `created_at` | TIMESTAMP | YES | `now()` | Creation timestamp |
 | `updated_at` | TIMESTAMP | YES | `now()` | Last update |
 
-### CHECK Constraints
+### New Columns (Writing References Redesign)
 
-```sql
-CHECK (word_count >= 150)
-```
+| Column | Added In | Purpose |
+|--------|----------|---------|
+| `artifact_type` | Phase 1 | Categorize references per content type for filtered analysis |
+| `extraction_status` | Phase 2 | Track async extraction progress for URL-based uploads |
+| `source_url` | Phase 2 | Store the original URL for URL-based references (used by retry) |
 
 ### Indexes
 

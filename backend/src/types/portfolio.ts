@@ -97,6 +97,9 @@ export interface ArtifactWritingCharacteristics {
 /** Source type for user writing examples */
 export type WritingExampleSourceType = 'pasted' | 'file_upload' | 'artifact' | 'url'
 
+/** Extraction status for writing references */
+export type ExtractionStatus = 'pending' | 'extracting' | 'success' | 'failed'
+
 /** User-provided writing example for style analysis */
 export interface UserWritingExample {
   id: string
@@ -108,6 +111,9 @@ export interface UserWritingExample {
   source_reference?: string
   analyzed_characteristics: WritingCharacteristics
   is_active: boolean
+  artifact_type?: ArtifactType | null
+  extraction_status: ExtractionStatus
+  source_url?: string | null
   created_at: string
   updated_at: string
 }

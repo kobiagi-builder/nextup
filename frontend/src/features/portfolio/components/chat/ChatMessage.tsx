@@ -5,7 +5,11 @@
  * Handles tool results and streaming states.
  */
 
+import { useMemo } from 'react'
+import DOMPurify from 'dompurify'
 import { cn } from '@/lib/utils'
+import { markdownToHTML } from '@/lib/markdown'
+import { cleanAIText } from '@/lib/cleanAIText'
 import { Bot, User } from 'lucide-react'
 
 // =============================================================================
@@ -42,6 +46,14 @@ export function ChatMessage({
 }: ChatMessageProps) {
   const isUser = role === 'user'
 
+  // For assistant messages: clean AI artifacts then render markdown as HTML
+  // Content is sanitized with DOMPurify before rendering
+  const renderedHTML = useMemo(() => {
+    if (isUser || !content) return null
+    const cleaned = cleanAIText(content)
+    return DOMPurify.sanitize(markdownToHTML(cleaned))
+  }, [isUser, content])
+
   return (
     <div
       className={cn(
@@ -77,13 +89,21 @@ export function ChatMessage({
               : 'bg-muted text-foreground'
           )}
         >
-          {/* Message text with markdown-like rendering */}
-          <div className="whitespace-pre-wrap break-words">
-            {content}
-            {isStreaming && (
-              <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-current" />
-            )}
-          </div>
+          {isUser ? (
+            <div className="whitespace-pre-wrap break-words">{content}</div>
+          ) : (
+            <div className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
+              {/* Assistant content: DOMPurify-sanitized markdown→HTML */}
+              {renderedHTML ? (
+                <div dangerouslySetInnerHTML={{ __html: renderedHTML }} />
+              ) : (
+                content
+              )}
+              {isStreaming && (
+                <span className="ml-1 inline-block h-4 w-1 animate-pulse bg-current" />
+              )}
+            </div>
+          )}
         </div>
 
         {/* Tool invocations */}

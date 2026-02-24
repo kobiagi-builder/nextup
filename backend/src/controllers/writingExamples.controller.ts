@@ -8,10 +8,7 @@
 import { Request, Response } from 'express';
 import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
-import type { WritingExampleSourceType, WritingCharacteristics } from '../types/portfolio.js';
-
-// Minimum word count for writing examples
-const MIN_WORD_COUNT = 500;
+import type { WritingExampleSourceType, ArtifactType } from '../types/portfolio.js';
 
 /**
  * Count words in text
@@ -30,8 +27,9 @@ function countWords(text: string): number {
  */
 export const listWritingExamples = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
     const activeOnly = req.query.active_only === 'true';
+    const artifactType = req.query.artifact_type as string | undefined;
 
     if (!userId) {
       res.status(401).json({
@@ -41,9 +39,19 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
       return;
     }
 
+    const VALID_ARTIFACT_TYPES = ['blog', 'social_post', 'showcase'];
+    if (artifactType && !VALID_ARTIFACT_TYPES.includes(artifactType)) {
+      res.status(400).json({
+        error: 'Validation error',
+        message: `artifact_type must be one of: ${VALID_ARTIFACT_TYPES.join(', ')}`,
+      });
+      return;
+    }
+
     logger.debug('[WritingExamplesController] Listing writing examples', {
       hasUserId: true,
       activeOnly,
+      hasArtifactType: !!artifactType,
     });
 
     let query = getSupabase()
@@ -54,6 +62,10 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
 
     if (activeOnly) {
       query = query.eq('is_active', true);
+    }
+
+    if (artifactType) {
+      query = query.eq('artifact_type', artifactType);
     }
 
     const { data, error } = await query;
@@ -98,7 +110,7 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
 export const getWritingExample = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -163,8 +175,8 @@ export const getWritingExample = async (req: Request, res: Response): Promise<vo
  */
 export const createWritingExample = async (req: Request, res: Response): Promise<void> => {
   try {
-    const userId = (req as any).userId;
-    const { name, content, source_type = 'pasted', source_reference } = req.body;
+    const userId = req.user?.id;
+    const { name, content, source_type = 'pasted', source_reference, artifact_type } = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -175,14 +187,6 @@ export const createWritingExample = async (req: Request, res: Response): Promise
     }
 
     // Validation
-    if (!name || typeof name !== 'string' || name.trim().length === 0) {
-      res.status(400).json({
-        error: 'Validation error',
-        message: 'Name is required',
-      });
-      return;
-    }
-
     if (!content || typeof content !== 'string') {
       res.status(400).json({
         error: 'Validation error',
@@ -192,15 +196,6 @@ export const createWritingExample = async (req: Request, res: Response): Promise
     }
 
     const wordCount = countWords(content);
-    if (wordCount < MIN_WORD_COUNT) {
-      res.status(400).json({
-        error: 'Validation error',
-        message: `Content must be at least ${MIN_WORD_COUNT} words. Current: ${wordCount} words.`,
-        wordCount,
-        minRequired: MIN_WORD_COUNT,
-      });
-      return;
-    }
 
     // Validate source_type
     const validSourceTypes: WritingExampleSourceType[] = ['pasted', 'file_upload', 'artifact', 'url'];
@@ -212,22 +207,48 @@ export const createWritingExample = async (req: Request, res: Response): Promise
       return;
     }
 
+    // Validate artifact_type
+    const validArtifactTypes: ArtifactType[] = ['blog', 'social_post', 'showcase'];
+    if (artifact_type && !validArtifactTypes.includes(artifact_type as ArtifactType)) {
+      res.status(400).json({
+        error: 'Validation error',
+        message: `Invalid artifact_type. Must be one of: ${validArtifactTypes.join(', ')}`,
+      });
+      return;
+    }
+
+    // Auto-generate name if not provided
+    let displayName = (name && typeof name === 'string' && name.trim()) ? name.trim() : '';
+    if (!displayName) {
+      const typeLabels: Record<string, string> = { blog: 'Blog', social_post: 'Social post', showcase: 'Showcase' };
+      const typeLabel = (artifact_type && typeLabels[artifact_type]) || 'Writing';
+      const { count } = await getSupabase()
+        .from('user_writing_examples')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('artifact_type', artifact_type || '');
+      displayName = `${typeLabel} reference ${(count ?? 0) + 1}`;
+    }
+
     logger.info('[WritingExamplesController] Creating writing example', {
       hasUserId: true,
-      nameLength: name.length,
+      nameLength: displayName.length,
       wordCount,
       sourceType: source_type,
+      hasArtifactType: !!artifact_type,
     });
 
     const { data, error } = await getSupabase()
       .from('user_writing_examples')
       .insert({
         user_id: userId,
-        name: name.trim(),
+        name: displayName,
         content,
         word_count: wordCount,
         source_type,
         source_reference,
+        artifact_type: artifact_type || null,
+        extraction_status: 'success',
         analyzed_characteristics: {},
         is_active: true,
       })
@@ -247,7 +268,7 @@ export const createWritingExample = async (req: Request, res: Response): Promise
     }
 
     logger.info('[WritingExamplesController] Writing example created', {
-      exampleId: data.id,
+      hasExampleId: !!data.id,
     });
 
     res.status(201).json(data);
@@ -277,13 +298,14 @@ export const createWritingExample = async (req: Request, res: Response): Promise
  *   name?: string;
  *   content?: string;
  *   is_active?: boolean;
+ *   artifact_type?: 'blog' | 'social_post' | 'showcase';
  * }
  */
 export const updateWritingExample = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).userId;
-    const { name, content, is_active } = req.body;
+    const userId = req.user?.id;
+    const { name, content, is_active, artifact_type } = req.body;
 
     if (!userId) {
       res.status(401).json({
@@ -348,15 +370,6 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
       }
 
       const wordCount = countWords(content);
-      if (wordCount < MIN_WORD_COUNT) {
-        res.status(400).json({
-          error: 'Validation error',
-          message: `Content must be at least ${MIN_WORD_COUNT} words. Current: ${wordCount} words.`,
-          wordCount,
-          minRequired: MIN_WORD_COUNT,
-        });
-        return;
-      }
 
       updates.content = content;
       updates.word_count = wordCount;
@@ -368,6 +381,18 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
       updates.is_active = !!is_active;
     }
 
+    if (artifact_type !== undefined) {
+      const validTypes = ['blog', 'social_post', 'showcase'];
+      if (!validTypes.includes(artifact_type)) {
+        res.status(400).json({
+          error: 'Validation error',
+          message: `Invalid artifact_type. Must be one of: ${validTypes.join(', ')}`,
+        });
+        return;
+      }
+      updates.artifact_type = artifact_type;
+    }
+
     if (Object.keys(updates).length === 0) {
       res.status(400).json({
         error: 'Validation error',
@@ -377,7 +402,7 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
     }
 
     logger.info('[WritingExamplesController] Updating writing example', {
-      exampleId: id,
+      hasExampleId: !!id,
       updateFields: Object.keys(updates),
     });
 
@@ -425,7 +450,7 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
 export const deleteWritingExample = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const userId = (req as any).userId;
+    const userId = req.user?.id;
 
     if (!userId) {
       res.status(401).json({
@@ -467,7 +492,7 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
     }
 
     logger.info('[WritingExamplesController] Deleting writing example', {
-      exampleId: id,
+      hasExampleId: !!id,
     });
 
     const { error } = await getSupabase()

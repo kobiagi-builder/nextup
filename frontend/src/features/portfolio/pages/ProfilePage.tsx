@@ -5,132 +5,126 @@
  * Includes: About Me, Profession, Customers, Goals sections.
  */
 
-import { useState, useMemo } from 'react'
-import { User, Briefcase, Target, Star, Pencil, Check } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { useToast } from '@/hooks/use-toast'
-import { useUserContext, useUpdateUserContext } from '../hooks/useUserContext'
-import { UserContextForm } from '../components/forms'
-import { SkillsSection } from '../components/SkillsSection'
-import type { UserContext, UpdateUserContextInput } from '../types/portfolio'
-import { cn } from '@/lib/utils'
+} from "@/components/ui/dialog";
+import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { Briefcase, Check, Pencil, Star, Target, User } from "lucide-react";
+import { useMemo, useState } from "react";
+import { UserContextForm } from "../components/forms";
+import { useUpdateUserContext, useUserContext } from "../hooks/useUserContext";
+import type { UpdateUserContextInput, UserContext } from "../types/portfolio";
 
 /** Profile section configuration */
 const SECTIONS = [
   {
-    id: 'about' as const,
+    id: "about" as const,
     icon: User,
-    title: 'About Me',
-    fields: ['Bio', 'Background', 'Value Proposition'],
+    title: "About Me",
+    fields: ["Bio", "Value Proposition"],
     getContent: (ctx: UserContext | null) => ({
       bio: ctx?.about_me?.bio,
-      background: ctx?.about_me?.background,
       value_proposition: ctx?.about_me?.value_proposition,
     }),
     isEmpty: (ctx: UserContext | null) =>
-      !ctx?.about_me?.bio && !ctx?.about_me?.background && !ctx?.about_me?.value_proposition,
+      !ctx?.about_me?.bio && !ctx?.about_me?.value_proposition,
   },
   {
-    id: 'profession' as const,
+    id: "profession" as const,
     icon: Briefcase,
-    title: 'Profession',
-    fields: ['Expertise', 'Industries', 'Methods', 'Certifications'],
+    title: "Profession",
+    fields: ["Expertise", "Industries"],
     getContent: (ctx: UserContext | null) => ({
       expertise_areas: ctx?.profession?.expertise_areas,
       industries: ctx?.profession?.industries,
-      methodologies: ctx?.profession?.methodologies,
-      certifications: ctx?.profession?.certifications,
     }),
     isEmpty: (ctx: UserContext | null) =>
-      !ctx?.profession?.expertise_areas &&
-      !ctx?.profession?.industries &&
-      !ctx?.profession?.methodologies &&
-      !ctx?.profession?.certifications,
+      !ctx?.profession?.expertise_areas && !ctx?.profession?.industries,
   },
   {
-    id: 'customers' as const,
+    id: "customers" as const,
     icon: Target,
-    title: 'Customers',
-    fields: ['Target Audience', 'Ideal Client'],
+    title: "Customers",
+    fields: ["Target Audience"],
     getContent: (ctx: UserContext | null) => ({
       target_audience: ctx?.customers?.target_audience,
-      ideal_client: ctx?.customers?.ideal_client,
     }),
-    isEmpty: (ctx: UserContext | null) =>
-      !ctx?.customers?.target_audience && !ctx?.customers?.ideal_client,
+    isEmpty: (ctx: UserContext | null) => !ctx?.customers?.target_audience,
   },
   {
-    id: 'goals' as const,
+    id: "goals" as const,
     icon: Star,
-    title: 'Goals',
-    fields: ['Content Goals', 'Business Goals'],
+    title: "Goals",
+    fields: ["Content Goals"],
     getContent: (ctx: UserContext | null) => ({
       content_goals: ctx?.goals?.content_goals,
-      business_goals: ctx?.goals?.business_goals,
     }),
-    isEmpty: (ctx: UserContext | null) =>
-      !ctx?.goals?.content_goals && !ctx?.goals?.business_goals,
+    isEmpty: (ctx: UserContext | null) => !ctx?.goals?.content_goals,
   },
-]
+];
 
-type SectionType = 'about_me' | 'profession' | 'customers' | 'goals'
+type SectionType = "about_me" | "profession" | "customers" | "goals";
 
 export function ProfilePage() {
-  const [editingSection, setEditingSection] = useState<SectionType | null>(null)
-  const { toast } = useToast()
+  const [editingSection, setEditingSection] = useState<SectionType | null>(
+    null,
+  );
+  const { toast } = useToast();
 
   // Data hooks
-  const { data: userContext, isLoading } = useUserContext()
-  const updateUserContext = useUpdateUserContext()
+  const { data: userContext, isLoading } = useUserContext();
+  const updateUserContext = useUpdateUserContext();
 
   // Calculate completion percentage
   const completion = useMemo(() => {
-    if (!userContext) return 0
-    const totalSections = SECTIONS.length
+    if (!userContext) return 0;
+    const totalSections = SECTIONS.length;
     const completedSections = SECTIONS.filter(
-      (section) => !section.isEmpty(userContext)
-    ).length
-    return Math.round((completedSections / totalSections) * 100)
-  }, [userContext])
+      (section) => !section.isEmpty(userContext),
+    ).length;
+    return Math.round((completedSections / totalSections) * 100);
+  }, [userContext]);
 
   // Handle save
   const handleSave = async (data: UpdateUserContextInput) => {
     try {
-      await updateUserContext.mutateAsync(data)
-      setEditingSection(null)
+      await updateUserContext.mutateAsync(data);
+      setEditingSection(null);
       toast({
-        title: 'Profile updated',
-        description: 'Your changes have been saved.',
-      })
+        title: "Profile updated",
+        description: "Your changes have been saved.",
+      });
     } catch (error) {
-      console.error('[ProfilePage] Failed to update profile:', error)
+      console.error("[ProfilePage] Failed to update profile:", error);
       toast({
-        title: 'Failed to save',
-        description: error instanceof Error ? error.message : 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      })
+        title: "Failed to save",
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred. Please try again.",
+        variant: "destructive",
+      });
     }
-  }
+  };
 
   // Map section id to SectionType
   const sectionIdToType: Record<string, SectionType> = {
-    about: 'about_me',
-    profession: 'profession',
-    customers: 'customers',
-    goals: 'goals',
-  }
+    about: "about_me",
+    profession: "profession",
+    customers: "customers",
+    goals: "goals",
+  };
 
   // Render field value
   const renderFieldValue = (value: unknown) => {
-    if (value === null || value === undefined) return null
+    if (value === null || value === undefined) return null;
     if (Array.isArray(value)) {
-      if (value.length === 0) return null
+      if (value.length === 0) return null;
       return (
         <div className="flex flex-wrap gap-1.5">
           {value.map((item, i) => (
@@ -142,17 +136,17 @@ export function ProfilePage() {
             </span>
           ))}
         </div>
-      )
+      );
     }
-    if (typeof value === 'string' && value.trim()) {
+    if (typeof value === "string" && value.trim()) {
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-wrap">
           {value}
         </p>
-      )
+      );
     }
-    return null
-  }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -163,10 +157,12 @@ export function ProfilePage() {
             Your Profile
           </h1>
           <p className="mt-1 text-muted-foreground">
-            Help the AI understand you better to create personalized content.
+            Help us know you better to create your personalized content.
           </p>
         </div>
-        <Button onClick={() => setEditingSection('about_me')}>Edit Profile</Button>
+        <Button onClick={() => setEditingSection("about_me")}>
+          Edit Profile
+        </Button>
       </div>
 
       {/* Progress Indicator */}
@@ -197,10 +193,10 @@ export function ProfilePage() {
         </div>
       ) : (
         <div className="space-y-4">
-          {SECTIONS.map((section, index) => {
-            const Icon = section.icon
-            const isEmpty = section.isEmpty(userContext ?? null)
-            const content = section.getContent(userContext ?? null)
+          {SECTIONS.map((section) => {
+            const Icon = section.icon;
+            const isEmpty = section.isEmpty(userContext ?? null);
+            const content = section.getContent(userContext ?? null);
 
             return (
               <div key={section.id}>
@@ -210,14 +206,16 @@ export function ProfilePage() {
                     <div className="flex items-center gap-3">
                       <div
                         className={cn(
-                          'w-10 h-10 rounded-lg flex items-center justify-center',
-                          isEmpty ? 'bg-secondary' : 'bg-brand-300/20'
+                          "w-10 h-10 rounded-lg flex items-center justify-center",
+                          isEmpty ? "bg-secondary" : "bg-brand-300/20",
                         )}
                       >
                         <Icon
                           className={cn(
-                            'h-5 w-5',
-                            isEmpty ? 'text-muted-foreground' : 'text-brand-300'
+                            "h-5 w-5",
+                            isEmpty
+                              ? "text-muted-foreground"
+                              : "text-brand-300",
                           )}
                         />
                       </div>
@@ -231,12 +229,14 @@ export function ProfilePage() {
                           )}
                         </div>
                         <p className="text-xs text-muted-foreground">
-                          {section.fields.join(' • ')}
+                          {section.fields.join(" • ")}
                         </p>
                       </div>
                     </div>
                     <button
-                      onClick={() => setEditingSection(sectionIdToType[section.id])}
+                      onClick={() =>
+                        setEditingSection(sectionIdToType[section.id])
+                      }
                       className="flex items-center gap-2 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <Pencil className="h-4 w-4" />
@@ -252,11 +252,11 @@ export function ProfilePage() {
                       </p>
                     ) : (
                       Object.entries(content).map(([key, value]) => {
-                        const renderedValue = renderFieldValue(value)
-                        if (!renderedValue) return null
+                        const renderedValue = renderFieldValue(value);
+                        if (!renderedValue) return null;
                         const label = key
-                          .replace(/_/g, ' ')
-                          .replace(/\b\w/g, (l) => l.toUpperCase())
+                          .replace(/_/g, " ")
+                          .replace(/\b\w/g, (l) => l.toUpperCase());
                         return (
                           <div key={key}>
                             <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
@@ -264,33 +264,33 @@ export function ProfilePage() {
                             </h4>
                             {renderedValue}
                           </div>
-                        )
+                        );
                       })
                     )}
                   </div>
                 </div>
 
-                {/* Insert Skills section after Profession (index 1) */}
-                {index === 1 && (
-                  <div className="mt-4">
-                    <SkillsSection />
-                  </div>
-                )}
+                {/* Skills section hidden - not yet consumed by content agent */}
               </div>
-            )
+            );
           })}
         </div>
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={!!editingSection} onOpenChange={(open) => !open && setEditingSection(null)}>
+      <Dialog
+        open={!!editingSection}
+        onOpenChange={(open) => !open && setEditingSection(null)}
+      >
         <DialogContent
           className="max-w-2xl max-h-[90vh] overflow-y-auto"
           data-portal-ignore-click-outside
         >
           <DialogHeader>
             <DialogTitle>
-              Edit {SECTIONS.find((s) => sectionIdToType[s.id] === editingSection)?.title ?? 'Profile'}
+              Edit{" "}
+              {SECTIONS.find((s) => sectionIdToType[s.id] === editingSection)
+                ?.title ?? "Profile"}
             </DialogTitle>
           </DialogHeader>
           {editingSection && (
@@ -305,7 +305,7 @@ export function ProfilePage() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
 }
 
-export default ProfilePage
+export default ProfilePage;

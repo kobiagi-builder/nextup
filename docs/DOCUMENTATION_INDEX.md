@@ -1,13 +1,13 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-02-22
+**Last Updated:** 2026-02-24
 **Total Documentation Files:** 50+
-**Status:** Complete (Phase 5 — Interview, Social Post, Content Improvement, Topic Creation)
+**Status:** Complete (Phase 6 — Writing References Redesign)
 
 ## Overview
 
-This index catalogs all product documentation for the Product Consultant Helper SaaS application. Documentation is organized into 12 layers covering product overview, user flows, screens, features, architecture, API, AI tools, database, and testing.
+This index catalogs all product documentation for the NextUp platform. Documentation is organized into 12 layers covering product overview, user flows, screens, features, architecture, API, AI tools, database, and testing.
 
 **Current state:**
 - **11 artifact statuses**: draft, interviewing, research, foundations, skeleton, foundations_approval, writing, humanity_checking, creating_visuals, ready, published
@@ -39,7 +39,7 @@ This index catalogs all product documentation for the Product Consultant Helper 
 | [portfolio-management-flow.md](./flows/portfolio-management-flow.md) | Portfolio page CRUD, filtering, and artifact card interactions |
 | [showcase-interview-flow.md](./flows/showcase-interview-flow.md) | Multi-turn showcase interview with coverage scoring |
 | [social-post-creation-flow.md](./flows/social-post-creation-flow.md) | Social post generation from source blog/showcase artifact |
-| [writing-style-setup-flow.md](./flows/writing-style-setup-flow.md) | Writing examples management and style analysis setup |
+| [writing-style-setup-flow.md](./flows/writing-style-setup-flow.md) | Writing references management: 4 upload methods, per-artifact-type, async extraction |
 
 ---
 
@@ -55,7 +55,7 @@ This index catalogs all product documentation for the Product Consultant Helper 
 | [portfolio-page.md](./screens/portfolio-page.md) | Portfolio grid with artifact cards, filters, creation modal |
 | [profile-page.md](./screens/profile-page.md) | Profile setup with 4 sections, skills inventory, completion tracking |
 | [settings-page.md](./screens/settings-page.md) | Theme switching, AI interaction mode, writing style link |
-| [writing-style-page.md](./screens/writing-style-page.md) | Writing examples CRUD with word count validation |
+| [writing-style-page.md](./screens/writing-style-page.md) | Writing references: tabbed UI (Blog/Social/Showcase), 4 upload methods, extraction status |
 
 ---
 
@@ -90,7 +90,7 @@ This index catalogs all product documentation for the Product Consultant Helper 
 | [social-post-generation.md](./features/social-post-generation.md) | Viral post generation from source artifacts |
 | [storytelling-analysis.md](./features/storytelling-analysis.md) | Storytelling framework selection, narrative arc design, emotional journey |
 | [topic-creation.md](./features/topic-creation.md) | Topic suggestion flow, entry points, tools, data model, known limitations |
-| [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing characteristics extraction from user examples |
+| [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing references system + characteristics extraction (per artifact type) |
 
 ---
 
@@ -117,7 +117,7 @@ This index catalogs all product documentation for the Product Consultant Helper 
 
 | File | Description |
 |------|-------------|
-| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | 9 endpoints: execute, clear-session, history, foundations, writing, examples, log, auth, delete (v3.0.0) |
+| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | 13+ endpoints: execute, clear-session, history, foundations, writing, examples (8 endpoints), log, auth, delete |
 | [authentication-and-security.md](./api/authentication-and-security.md) | Bearer token auth, rate limits (10/min, 100/hr, 20 pipelines/day) |
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for intent detection |
@@ -204,6 +204,7 @@ Contains product requirement documents and specifications for major features:
 - `content-creation-agent/` — Content agent phases 1-4 PRDs and specs
 - `showcase-interview-phase/` — Showcase interview PRD and specs
 - `user-auth-data-separation/` — User authentication PRD and specs
+- `writing-references-redesign/` — Writing references redesign phases 1-3 (per-type refs, file parsing, publication scraping)
 
 ---
 
@@ -242,6 +243,7 @@ Social Post:    draft → ready
 ---
 
 **Version History:**
+- **4.0.0** (2026-02-24) — Writing References Redesign: per-artifact-type refs, 4 upload methods, publication scraping, updated API/schema/flow/screen/feature docs
 - **3.0.0** (2026-02-20) — Full rewrite: 12-layer index, 50+ files, 11 statuses, 13 tools, 3 pipeline paths
 - **2.0.0** (2026-01-28) — Phase 3 image generation update
 - **1.0.0** (2026-01-26) — Initial documentation index (19 files)

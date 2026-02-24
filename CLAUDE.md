@@ -132,7 +132,7 @@ Follow the guidelines in `.claude/skills/supabase-postgres-best-practices/SKILL.
 
 ### Project ID
 
-- **Project:** `ohwubfmipnpguunryopl` (product-consultant-helper)
+- **Project:** `ohwubfmipnpguunryopl` (nextup)
 
 ### Example Usage
 

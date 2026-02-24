@@ -5,9 +5,12 @@
  * Similar to Claude Code's "Thinking" section with chevron toggle.
  */
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
+import DOMPurify from 'dompurify'
 import { ChevronDown, ChevronRight, MessageSquare, User, Bot } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { markdownToHTML } from '@/lib/markdown'
+import { cleanAIText } from '@/lib/cleanAIText'
 import type { ResponseInterpretation, ParsedChatMessage } from '../../types/chat'
 
 // =============================================================================
@@ -23,6 +26,25 @@ export interface DiscussionSectionProps {
   defaultCollapsed?: boolean
   /** Additional class name */
   className?: string
+}
+
+// =============================================================================
+// Helpers
+// =============================================================================
+
+/** Renders assistant text with markdown + AI cleanup. Content is DOMPurify-sanitized. */
+function AssistantText({ text }: { text: string }) {
+  const html = useMemo(() => {
+    if (!text) return ''
+    return DOMPurify.sanitize(markdownToHTML(cleanAIText(text)))
+  }, [text])
+
+  return (
+    <div
+      className="prose prose-sm dark:prose-invert max-w-none break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
+  )
 }
 
 // =============================================================================
@@ -79,7 +101,7 @@ export function DiscussionSection({
                 </div>
                 <div className="flex max-w-[80%] flex-col gap-2 items-start">
                   <div className="rounded-lg bg-muted px-4 py-2 text-sm">
-                    <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                    <AssistantText text={msg.content} />
                   </div>
                 </div>
               </div>

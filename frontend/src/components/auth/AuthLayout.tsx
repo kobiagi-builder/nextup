@@ -15,10 +15,10 @@ export function AuthLayout({ children }: AuthLayoutProps) {
 
       {/* Mobile header strip - visible only below lg */}
       <div className="lg:hidden w-full h-20 bg-primary flex items-center justify-center gap-2 fixed top-0 z-10">
-        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10">
-          <Sparkles className="h-4 w-4 text-white" />
+        <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#0a2540]/10">
+          <Sparkles className="h-4 w-4 text-[#0a2540]" />
         </div>
-        <span className="text-lg font-semibold text-white">
+        <span className="text-lg font-semibold text-[#0a2540]">
           NextUp
         </span>
       </div>

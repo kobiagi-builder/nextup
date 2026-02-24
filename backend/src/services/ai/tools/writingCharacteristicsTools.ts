@@ -418,12 +418,13 @@ export const analyzeWritingCharacteristics = tool({
         researchCount: researchResults?.length || 0,
       });
 
-      // 3. Fetch user's active writing examples
+      // 3. Fetch user's active writing examples (filtered by artifact type)
       const { data: writingExamples } = await getSupabase()
         .from('user_writing_examples')
         .select('name, content, analyzed_characteristics')
         .eq('user_id', artifact.user_id)
         .eq('is_active', true)
+        .eq('artifact_type', artifactType)
         .limit(5);
 
       const writingExamplesContext = writingExamples && writingExamples.length > 0

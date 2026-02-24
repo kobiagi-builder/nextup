@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
 import { getAccessToken } from '@/lib/supabase'
 import type {
+  ArtifactType,
   UserWritingExample,
   CreateWritingExampleInput,
   UpdateWritingExampleInput,
@@ -35,36 +36,50 @@ interface ListWritingExamplesResponse {
 
 interface UseWritingExamplesOptions {
   activeOnly?: boolean
+  artifactType?: ArtifactType
 }
 
 export function useWritingExamples(options: UseWritingExamplesOptions = {}) {
   return useQuery<UserWritingExample[]>({
     queryKey: [...writingExamplesKeys.list(), options],
     queryFn: async () => {
-      console.log('[useWritingExamples] Fetching examples:', {
-        activeOnly: options.activeOnly,
-        timestamp: new Date().toISOString(),
-      })
-
+      // Use fetch directly instead of api client — the api client does a hard
+      // window.location redirect on 401 before the error can be caught, which
+      // causes pages to redirect to login on mount if the token is stale.
       try {
         const token = await getAccessToken()
-        const params = options.activeOnly ? '?active_only=true' : ''
-        const response = await api.get<ListWritingExamplesResponse>(
-          `/api/user/writing-examples${params}`,
-          token ? { token } : undefined
+        const params = new URLSearchParams()
+        if (options.activeOnly) params.set('active_only', 'true')
+        if (options.artifactType) params.set('artifact_type', options.artifactType)
+        const qs = params.toString()
+
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/user/writing-examples${qs ? `?${qs}` : ''}`,
+          {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
         )
-        console.log('[useWritingExamples] Examples fetched:', {
-          count: response.count,
-          timestamp: new Date().toISOString(),
-        })
-        return response.examples
+
+        if (!res.ok) return []
+        const body: ListWritingExamplesResponse = await res.json()
+        return body.examples
       } catch (error) {
         console.error('[useWritingExamples] Failed to fetch:', {
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString(),
         })
         return []
       }
+    },
+    // Poll every 2s when any reference is extracting/pending
+    refetchInterval: (query) => {
+      const data = query.state.data
+      const hasExtracting = data?.some(
+        (r) => r.extraction_status === 'extracting' || r.extraction_status === 'pending'
+      )
+      return hasExtracting ? 2000 : false
     },
   })
 }
@@ -77,23 +92,22 @@ export function useWritingExample(id: string) {
   return useQuery<UserWritingExample | null>({
     queryKey: writingExamplesKeys.detail(id),
     queryFn: async () => {
-      console.log('[useWritingExample] Fetching example:', {
-        id,
-        timestamp: new Date().toISOString(),
-      })
-
       try {
         const token = await getAccessToken()
-        const example = await api.get<UserWritingExample>(
-          `/api/user/writing-examples/${id}`,
-          token ? { token } : undefined
+        const res = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/user/writing-examples/${id}`,
+          {
+            headers: {
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+              'Content-Type': 'application/json',
+            },
+          }
         )
-        return example
+        if (!res.ok) return null
+        return (await res.json()) as UserWritingExample
       } catch (error) {
         console.error('[useWritingExample] Failed to fetch:', {
-          id,
           error: error instanceof Error ? error.message : String(error),
-          timestamp: new Date().toISOString(),
         })
         return null
       }
@@ -208,6 +222,169 @@ export function useDeleteWritingExample() {
     },
     onError: (error) => {
       console.error('[useDeleteWritingExample] Failed to delete:', {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    },
+  })
+}
+
+// =============================================================================
+// Upload File Mutation (Phase 2)
+// =============================================================================
+
+interface UploadWritingExampleInput {
+  file: File
+  name: string
+  artifact_type: ArtifactType
+}
+
+export function useUploadWritingExample() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: UploadWritingExampleInput) => {
+      console.log('[useUploadWritingExample] Uploading file:', {
+        fileName: input.file.name,
+        fileSizeKB: Math.round(input.file.size / 1024),
+        hasArtifactType: true,
+        timestamp: new Date().toISOString(),
+      })
+
+      const token = await getAccessToken()
+      const formData = new FormData()
+      formData.append('file', input.file)
+      formData.append('name', input.name)
+      formData.append('artifact_type', input.artifact_type)
+
+      // Use raw fetch for multipart — api.post sets Content-Type: application/json
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/user/writing-examples/upload`,
+        {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+        }
+      )
+
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({ message: 'Upload failed' }))
+        throw new Error(body.message || 'Upload failed')
+      }
+
+      return res.json() as Promise<UserWritingExample>
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: writingExamplesKeys.list() })
+    },
+    onError: (error) => {
+      console.error('[useUploadWritingExample] Failed to upload:', {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    },
+  })
+}
+
+// =============================================================================
+// Extract from URL Mutation (Phase 2)
+// =============================================================================
+
+interface ExtractFromUrlInput {
+  url: string
+  name: string
+  artifact_type: ArtifactType
+}
+
+export function useExtractFromUrl() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: ExtractFromUrlInput) => {
+      console.log('[useExtractFromUrl] Extracting from URL:', {
+        hasUrl: true,
+        hasArtifactType: true,
+        timestamp: new Date().toISOString(),
+      })
+
+      const token = await getAccessToken()
+      return api.post<UserWritingExample>(
+        '/api/user/writing-examples/extract-url',
+        input,
+        token ? { token } : undefined
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: writingExamplesKeys.list() })
+    },
+    onError: (error) => {
+      console.error('[useExtractFromUrl] Failed to extract:', {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    },
+  })
+}
+
+// =============================================================================
+// Retry Extraction Mutation (Phase 2)
+// =============================================================================
+
+export function useRetryExtraction() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      console.log('[useRetryExtraction] Retrying extraction:', {
+        timestamp: new Date().toISOString(),
+      })
+
+      const token = await getAccessToken()
+      return api.post<UserWritingExample>(
+        `/api/user/writing-examples/${id}/retry`,
+        {},
+        token ? { token } : undefined
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: writingExamplesKeys.list() })
+    },
+    onError: (error) => {
+      console.error('[useRetryExtraction] Failed to retry:', {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: new Date().toISOString(),
+      })
+    },
+  })
+}
+
+// =============================================================================
+// Extract Publication URL Mutation (Phase 3)
+// =============================================================================
+
+export function useExtractPublication() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (input: ExtractFromUrlInput) => {
+      console.log('[useExtractPublication] Extracting from publication URL:', {
+        hasUrl: true,
+        hasArtifactType: true,
+        timestamp: new Date().toISOString(),
+      })
+
+      const token = await getAccessToken()
+      return api.post<UserWritingExample>(
+        '/api/user/writing-examples/extract-publication',
+        input,
+        token ? { token } : undefined
+      )
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: writingExamplesKeys.list() })
+    },
+    onError: (error) => {
+      console.error('[useExtractPublication] Failed to extract:', {
         error: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       })

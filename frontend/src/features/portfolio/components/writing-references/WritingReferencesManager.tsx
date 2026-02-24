@@ -1,21 +1,20 @@
 /**
- * WritingStylePage — Redesigned writing references management screen.
+ * WritingReferencesManager — Full writing references UI with tabs, cards, and upload.
  *
- * Tabbed layout: Blog | Social Post | Showcase
- * Each tab has its own reference collection with add/delete/detail actions.
- * Upload via paste, file, file URL, or publication URL.
+ * Embeddable component used in SettingsPage.
+ * Includes: "All" tab (default) + per-type tabs (Blog | Social Post | Showcase).
+ * Each card has a type-change pill dropdown.
  */
 
 import { useState, useCallback, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
 import {
-  ArrowLeft,
   Plus,
   FileText,
   MessageSquare,
   Trophy,
   Loader2,
   PenLine,
+  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -36,27 +35,38 @@ import {
   useWritingExamples,
   useCreateWritingExample,
   useDeleteWritingExample,
+  useUpdateWritingExample,
   useUploadWritingExample,
   useExtractFromUrl,
   useRetryExtraction,
   useExtractPublication,
-} from '../hooks/useWritingExamples'
-import { ReferenceCard } from '../components/writing-references/ReferenceCard'
-import { ReferenceDetailSheet } from '../components/writing-references/ReferenceDetailSheet'
-import { ReferenceUploadDialog } from '../components/writing-references/ReferenceUploadDialog'
-import type { ArtifactType, UserWritingExample } from '../types/portfolio'
+} from '../../hooks/useWritingExamples'
+import { ReferenceCard } from './ReferenceCard'
+import { ReferenceDetailSheet } from './ReferenceDetailSheet'
+import { ReferenceUploadDialog } from './ReferenceUploadDialog'
+import type { ArtifactType, UserWritingExample } from '../../types/portfolio'
 
 // =============================================================================
-// Tab Configuration
+// Tab types
 // =============================================================================
+
+type TabValue = 'all' | ArtifactType
 
 const TABS: {
-  value: ArtifactType
+  value: TabValue
   label: string
   icon: React.ElementType
   emptyTitle: string
   emptyDescription: string
 }[] = [
+  {
+    value: 'all',
+    label: 'All',
+    icon: Layers,
+    emptyTitle: 'No writing references yet',
+    emptyDescription:
+      'Add examples of your writing to teach the AI your voice for each content type.',
+  },
   {
     value: 'blog',
     label: 'Blog',
@@ -87,10 +97,9 @@ const TABS: {
 // Component
 // =============================================================================
 
-export function WritingStylePage() {
-  const navigate = useNavigate()
+export function WritingReferencesManager() {
   const { toast } = useToast()
-  const [activeTab, setActiveTab] = useState<ArtifactType>('blog')
+  const [activeTab, setActiveTab] = useState<TabValue>('all')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [detailRef, setDetailRef] = useState<UserWritingExample | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -100,14 +109,16 @@ export function WritingStylePage() {
   const { data: allExamples = [], isLoading } = useWritingExamples()
   const createExample = useCreateWritingExample()
   const deleteExample = useDeleteWritingExample()
+  const updateExample = useUpdateWritingExample()
   const uploadExample = useUploadWritingExample()
   const extractFromUrl = useExtractFromUrl()
   const retryExtraction = useRetryExtraction()
   const extractPublication = useExtractPublication()
 
-  // Group references by artifact type
+  // Group references by artifact type + "all"
   const grouped = useMemo(() => {
-    const map: Record<ArtifactType, UserWritingExample[]> = {
+    const map: Record<TabValue, UserWritingExample[]> = {
+      all: allExamples,
       blog: [],
       social_post: [],
       showcase: [],
@@ -138,6 +149,22 @@ export function WritingStylePage() {
       setDeletingId(null)
     }
   }, [deleteExample, detailRef, deleteTarget])
+
+  // Type change handler for the pill dropdown on each card
+  const handleTypeChange = useCallback(
+    async (id: string, newType: ArtifactType) => {
+      try {
+        await updateExample.mutateAsync({ id, data: { artifact_type: newType } })
+      } catch (error) {
+        toast({
+          variant: 'destructive',
+          title: 'Update failed',
+          description: error instanceof Error ? error.message : 'Could not update the reference type.',
+        })
+      }
+    },
+    [updateExample, toast]
+  )
 
   // Submit handlers for each upload method
   const handlePasteSubmit = useCallback(
@@ -212,42 +239,26 @@ export function WritingStylePage() {
     [retryExtraction]
   )
 
-  return (
-    <div className="space-y-6 max-w-2xl">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => navigate('/settings')}
-          className="shrink-0"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </Button>
-        <div>
-          <h1 className="text-display-md font-semibold text-foreground">
-            Writing References
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Add examples of your writing to teach the AI your voice for each content type.
-          </p>
-        </div>
-      </div>
+  // Resolve the artifactType to pass to the upload dialog
+  // "all" tab → undefined (dialog shows type selector); specific tab → that type
+  const uploadArtifactType = activeTab === 'all' ? undefined : activeTab
 
+  return (
+    <>
       {/* Tabbed Layout */}
       <Tabs
         value={activeTab}
-        onValueChange={(v: string) => setActiveTab(v as ArtifactType)}
+        onValueChange={(v: string) => setActiveTab(v as TabValue)}
         className="w-full"
       >
-        <TabsList className="w-full grid grid-cols-3 h-10">
+        <TabsList className="w-full grid grid-cols-4 h-10">
           {TABS.map(({ value, label, icon: Icon }) => {
             const count = grouped[value].length
             return (
               <TabsTrigger
                 key={value}
                 value={value}
-                className="gap-2 text-sm data-[state=active]:text-brand-300"
+                className="gap-1.5 text-sm data-[state=active]:text-brand-300"
               >
                 <Icon className="h-4 w-4" />
                 <span>{label}</span>
@@ -255,7 +266,7 @@ export function WritingStylePage() {
                   <Badge
                     variant="secondary"
                     className={cn(
-                      'ml-1 h-5 min-w-[20px] px-1.5 text-[10px] font-medium',
+                      'ml-0.5 h-5 min-w-[20px] px-1.5 text-[10px] font-medium',
                       'data-[state=active]:bg-brand-300/20 data-[state=active]:text-brand-300'
                     )}
                   >
@@ -325,6 +336,7 @@ export function WritingStylePage() {
                       reference={ref}
                       onDelete={handleDeleteRequest}
                       onRetry={handleRetry}
+                      onTypeChange={handleTypeChange}
                       onClick={setDetailRef}
                       isDeleting={deletingId === ref.id}
                     />
@@ -340,7 +352,7 @@ export function WritingStylePage() {
       <ReferenceUploadDialog
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
-        artifactType={activeTab}
+        artifactType={uploadArtifactType}
         onSubmitPaste={handlePasteSubmit}
         onSubmitFile={handleFileSubmit}
         onSubmitFileUrl={handleFileUrlSubmit}
@@ -375,8 +387,6 @@ export function WritingStylePage() {
         open={!!detailRef}
         onClose={() => setDetailRef(null)}
       />
-    </div>
+    </>
   )
 }
-
-export default WritingStylePage

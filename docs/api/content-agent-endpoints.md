@@ -622,9 +622,9 @@ curl -X GET http://localhost:3001/api/artifacts/abc-123/writing-characteristics 
 
 ---
 
-### 6. User Writing Examples CRUD (Phase 4 NEW)
+### 6. User Writing Examples (8 endpoints)
 
-Manage user's writing examples for style analysis.
+Manage user's writing references for style analysis. References are categorized by artifact type (blog, social_post, showcase) and support 4 upload methods: paste text, file upload, file URL extraction, and publication URL scraping.
 
 #### 6a. List Writing Examples
 
@@ -632,29 +632,60 @@ Manage user's writing examples for style analysis.
 
 **Authentication**: Required
 
+**Query Parameters:**
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `active_only` | boolean | `false` | Only return active examples |
+| `artifact_type` | string | - | Filter by type: `blog`, `social_post`, `showcase` |
+
 ```bash
-curl -X GET http://localhost:3001/api/user/writing-examples \
+curl -X GET "http://localhost:3001/api/user/writing-examples?artifact_type=blog" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-**Response:**
+**Response (200):**
 ```json
 {
   "examples": [
     {
-      "id": "example-123",
-      "name": "LinkedIn Post - Product Launch",
-      "wordCount": 650,
-      "sourceType": "manual",
-      "isActive": true,
-      "createdAt": "2026-01-28T10:00:00.000Z"
+      "id": "uuid-123",
+      "user_id": "uuid-user",
+      "name": "My LinkedIn Article",
+      "content": "Full text content...",
+      "word_count": 1200,
+      "source_type": "pasted",
+      "source_url": null,
+      "artifact_type": "blog",
+      "extraction_status": "success",
+      "analyzed_characteristics": {},
+      "is_active": true,
+      "created_at": "2026-02-24T10:00:00.000Z",
+      "updated_at": "2026-02-24T10:00:00.000Z"
     }
   ],
   "count": 1
 }
 ```
 
-#### 6b. Create Writing Example
+**Error (400) - Invalid artifact_type:**
+```json
+{
+  "error": "Validation error",
+  "message": "artifact_type must be one of: blog, social_post, showcase"
+}
+```
+
+#### 6b. Get Writing Example
+
+**Endpoint**: `GET /api/user/writing-examples/:id`
+
+**Authentication**: Required
+
+**Response (200):** Single `UserWritingExample` object.
+**Error (404):** Example not found or not owned by user.
+
+#### 6c. Create Writing Example (Paste Text)
 
 **Endpoint**: `POST /api/user/writing-examples`
 
@@ -663,9 +694,11 @@ curl -X GET http://localhost:3001/api/user/writing-examples \
 **Request Body:**
 ```typescript
 {
-  name: string;                 // Example name (required)
-  content: string;              // Example content (required, min 500 words)
-  sourceType?: 'manual' | 'file' | 'artifact';  // Optional, defaults to 'manual'
+  name: string;                  // Required
+  content: string;               // Required
+  source_type?: 'pasted' | 'file_upload' | 'artifact' | 'url';  // Default: 'pasted'
+  source_reference?: string;     // Optional
+  artifact_type?: 'blog' | 'social_post' | 'showcase';  // Optional
 }
 ```
 
@@ -674,66 +707,129 @@ curl -X POST http://localhost:3001/api/user/writing-examples \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "name": "LinkedIn Post - Product Launch",
-    "content": "Full text of example (500+ words)...",
-    "sourceType": "manual"
+    "name": "My Best Blog Post",
+    "content": "Full text of example...",
+    "source_type": "pasted",
+    "artifact_type": "blog"
   }'
 ```
 
-**Response:**
-```json
-{
-  "id": "example-123",
-  "name": "LinkedIn Post - Product Launch",
-  "wordCount": 650,
-  "sourceType": "manual",
-  "isActive": true,
-  "createdAt": "2026-01-28T10:00:00.000Z"
-}
-```
+**Response (201):** Created `UserWritingExample` object.
 
-**Error - Insufficient Word Count:**
-```json
-{
-  "error": "Validation failed",
-  "message": "Writing example must contain at least 500 words. Current word count: 342"
-}
-```
-
-#### 6c. Update Writing Example
+#### 6d. Update Writing Example
 
 **Endpoint**: `PUT /api/user/writing-examples/:id`
 
-**Authentication**: Required
+**Authentication**: Required (ownership verified)
 
-```bash
-curl -X PUT http://localhost:3001/api/user/writing-examples/example-123 \
-  -H "Authorization: Bearer $TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "Updated Name",
-    "isActive": false
-  }'
+**Request Body:**
+```typescript
+{
+  name?: string;       // Non-empty if provided
+  content?: string;    // Recalculates word_count, clears analyzed_characteristics
+  is_active?: boolean;
+}
 ```
 
-#### 6d. Delete Writing Example
+**Response (200):** Updated `UserWritingExample` object.
+**Error (403):** Not the owner.
+
+#### 6e. Delete Writing Example
 
 **Endpoint**: `DELETE /api/user/writing-examples/:id`
 
+**Authentication**: Required (ownership verified)
+
+**Response:** `204 No Content`
+**Error (403):** Not the owner.
+
+#### 6f. Upload File
+
+**Endpoint**: `POST /api/user/writing-examples/upload`
+
 **Authentication**: Required
 
+**Content-Type**: `multipart/form-data`
+
+**Form Fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `file` | File | Yes | .md, .txt, .docx, .pdf (max 10MB) |
+| `name` | string | No | Display name (auto-detected from filename) |
+| `artifact_type` | string | Yes | `blog`, `social_post`, or `showcase` |
+
 ```bash
-curl -X DELETE http://localhost:3001/api/user/writing-examples/example-123 \
-  -H "Authorization: Bearer $TOKEN"
+curl -X POST http://localhost:3001/api/user/writing-examples/upload \
+  -H "Authorization: Bearer $TOKEN" \
+  -F "file=@my-article.pdf" \
+  -F "artifact_type=blog"
 ```
 
-**Response:**
-```json
+**Response (201):** Created `UserWritingExample` with extracted content.
+
+**Supported MIME types:**
+- `text/plain` (.txt)
+- `text/markdown` (.md)
+- `application/pdf` (.pdf) -- parsed via pdf-parse v2
+- `application/vnd.openxmlformats-officedocument.wordprocessingml.document` (.docx) -- parsed via mammoth
+
+#### 6g. Extract from File URL
+
+**Endpoint**: `POST /api/user/writing-examples/extract-url`
+
+**Authentication**: Required
+
+**Request Body:**
+```typescript
 {
-  "success": true,
-  "message": "Writing example deleted successfully"
+  url: string;          // HTTPS URL to a .md/.txt/.docx/.pdf file
+  name?: string;        // Optional (auto-detected from URL path)
+  artifact_type: 'blog' | 'social_post' | 'showcase';
 }
 ```
+
+**Response (202):** `UserWritingExample` with `extraction_status: 'extracting'`.
+
+Extraction happens asynchronously after response. Frontend polls `GET /api/user/writing-examples` every 2 seconds until status resolves to `success` or `failed`.
+
+**SSRF Protection:** Private IPs (localhost, 127.x, 10.x, 192.168.x, 172.16-31.x) are blocked with 400 error.
+
+#### 6h. Extract from Publication URL
+
+**Endpoint**: `POST /api/user/writing-examples/extract-publication`
+
+**Authentication**: Required
+**Rate Limit**: 5 requests/user/minute
+
+**Request Body:**
+```typescript
+{
+  url: string;          // HTTPS URL to a publication
+  name?: string;        // Optional (auto-detected from scraped title)
+  artifact_type: 'blog' | 'social_post' | 'showcase';
+}
+```
+
+**Response (202):** `UserWritingExample` with `extraction_status: 'extracting'`.
+
+Scraping happens asynchronously. Supported platforms: LinkedIn, Medium, Substack, Reddit. Unknown URLs use a generic scraper (article/main/paragraph heuristic).
+
+**Error (429):** Rate limit exceeded.
+
+#### 6i. Retry Failed Extraction
+
+**Endpoint**: `POST /api/user/writing-examples/:id/retry`
+
+**Authentication**: Required (ownership verified)
+
+**Conditions:**
+- `extraction_status` must be `failed`
+- `source_type` must be `url` (file uploads cannot be retried)
+
+**Response (202):** `UserWritingExample` with `extraction_status: 'extracting'`.
+
+Automatically detects whether to use file extractor or publication scraper based on URL pattern (file extensions like .md/.txt/.docx/.pdf use file extractor, all others use publication scraper).
 
 ---
 
