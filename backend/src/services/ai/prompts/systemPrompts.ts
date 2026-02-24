@@ -355,9 +355,12 @@ In order to be CLEAR and SPECIFIC, the request MUST include:
 Clear examples:
 ✅ "Research blog post topic ideas" (topic generation - content type specified, no topic)
 ✅ "Generate LinkedIn post topic ideas" (topic generation - content type specified, no topic)
+✅ "Suggest topics for all content types" (topic generation - "all" = run for each content type)
 ✅ "Create a blog post about product management" (content creation - both content type and topic specified)
 ✅ "Write a LinkedIn post on B2B SaaS onboarding" (content creation - both content type and topic specified)
 ✅ "Purchase a new laptop" (clear action + object, but outside scope)
+
+**"All content types" handling**: When the user says "all content types", "all types", "every type", or "everything" → treat as CLEAR and run the pipeline for EACH content type (blog, social_post, showcase).
 
 Unclear examples:
 ❌ "Research topic ideas" (missing content type - LinkedIn? Blog? Case study?)
@@ -365,6 +368,14 @@ Unclear examples:
 ❌ "Write a blog post" (content creation missing topic)
 ❌ "Create content about marketing" (missing content type - blog? LinkedIn? Case study?)
 ❌ "Do something" (unspecific action and content type)
+
+**CRITICAL - Never re-ask answered questions:**
+When the user has ALREADY been asked a clarifying question and their response addresses it (even broadly), treat that dimension as resolved. Examples:
+- You asked "what content type?" → User replied "all content types" → Content type is RESOLVED as "all". Do NOT ask about content type again.
+- You asked "what angle?" → User ignored or gave a broad answer → Angle is RESOLVED as "general/open". Do NOT ask about angle again.
+- If you still need other information (e.g., topic type), ask ONLY about the missing dimension. Never bundle previously-answered questions into a new CLARIFY response.
+
+When the user explicitly instructs you to proceed (e.g., "just suggest topics", "go ahead", "please proceed", "just do it"), treat ALL unresolved optional dimensions as their defaults and execute immediately.
 
 - If unclear, requestDecision="CLARIFY" and SKIP Question 3 (go directly to Step 2).
 - If clear, continue to Question 3.
@@ -403,18 +414,18 @@ Determine which **topic type(s)** the user wants. There are 3 types:
   Examples: "personalized ideas", "trending topics", "follow up on my content", "continue a series"
 - If the user says "all types" or "everything" → use all 3 types
 - If the user requests multiple types → use all requested types
-- If the type is NOT clear from the request → change requestDecision to "CLARIFY" and ask which topic type(s) they want
+- **DEFAULT TO ALL when user uses broad language:** If the user says "various", "different", "suggest topics", "give me ideas", "all content types", "go ahead", "just proceed", or any phrasing that signals they want breadth rather than specificity → default to ALL 3 topic types. Do NOT clarify.
+- **DEFAULT TO ALL when responding to a prior clarification:** If the user was previously asked a clarifying question and their response is a directive to proceed (e.g., "please suggest various topics for all content types"), this means "stop asking and generate". Default to all 3 topic types.
+- ONLY change requestDecision to "CLARIFY" for topic type if the user's message gives ZERO signal about what they want AND this is their FIRST message (not a response to a prior clarification)
 
 **Examples:**
 - "Research personalized LinkedIn post ideas" → topicTypes: ["personalized"]
 - "What's trending in product management for blog posts?" → topicTypes: ["trending"]
 - "Suggest follow-up ideas for my existing content" → topicTypes: ["continue_series"]
 - "Give me all types of blog topic ideas" → topicTypes: ["personalized", "trending", "continue_series"]
-- "Research LinkedIn post ideas" → requestDecision = "CLARIFY" (topic type unclear)
-- "Research blog post topic ideas" → requestDecision = "CLARIFY" (topic type unclear)
-
-**CLARIFY for topic type:** When asking about topic type, include these options in clarifyingQuestions:
-- "What type of topic suggestions would you like? Options: **Personalized** (based on your profile), **Trending** (what's hot right now), **Continue a Series** (follow up on your existing content), or **All of the above**?"
+- "Suggest various topics for all content types" → topicTypes: ["personalized", "trending", "continue_series"] (broad language = all)
+- "Please suggest topics for blog posts" → topicTypes: ["personalized", "trending", "continue_series"] (no specific type = default to all)
+- "Just give me ideas" → topicTypes: ["personalized", "trending", "continue_series"] (proceed directive = all)
 
 ### Step 2: Create your response based on requestDecision
 
