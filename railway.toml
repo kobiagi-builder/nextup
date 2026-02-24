@@ -1,6 +1,0 @@
-[build]
-buildCommand = "npm run build -w backend"
-
-[deploy]
-startCommand = "node backend/dist/index.js"
-healthcheckPath = "/api/health"
