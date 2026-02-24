@@ -4,7 +4,6 @@
  * Type definitions for the Content Agent orchestrator.
  */
 
-import type { UserIntent } from '../utils/intentDetection.js';
 import type { ContextPriority } from '../utils/tokenBudget.js';
 
 // =============================================================================
@@ -107,29 +106,6 @@ export enum ErrorCategory {
 }
 
 // =============================================================================
-// Session Types
-// =============================================================================
-
-export interface SessionState {
-  sessionId: string;
-  currentArtifactId?: string;
-  lastToolExecuted?: string;
-  pipelineProgress?: {
-    currentStep: number;
-    totalSteps: number;
-    completedTools: ToolName[];
-  };
-  lastActivityTimestamp: number; // For 30-min timeout
-}
-
-export interface ConversationTurn {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: number;
-  toolCalls?: string[];
-}
-
-// =============================================================================
 // Screen Context Types
 // =============================================================================
 
@@ -139,51 +115,6 @@ export interface ScreenContext {
   artifactType?: ArtifactType;
   artifactStatus?: ArtifactStatus;
   artifactTitle?: string;
-}
-
-// =============================================================================
-// Agent Response Types
-// =============================================================================
-
-export interface AgentResponse {
-  text: string;
-  toolResults?: ToolOutput[];
-  sessionState: SessionState;
-  intentDetected?: UserIntent;
-  clarificationNeeded?: boolean;
-  suggestedClarification?: string;
-}
-
-export interface PipelineResult {
-  success: boolean;
-  artifactId: string;
-  steps: Array<{
-    toolName: ToolName;
-    status: 'completed' | 'failed' | 'skipped';
-    output?: ToolOutput;
-    error?: string;
-  }>;
-  totalDuration: number;
-  finalStatus: ArtifactStatus;
-}
-
-// =============================================================================
-// Content Creation Request Types
-// =============================================================================
-
-export interface ContentCreationRequest {
-  message: string;
-  screenContext: ScreenContext;
-  sessionId?: string;
-}
-
-export interface PipelineExecutionRequest {
-  artifactId: string;
-  options?: {
-    skipResearch?: boolean;
-    tone?: ToneType;
-    includeVisuals?: boolean;
-  };
 }
 
 // =============================================================================

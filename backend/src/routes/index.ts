@@ -2,7 +2,6 @@ import { Router } from 'express'
 import { healthRouter } from './health.js'
 import { aiRouter } from './ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
-import contentAgentRouter from './contentAgentRoutes.js'
 import writingExamplesRouter from './writingExamples.routes.js'
 import { authRouter } from './auth.routes.js'
 import { requireAuth } from '../middleware/auth.js'
@@ -22,5 +21,4 @@ router.post('/log', (req, res) => {
 router.use('/auth', requireAuth, authRouter)
 router.use('/ai', requireAuth, aiRouter)
 router.use('/artifacts', requireAuth, artifactResearchRouter)
-router.use('/content-agent', requireAuth, contentAgentRouter)
 router.use('/user/writing-examples', requireAuth, writingExamplesRouter)
