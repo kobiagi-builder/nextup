@@ -18,10 +18,12 @@ import {
   Moon,
   Sun,
   Monitor,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/providers/ThemeProvider'
+import { useAuth } from '@/providers/AuthProvider'
 
 // Navigation item type
 interface NavItem {
@@ -129,6 +131,7 @@ export function Sidebar() {
   // Local hover state - collapsed by default, expands on hover
   const [isHovered, setIsHovered] = useState(false)
   const isCollapsed = !isHovered
+  const { signOut } = useAuth()
 
   return (
     <aside
@@ -157,12 +160,12 @@ export function Sidebar() {
       >
         {/* Logo icon - always visible */}
         <div className="w-8 h-8 rounded-lg bg-gradient-accent flex items-center justify-center">
-          <span className="text-white font-bold text-sm">CT</span>
+          <span className="text-white font-bold text-sm">NU</span>
         </div>
         {/* Brand name - hidden when collapsed */}
         {!isCollapsed && (
           <span className="ml-3 font-semibold text-sm text-foreground">
-            Toolkit
+            NextUp
           </span>
         )}
       </div>
@@ -193,6 +196,23 @@ export function Sidebar() {
 
         {/* Theme Toggle */}
         <ThemeToggle isCollapsed={isCollapsed} />
+
+        {/* Sign Out */}
+        <button
+          onClick={signOut}
+          className={cn(
+            'flex items-center gap-3 rounded-lg transition-all duration-200',
+            'text-muted-foreground hover:text-foreground',
+            'hover:bg-surface-hover',
+            isCollapsed ? 'justify-center p-3' : 'px-3 py-2 w-full'
+          )}
+          title="Sign out"
+        >
+          <LogOut className="h-5 w-5 shrink-0" />
+          {!isCollapsed && (
+            <span className="font-medium text-sm">Sign out</span>
+          )}
+        </button>
       </nav>
     </aside>
   )

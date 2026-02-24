@@ -7,15 +7,13 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { generateContentVisuals } from '../../../../../services/ai/tools/visualsCreatorTool.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
-import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { callTool, assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
-vi.mock('../../../../../lib/supabase.js', () => ({
-  supabaseAdmin: {
-    from: vi.fn(),
-  },
+const mockSupabase = { from: vi.fn() };
+vi.mock('../../../../../lib/requestContext.js', () => ({
+  getSupabase: vi.fn(() => mockSupabase),
 }));
 
 vi.mock('../../../../../services/ai/mocks/index.js', () => ({
@@ -29,6 +27,35 @@ vi.mock('../../../../../services/ai/mocks/index.js', () => ({
 describe('generateContentVisuals', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock chain — tests that need specific behavior override this
+    (mockSupabase.from as any).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+        limit: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      upsert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
   });
 
   describe('Input Validation', () => {
@@ -45,15 +72,18 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 3,
-        visualsGenerated: 0,
-        placeholders: [
-          { type: 'image', description: 'Test diagram' },
-          { type: 'video', description: 'Demo video' },
-          { type: 'graphic', description: 'Chart' },
-        ],
-        message: 'MVP: Detected 3 visual placeholders',
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 3,
+          visualsGenerated: 0,
+          placeholders: [
+            { type: 'image', description: 'Test diagram' },
+            { type: 'video', description: 'Demo video' },
+            { type: 'graphic', description: 'Chart' },
+          ],
+          message: 'MVP: Detected 3 visual placeholders',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {
@@ -69,14 +99,17 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 2,
-        visualsGenerated: 0,
-        placeholders: [
-          { type: 'image', description: 'Architecture diagram' },
-          { type: 'video', description: 'Tutorial video' },
-        ],
-        message: 'MVP: Detected 2 visual placeholders',
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 2,
+          visualsGenerated: 0,
+          placeholders: [
+            { type: 'image', description: 'Architecture diagram' },
+            { type: 'video', description: 'Tutorial video' },
+          ],
+          message: 'MVP: Detected 2 visual placeholders',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {
@@ -94,11 +127,14 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 1,
-        visualsGenerated: 0,
-        placeholders: [{ type: 'image', description: 'Test image' }],
-        message: 'MVP: Detected 1 visual placeholder',
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 1,
+          visualsGenerated: 0,
+          placeholders: [{ type: 'image', description: 'Test image' }],
+          message: 'MVP: Detected 1 visual placeholder',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {
@@ -119,7 +155,7 @@ describe('generateContentVisuals', () => {
 
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -155,7 +191,7 @@ describe('generateContentVisuals', () => {
 
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -189,7 +225,7 @@ describe('generateContentVisuals', () => {
 
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -231,7 +267,7 @@ describe('generateContentVisuals', () => {
 
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -270,7 +306,7 @@ describe('generateContentVisuals', () => {
 
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -306,15 +342,18 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 3,
-        visualsGenerated: 0,
-        placeholders: [
-          { type: 'image', description: 'Test' },
-          { type: 'video', description: 'Test' },
-          { type: 'graphic', description: 'Test' },
-        ],
-        message: 'MVP: Detected 3 visual placeholders',
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 3,
+          visualsGenerated: 0,
+          placeholders: [
+            { type: 'image', description: 'Test' },
+            { type: 'video', description: 'Test' },
+            { type: 'graphic', description: 'Test' },
+          ],
+          message: 'MVP: Detected 3 visual placeholders',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {
@@ -331,7 +370,7 @@ describe('generateContentVisuals', () => {
     it('should handle artifact not found error', async () => {
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -343,7 +382,7 @@ describe('generateContentVisuals', () => {
       });
 
       const result = await callTool(generateContentVisuals, {
-        artifactId: 'nonexistent-artifact-id',
+        artifactId: '00000000-0000-4000-a000-ffffffffffff',
       });
 
       assertToolOutputError(result);
@@ -353,7 +392,7 @@ describe('generateContentVisuals', () => {
     it('should handle database update error', async () => {
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -384,11 +423,14 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 1,
-        visualsGenerated: 0,
-        placeholders: [{ type: 'image', description: 'Test' }],
-        message: 'MVP: Detected 1 visual placeholder',
         traceId: 'visuals-creator-123456-abc123',
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 1,
+          visualsGenerated: 0,
+          placeholders: [{ type: 'image', description: 'Test' }],
+          message: 'MVP: Detected 1 visual placeholder',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {
@@ -404,12 +446,15 @@ describe('generateContentVisuals', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        visualsDetected: 1,
-        visualsGenerated: 0,
-        placeholders: [{ type: 'image', description: 'Test' }],
-        message: 'MVP: Detected 1 visual placeholder',
         traceId: 'mock-trace-001',
         duration: 234,
+        statusTransition: { from: 'creating_visuals', to: 'ready' },
+        data: {
+          visualsDetected: 1,
+          visualsGenerated: 0,
+          placeholders: [{ type: 'image', description: 'Test' }],
+          message: 'MVP: Detected 1 visual placeholder',
+        },
       });
 
       const result = await callTool(generateContentVisuals, {

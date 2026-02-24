@@ -5,7 +5,7 @@
  * Shows: Discussion (collapsible) -> Title -> Actionable Cards -> CTA
  */
 
-import { Bot } from 'lucide-react'
+import { Bot, ListTree, TrendingUp, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { DiscussionSection } from './DiscussionSection'
 import { ArtifactSuggestionCard } from './ArtifactSuggestionCard'
@@ -14,7 +14,9 @@ import type {
   ParsedChatMessage,
   ArtifactSuggestion,
   ActionableItem,
+  TopicType,
 } from '../../types/chat'
+import { TOPIC_TYPE_CONFIG } from '../../types/chat'
 
 // =============================================================================
 // Types
@@ -47,6 +49,14 @@ interface ActionableCardsGridProps {
   onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>
 }
 
+const TOPIC_TYPE_ICONS: Record<TopicType, React.ComponentType<{ className?: string }>> = {
+  personalized: User,
+  trending: TrendingUp,
+  continue_series: ListTree,
+}
+
+const TOPIC_TYPE_ORDER: TopicType[] = ['personalized', 'trending', 'continue_series']
+
 function ActionableCardsGrid({
   items,
   artifactSuggestions,
@@ -67,6 +77,10 @@ function ActionableCardsGrid({
         type: (item.metadata?.type as ArtifactSuggestion['type']) ?? 'blog',
         rationale: (item.metadata?.rationale as string) ?? '',
         tags: (item.metadata?.tags as string[]) ?? [],
+        topicType: (item.metadata?.topicType as TopicType) ?? undefined,
+        trendingSource: (item.metadata?.trendingSource as string) ?? undefined,
+        parentArtifactId: (item.metadata?.parentArtifactId as string) ?? undefined,
+        continuationType: (item.metadata?.continuationType as ArtifactSuggestion['continuationType']) ?? undefined,
       })),
     // Include direct artifact suggestions if available
     ...(artifactSuggestions ?? []),
@@ -81,17 +95,84 @@ function ActionableCardsGrid({
     return null
   }
 
+  // Check if any suggestions have topicType for grouped rendering
+  const hasTopicTypes = uniqueArtifacts.some((a) => a.topicType)
+
+  if (!hasTopicTypes) {
+    // Flat rendering (backward compatible)
+    return (
+      <div className="grid gap-3 grid-cols-1">
+        {uniqueArtifacts.map((suggestion) => (
+          <ArtifactSuggestionCard
+            key={suggestion.id}
+            suggestion={suggestion}
+            isAdded={addedItemIds.has(suggestion.id)}
+            onCreate={onCreateArtifact}
+            onCreateContent={onCreateContent}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  // Grouped rendering by topicType
+  const grouped = new Map<TopicType, ArtifactSuggestion[]>()
+  const ungrouped: ArtifactSuggestion[] = []
+
+  for (const artifact of uniqueArtifacts) {
+    if (artifact.topicType) {
+      const list = grouped.get(artifact.topicType) ?? []
+      list.push(artifact)
+      grouped.set(artifact.topicType, list)
+    } else {
+      ungrouped.push(artifact)
+    }
+  }
+
   return (
-    <div className="grid gap-3 grid-cols-1">
-      {uniqueArtifacts.map((suggestion) => (
-        <ArtifactSuggestionCard
-          key={suggestion.id}
-          suggestion={suggestion}
-          isAdded={addedItemIds.has(suggestion.id)}
-          onCreate={onCreateArtifact}
-          onCreateContent={onCreateContent}
-        />
-      ))}
+    <div className="space-y-6">
+      {TOPIC_TYPE_ORDER.filter((type) => grouped.has(type)).map((type) => {
+        const config = TOPIC_TYPE_CONFIG[type]
+        const Icon = TOPIC_TYPE_ICONS[type]
+        const suggestions = grouped.get(type)!
+
+        return (
+          <div key={type} className="space-y-3">
+            {/* Section header */}
+            <div className="flex items-center gap-2 pb-1 border-b border-border">
+              <Icon className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-semibold">{config.label}</span>
+              <span className="text-xs text-muted-foreground">{config.description}</span>
+            </div>
+            {/* Cards */}
+            <div className="grid gap-3 grid-cols-1">
+              {suggestions.map((suggestion) => (
+                <ArtifactSuggestionCard
+                  key={suggestion.id}
+                  suggestion={suggestion}
+                  isAdded={addedItemIds.has(suggestion.id)}
+                  onCreate={onCreateArtifact}
+                  onCreateContent={onCreateContent}
+                />
+              ))}
+            </div>
+          </div>
+        )
+      })}
+      {/* Ungrouped suggestions (if any mixed in) */}
+      {ungrouped.length > 0 && (
+        <div className="grid gap-3 grid-cols-1">
+          {ungrouped.map((suggestion) => (
+            <ArtifactSuggestionCard
+              key={suggestion.id}
+              suggestion={suggestion}
+              isAdded={addedItemIds.has(suggestion.id)}
+              onCreate={onCreateArtifact}
+              onCreateContent={onCreateContent}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }

@@ -9,7 +9,7 @@
 
 import { tool } from 'ai'
 import { z } from 'zod'
-import { supabaseAdmin } from '../../../lib/supabase.js'
+import { getSupabase } from '../../../lib/requestContext.js'
 import { logger, logToFile } from '../../../lib/logger.js'
 
 // =============================================================================
@@ -23,7 +23,7 @@ export const getUserContext = tool({
   }),
   execute: async () => {
     logToFile('🔧 TOOL EXECUTED: getUserContext')
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('user_context')
       .select('*')
       .limit(1)
@@ -60,7 +60,7 @@ export const getUserSkills = tool({
   }),
   execute: async ({ category }) => {
     logToFile('🔧 TOOL EXECUTED: getUserSkills', { category })
-    let query = supabaseAdmin
+    let query = getSupabase()
       .from('skills')
       .select('id, name, category, proficiency, years_experience')
       .order('proficiency', { ascending: false })

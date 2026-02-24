@@ -24,6 +24,10 @@ export interface TavilySearchOptions {
   includeRawContent?: boolean;
   /** Include images in response (default: false) */
   includeImages?: boolean;
+  /** Topic category: 'general' for broad search, 'news' for recent news/trending content */
+  topic?: 'general' | 'news';
+  /** Time range in days — only return results from the last N days (1-30) */
+  days?: number;
 }
 
 export interface TavilySearchResult {
@@ -91,10 +95,12 @@ class TavilyClient {
       excludeDomains = [],
       includeRawContent = true,
       includeImages = false,
+      topic,
+      days,
     } = options;
 
     try {
-      const requestBody = {
+      const requestBody: Record<string, unknown> = {
         api_key: this.apiKey,
         query: query.trim(),
         search_depth: searchDepth,
@@ -104,6 +110,13 @@ class TavilyClient {
         include_raw_content: includeRawContent,
         include_images: includeImages,
       };
+
+      if (topic) {
+        requestBody.topic = topic;
+      }
+      if (days && days >= 1 && days <= 30) {
+        requestBody.days = days;
+      }
 
       logger.debug('[TavilyClient] Executing search', {
         query: query.substring(0, 100),
@@ -150,6 +163,29 @@ class TavilyClient {
       // Re-throw for caller to handle
       throw error;
     }
+  }
+
+  /**
+   * Search for trending/recent content in a specific domain
+   *
+   * @param domain - Domain to search (e.g., "product management")
+   * @param options - Additional search options
+   * @returns Array of trending search results
+   */
+  async searchTrending(
+    domain: string,
+    options: { days?: number; maxResults?: number; includeDomains?: string[] } = {}
+  ): Promise<TavilySearchResult[]> {
+    const { days = 7, maxResults = 10, includeDomains = [] } = options;
+
+    return this.search(`trending ${domain} latest news insights`, {
+      topic: 'news',
+      days: Math.min(days, 30),
+      maxResults,
+      searchDepth: 'advanced',
+      includeDomains,
+      includeRawContent: false,
+    });
   }
 
   /**

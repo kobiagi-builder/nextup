@@ -2,12 +2,12 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger } from '../../../lib/logger.js';
 import { mockService, type SkeletonToolResponse } from '../mocks/index.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
-import type { WritingCharacteristics } from '../../../types/portfolio.js';
+import type { WritingCharacteristics, StorytellingGuidance } from '../../../types/portfolio.js';
 
 /**
  * Skeleton Generation Tools for Content Creation Agent (Phase 1)
@@ -185,16 +185,63 @@ function getCharacteristicsGuidance(characteristics?: WritingCharacteristics): s
   return '\n' + guidance.join('\n') + '\n';
 }
 
+/**
+ * Format storytelling guidance for skeleton generation prompt
+ */
+function getStorytellingGuidance(storytelling?: StorytellingGuidance): string {
+  if (!storytelling) return '';
+
+  const guidance: string[] = ['## Storytelling Structure (shape sections to follow this narrative arc)'];
+
+  // Narrative framework
+  guidance.push(`- Narrative Framework: ${storytelling.narrative_framework.name} — ${storytelling.narrative_framework.description}`);
+
+  // Story arc
+  guidance.push(`- Story Arc:`);
+  guidance.push(`  - Beginning: ${storytelling.story_arc.beginning}`);
+  guidance.push(`  - Middle: ${storytelling.story_arc.middle}`);
+  guidance.push(`  - End: ${storytelling.story_arc.end}`);
+
+  // Section-level narrative roles
+  if (storytelling.story_arc.section_mapping?.length > 0) {
+    guidance.push(`- Section Narrative Roles (use these to shape your H2 sections):`);
+    for (const sm of storytelling.story_arc.section_mapping) {
+      guidance.push(`  - [${sm.section_role}]: ${sm.guidance} (target emotion: ${sm.emotional_target})`);
+    }
+  }
+
+  // Hook strategy
+  guidance.push(`- Hook Strategy: ${storytelling.hook_strategy.type} — ${storytelling.hook_strategy.guidance}`);
+
+  // Protagonist
+  guidance.push(`- Protagonist: ${storytelling.protagonist.type} — ${storytelling.protagonist.guidance}`);
+
+  // Tension points
+  if (storytelling.tension_points?.length > 0) {
+    guidance.push(`- Tension Points (build these into the skeleton structure):`);
+    for (const tp of storytelling.tension_points) {
+      guidance.push(`  - [${tp.location}] ${tp.type}: ${tp.description}`);
+    }
+  }
+
+  // Resolution
+  guidance.push(`- Resolution: ${storytelling.resolution_strategy.type} — ${storytelling.resolution_strategy.guidance}`);
+
+  return '\n' + guidance.join('\n') + '\n';
+}
+
 function buildSkeletonPrompt(
   artifactType: 'blog' | 'social_post' | 'showcase',
   tone: ToneOption,
   topic: string,
   researchContext: string,
   characteristics?: WritingCharacteristics,
-  authorBrief?: string
+  authorBrief?: string,
+  storytelling?: StorytellingGuidance
 ): string {
   const toneModifier = toneModifiers[tone];
   const characteristicsGuidance = getCharacteristicsGuidance(characteristics);
+  const storytellingGuidance = getStorytellingGuidance(storytelling);
 
   // Build author's vision section if brief is available
   const authorVisionSection = authorBrief
@@ -229,6 +276,7 @@ Topic: ${topic}
 
 Tone: ${toneModifier}
 ${characteristicsGuidance}
+${storytellingGuidance}
 `;
 
   if (artifactType === 'blog') {
@@ -473,7 +521,7 @@ export const generateContentSkeleton = tool({
 
         // Update database with mock skeleton to maintain workflow
         if (mockResponse.success && mockResponse.skeleton) {
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               content: mockResponse.skeleton,
@@ -487,7 +535,7 @@ export const generateContentSkeleton = tool({
       }
 
       // 1. Fetch research results from database
-      const { data: researchResults, error: researchError } = await supabaseAdmin
+      const { data: researchResults, error: researchError } = await getSupabase()
         .from('artifact_research')
         .select('*')
         .eq('artifact_id', artifactId)
@@ -537,7 +585,7 @@ export const generateContentSkeleton = tool({
       // 2.5 Fetch writing characteristics (Phase 4)
       let writingCharacteristics: WritingCharacteristics | undefined;
       if (useWritingCharacteristics) {
-        const { data: charData } = await supabaseAdmin
+        const { data: charData } = await getSupabase()
           .from('artifact_writing_characteristics')
           .select('characteristics')
           .eq('artifact_id', artifactId)
@@ -554,7 +602,7 @@ export const generateContentSkeleton = tool({
       // 2.6 Fetch author's brief from artifact metadata
       let authorBrief: string | undefined;
       {
-        const { data: artifactMeta } = await supabaseAdmin
+        const { data: artifactMeta } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -569,8 +617,25 @@ export const generateContentSkeleton = tool({
         }
       }
 
+      // 2.7 Fetch storytelling guidance
+      let storytellingData: StorytellingGuidance | undefined;
+      {
+        const { data: stData } = await getSupabase()
+          .from('artifact_storytelling')
+          .select('storytelling_guidance')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (stData?.storytelling_guidance) {
+          storytellingData = stData.storytelling_guidance as StorytellingGuidance;
+          logger.debug('[GenerateContentSkeleton] Storytelling guidance loaded', {
+            framework: storytellingData.narrative_framework?.name,
+          });
+        }
+      }
+
       // 3. Build skeleton prompt
-      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext, writingCharacteristics, authorBrief);
+      const prompt = buildSkeletonPrompt(artifactType, tone, topic, researchContext, writingCharacteristics, authorBrief, storytellingData);
 
       logger.debug('[GenerateContentSkeleton] Prompt built', {
         promptLength: prompt.length
@@ -610,7 +675,7 @@ export const generateContentSkeleton = tool({
       // - In non-pipeline mode (AI SDK direct), PipelineExecutor's pauseForApproval logic doesn't run
       // - The skeleton status is transient and should never be visible to the user
       // - Both code paths (pipeline and direct) need to end at foundations_approval
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           content: finalSkeleton,

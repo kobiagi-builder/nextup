@@ -14,7 +14,7 @@
 import { tool } from 'ai';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logToFile } from '../../../lib/logger.js';
 import { generateWithRetry, getResolutionForType, type ImageGenParams, type VisualIdentity } from '../../../lib/imageGeneration.js';
 import { uploadFinalImage } from '../../../lib/storageHelpers.js';
@@ -475,7 +475,7 @@ export const identifyImageNeeds = tool({
       let artifactTone: string | undefined;
       let authorBrief: string | undefined;
       {
-        const { data: artifactRecord } = await supabaseAdmin
+        const { data: artifactRecord } = await getSupabase()
           .from('artifacts')
           .select('tone, metadata')
           .eq('id', artifactId)
@@ -506,7 +506,7 @@ export const identifyImageNeeds = tool({
       logToFile(`[identifyImageNeeds] Generated ${imageNeeds.length} image needs for "${title}"`);
 
       // Update status to creating_visuals while we generate images
-      await supabaseAdmin
+      await getSupabase()
         .from('artifacts')
         .update({
           status: 'creating_visuals',
@@ -593,7 +593,7 @@ export const identifyImageNeeds = tool({
           });
 
           // Update progress
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               visuals_metadata: {
@@ -624,7 +624,7 @@ export const identifyImageNeeds = tool({
       }
 
       // Final update with completed status and updated content
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           content: updatedContent,
@@ -684,7 +684,7 @@ export const updateImageApproval = tool({
   execute: async ({ artifactId, approvedIds, rejectedIds }) => {
     try {
       // Fetch current metadata
-      const { data: artifact, error: fetchError } = await supabaseAdmin
+      const { data: artifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('visuals_metadata')
         .eq('id', artifactId)
@@ -711,7 +711,7 @@ export const updateImageApproval = tool({
       );
 
       // Update metadata
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           visuals_metadata: {

@@ -6,7 +6,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 
 // =============================================================================
@@ -52,7 +52,7 @@ export async function validateArtifactOwnership(
     }
 
     // Query artifact ownership
-    const { data: artifact, error } = await supabaseAdmin
+    const { data: artifact, error } = await getSupabase()
       .from('artifacts')
       .select('id, user_id')
       .eq('id', artifactId)
@@ -74,9 +74,8 @@ export async function validateArtifactOwnership(
     // Verify ownership
     if (artifact.user_id !== userId) {
       logger.warn('[ArtifactOwnershipValidation] Access denied - ownership mismatch', {
-        artifactId,
-        requestedBy: userId,
-        ownedBy: artifact.user_id,
+        hasArtifactId: !!artifactId,
+        ownershipMatch: false,
       });
 
       res.status(403).json({
@@ -90,7 +89,7 @@ export async function validateArtifactOwnership(
     next();
   } catch (error) {
     logger.error('[ArtifactOwnershipValidation] Error in validation', {
-      artifactId: req.body?.artifactId || req.params?.artifactId,
+      hasArtifactId: !!(req.body?.artifactId || req.params?.artifactId),
       error: error instanceof Error ? error : new Error(String(error)),
     });
 
@@ -126,7 +125,7 @@ export async function validateMultipleArtifactOwnership(
     };
   }
 
-  const { data: artifacts, error } = await supabaseAdmin
+  const { data: artifacts, error } = await getSupabase()
     .from('artifacts')
     .select('id, user_id')
     .in('id', artifactIds);
@@ -134,7 +133,7 @@ export async function validateMultipleArtifactOwnership(
   if (error) {
     logger.error('[ValidateMultipleArtifactOwnership] Error in validation', {
       artifactCount: artifactIds.length,
-      error: error,
+      hasError: true,
     });
     throw error;
   }

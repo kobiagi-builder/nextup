@@ -2,7 +2,7 @@ import { anthropic } from "@ai-sdk/anthropic";
 import { generateText, tool } from "ai";
 import { z } from "zod";
 import { logger, logToFile } from "../../../lib/logger.js";
-import { supabaseAdmin } from "../../../lib/supabase.js";
+import { getSupabase } from "../../../lib/requestContext.js";
 import { mockService, type HumanityApplyResponse, type HumanityCheckResponse } from "../mocks/index.js";
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
@@ -397,7 +397,7 @@ export const applyHumanityCheck = tool({
 
       // Update database to maintain workflow
       if (mockResponse.success) {
-        await supabaseAdmin
+        await getSupabase()
           .from("artifacts")
           .update({
             status: mockResponse.status || "humanity_checking",
@@ -422,7 +422,7 @@ export const applyHumanityCheck = tool({
       // Fetch author's brief from artifact metadata
       let authorBrief: string | undefined;
       {
-        const { data: artifactMeta } = await supabaseAdmin
+        const { data: artifactMeta } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -571,7 +571,7 @@ export const applyHumanityCheck = tool({
 
       const dbStartTime = Date.now();
 
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from("artifacts")
         .update({
           content: humanizedContent,
@@ -740,7 +740,7 @@ export const applyHumanityCheck = tool({
         artifactId,
       });
 
-      await supabaseAdmin
+      await getSupabase()
         .from("artifacts")
         .update({
           status: "humanity_checking",

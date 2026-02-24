@@ -30,6 +30,7 @@ const ActionableItemSchema = z.object({
   title: z.string().describe('Display title'),
   description: z.string().describe('Description or content preview'),
   metadata: z.record(z.unknown()).optional().describe('Additional type-specific data'),
+  sectionGroup: z.string().optional().describe('Group label for visual sectioning (e.g., "Personalized", "Trending", "Continue a Series")'),
 })
 
 // =============================================================================

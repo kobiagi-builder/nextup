@@ -44,11 +44,15 @@ export type ToolName =
   | 'topicsResearch'
   | 'conductDeepResearch'
   | 'analyzeWritingCharacteristics'  // Phase 4: Analyze writing style
+  | 'analyzeStorytellingStructure'   // Storytelling analysis
   | 'generateContentSkeleton'
   | 'writeContentSection'
   | 'writeFullContent'
   | 'applyHumanityCheck'
   | 'generateContentImages'
+  // Topic type tools
+  | 'researchTrendingTopics'
+  | 'analyzeFollowUpTopics'
   // Context tools
   | 'fetchArtifactTopics'
   | 'fetchArtifact'

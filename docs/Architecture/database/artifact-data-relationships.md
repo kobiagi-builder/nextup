@@ -56,8 +56,20 @@ erDiagram
         timestamptz created_at
     }
 
+    artifact_storytelling {
+        uuid id PK
+        uuid artifact_id FK
+        jsonb storytelling_guidance
+        text narrative_framework
+        text summary
+        text recommendations
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     artifacts ||--o{ ai_conversations : "has conversations"
     artifacts ||--o{ artifact_research : "has research"
+    artifacts ||--o| artifact_storytelling : "has storytelling"
     artifacts ||--o{ storage_objects : "has images (path-based)"
 ```
 
@@ -69,6 +81,7 @@ erDiagram
 |--------------|---------------|--------------|---------------|-------------|
 | `ai_conversations` | `artifact_id` | `artifacts` | `id` | **CASCADE** ✅ |
 | `artifact_research` | `artifact_id` | `artifacts` | `id` | **CASCADE** ✅ |
+| `artifact_storytelling` | `artifact_id` | `artifacts` | `id` | **CASCADE** ✅ |
 | `storage.objects` | `name` (path) | `artifacts` | `id` | **TRIGGER** ✅ |
 
 ### Storage Objects Path Pattern
@@ -91,6 +104,7 @@ flowchart TB
         A[artifacts]
         B[ai_conversations]
         C[artifact_research]
+        ST[artifact_storytelling]
         SO[storage.objects]
     end
 
@@ -101,6 +115,7 @@ flowchart TB
 
     A -->|CASCADE DELETE| B
     A -->|CASCADE DELETE| C
+    A -->|CASCADE DELETE| ST
     A -->|TRIGGER DELETE| SO
     SO -.->|References| D
     D --> E
@@ -131,6 +146,7 @@ sequenceDiagram
     Note over DB: Step 2: CASCADE DELETE executes
     DB->>DB: DELETE FROM ai_conversations WHERE artifact_id = :id
     DB->>DB: DELETE FROM artifact_research WHERE artifact_id = :id
+    DB->>DB: DELETE FROM artifact_storytelling WHERE artifact_id = :id
 
     Note over DB: Step 3: Artifact row deleted
     DB-->>API: Deletion complete
@@ -145,6 +161,7 @@ sequenceDiagram
 |-------|--------------|----------------|---------|
 | `ai_conversations` | Many-to-One | ✅ FK CASCADE | 0 |
 | `artifact_research` | Many-to-One | ✅ FK CASCADE | 490 |
+| `artifact_storytelling` | One-to-One | ✅ FK CASCADE | 0 |
 
 ### Storage Objects (Trigger-Based)
 

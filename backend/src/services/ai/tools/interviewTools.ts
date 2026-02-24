@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger, logToFile } from '../../../lib/logger.js';
 
 /**
@@ -42,7 +42,7 @@ export const startShowcaseInterview = tool({
     logToFile('TOOL EXECUTED: startShowcaseInterview', { artifactId });
 
     // 1. Validate artifact exists, is showcase, is in draft status
-    const { data: artifact, error: fetchError } = await supabaseAdmin
+    const { data: artifact, error: fetchError } = await getSupabase()
       .from('artifacts')
       .select('id, type, status, title, content, metadata')
       .eq('id', artifactId)
@@ -58,19 +58,19 @@ export const startShowcaseInterview = tool({
 
     // Handle resume / double-fire: if already interviewing, fetch existing Q&A pairs for resume
     if (artifact.status === 'interviewing') {
-      const { data: userContext } = await supabaseAdmin
+      const { data: userContext } = await getSupabase()
         .from('user_context')
         .select('about_me, profession, customers, goals')
         .limit(1)
         .single();
 
-      const { data: skills } = await supabaseAdmin
+      const { data: skills } = await getSupabase()
         .from('skills')
         .select('name, category, proficiency, years_experience')
         .order('proficiency', { ascending: false });
 
       // Fetch existing interview pairs for resume
-      const { data: existingPairs } = await supabaseAdmin
+      const { data: existingPairs } = await getSupabase()
         .from('artifact_interviews')
         .select('question_number, dimension, question, answer, coverage_scores')
         .eq('artifact_id', artifactId)
@@ -112,7 +112,7 @@ export const startShowcaseInterview = tool({
     }
 
     // 2. Transition to interviewing
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await getSupabase()
       .from('artifacts')
       .update({
         status: 'interviewing',
@@ -130,13 +130,13 @@ export const startShowcaseInterview = tool({
     });
 
     // 3. Fetch user profile for adaptive questioning
-    const { data: userContext } = await supabaseAdmin
+    const { data: userContext } = await getSupabase()
       .from('user_context')
       .select('about_me, profession, customers, goals')
       .limit(1)
       .single();
 
-    const { data: skills } = await supabaseAdmin
+    const { data: skills } = await getSupabase()
       .from('skills')
       .select('name, category, proficiency, years_experience')
       .order('proficiency', { ascending: false });
@@ -183,7 +183,7 @@ export const saveInterviewAnswer = tool({
   execute: async ({ artifactId, questionNumber, dimension, question, answer, coverageScores }) => {
     logToFile('TOOL EXECUTED: saveInterviewAnswer', { artifactId, questionNumber, dimension });
 
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabase()
       .from('artifact_interviews')
       .upsert({
         artifact_id: artifactId,
@@ -233,7 +233,7 @@ export const completeShowcaseInterview = tool({
     });
 
     // 1. Validate artifact is in interviewing status
-    const { data: artifact, error: fetchError } = await supabaseAdmin
+    const { data: artifact, error: fetchError } = await getSupabase()
       .from('artifacts')
       .select('id, status, title')
       .eq('id', artifactId)
@@ -258,7 +258,7 @@ export const completeShowcaseInterview = tool({
         coverage_scores: coverageScores,
       }));
 
-      const { error: insertError } = await supabaseAdmin
+      const { error: insertError } = await getSupabase()
         .from('artifact_interviews')
         .upsert(rows, { onConflict: 'artifact_id,question_number' });
 
@@ -271,7 +271,7 @@ export const completeShowcaseInterview = tool({
     }
 
     // 3. Store synthesized brief in artifacts.metadata.author_brief
-    const { data: currentArtifact } = await supabaseAdmin
+    const { data: currentArtifact } = await getSupabase()
       .from('artifacts')
       .select('metadata')
       .eq('id', artifactId)
@@ -285,7 +285,7 @@ export const completeShowcaseInterview = tool({
       interview_question_count: interviewPairs.length,
     };
 
-    const { error: updateError } = await supabaseAdmin
+    const { error: updateError } = await getSupabase()
       .from('artifacts')
       .update({
         metadata: updatedMetadata,

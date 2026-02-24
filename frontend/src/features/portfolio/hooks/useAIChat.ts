@@ -22,6 +22,7 @@ import {
   selectError,
 } from '../stores/chatStore'
 import { getSelectionContext } from '../stores/editorSelectionStore'
+import { supabase } from '@/lib/supabase'
 
 // =============================================================================
 // Types
@@ -134,6 +135,16 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
   } = useChat({
     transport: new DefaultChatTransport({
       api: `${API_URL}/api/ai/chat/stream`,
+      headers: async (): Promise<Record<string, string>> => {
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('[useAIChat] headers() called:', {
+          hasSession: !!session,
+          hasToken: !!session?.access_token,
+        })
+        return session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {}
+      },
       // VERCEL AI SDK BEST PRACTICE: Use prepareSendMessagesRequest to inject additional context
       // CRITICAL: Must be INSIDE DefaultChatTransport constructor, not outside useChat
       prepareSendMessagesRequest({ messages }) {

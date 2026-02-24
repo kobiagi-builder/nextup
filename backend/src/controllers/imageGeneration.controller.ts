@@ -8,7 +8,7 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 import type { VisualsMetadata } from '../types/portfolio.js';
 
@@ -28,7 +28,7 @@ export async function approveImageDescriptions(req: Request, res: Response) {
 
   try {
     // Validate ownership
-    const { data: artifact } = await supabaseAdmin
+    const { data: artifact } = await getSupabase()
       .from('artifacts')
       .select('visuals_metadata, user_id')
       .eq('id', artifactId)
@@ -60,7 +60,7 @@ export async function approveImageDescriptions(req: Request, res: Response) {
     );
 
     // Update artifact metadata
-    await supabaseAdmin
+    await getSupabase()
       .from('artifacts')
       .update({
         visuals_metadata: {
@@ -105,7 +105,7 @@ export async function generateFinalImages(req: Request, res: Response) {
 
   try {
     // Validate ownership
-    const { data: artifact } = await supabaseAdmin
+    const { data: artifact } = await getSupabase()
       .from('artifacts')
       .select('user_id, visuals_metadata')
       .eq('id', artifactId)
@@ -130,7 +130,7 @@ export async function generateFinalImages(req: Request, res: Response) {
 
     // MVP: Skip actual image generation, transition directly to ready
     // In production, this would use DALL-E/Gemini to generate images
-    await supabaseAdmin
+    await getSupabase()
       .from('artifacts')
       .update({
         status: 'ready', // MVP: Set to ready (images generation skipped)
@@ -179,7 +179,7 @@ export async function regenerateImage(req: Request, res: Response) {
 
   try {
     // Validate ownership
-    const { data: artifact } = await supabaseAdmin
+    const { data: artifact } = await getSupabase()
       .from('artifacts')
       .select('user_id, visuals_metadata')
       .eq('id', artifactId)
@@ -241,7 +241,7 @@ export async function uploadCroppedImage(req: Request, res: Response) {
 
   try {
     // Verify the artifact exists
-    const { data: artifact } = await supabaseAdmin
+    const { data: artifact } = await getSupabase()
       .from('artifacts')
       .select('id')
       .eq('id', artifactId)
@@ -258,7 +258,7 @@ export async function uploadCroppedImage(req: Request, res: Response) {
     const timestamp = Date.now();
     const path = `${artifactId}/images/final/crop_${timestamp}.png`;
 
-    const { error: uploadError } = await supabaseAdmin.storage
+    const { error: uploadError } = await getSupabase().storage
       .from('artifacts')
       .upload(path, buffer, {
         contentType: 'image/png',
@@ -270,7 +270,7 @@ export async function uploadCroppedImage(req: Request, res: Response) {
       throw uploadError;
     }
 
-    const url = supabaseAdmin.storage
+    const url = getSupabase().storage
       .from('artifacts')
       .getPublicUrl(path).data.publicUrl;
 
@@ -302,7 +302,7 @@ export async function getImageGenerationStatus(req: Request, res: Response) {
 
   try {
     // Validate ownership
-    const { data: artifact } = await supabaseAdmin
+    const { data: artifact } = await getSupabase()
       .from('artifacts')
       .select('user_id, status, visuals_metadata')
       .eq('id', artifactId)

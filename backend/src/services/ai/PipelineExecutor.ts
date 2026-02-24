@@ -6,9 +6,10 @@
  */
 
 import { logger } from '../../lib/logger.js';
-import { supabaseAdmin } from '../../lib/supabase.js';
+import { getSupabase } from '../../lib/requestContext.js';
 import { conductDeepResearch } from './tools/researchTools.js';
 import { analyzeWritingCharacteristics } from './tools/writingCharacteristicsTools.js';
+import { analyzeStorytellingStructure } from './tools/storytellingTools.js';
 import { generateContentSkeleton } from './tools/skeletonTools.js';
 import { writeFullContent } from './tools/contentWritingTools.js';
 // applyHumanityCheck is now integrated per-section inside writeFullContent
@@ -83,7 +84,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     toolName: 'conductDeepResearch',
     execute: async (artifactId: string) => {
       // Fetch artifact to get required fields
-      const { data: artifact } = await supabaseAdmin
+      const { data: artifact } = await getSupabase()
         .from('artifacts')
         .select('type, title')
         .eq('id', artifactId)
@@ -111,7 +112,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     toolName: 'analyzeWritingCharacteristics',
     execute: async (artifactId: string) => {
       // Fetch artifact to get type
-      const { data: artifact } = await supabaseAdmin
+      const { data: artifact } = await getSupabase()
         .from('artifacts')
         .select('type')
         .eq('id', artifactId)
@@ -133,11 +134,37 @@ const PIPELINE_STEPS: PipelineStep[] = [
     expectedStatusAfter: 'foundations',
     required: true,
   },
+  // Storytelling analysis: runs within 'foundations' status (no status change)
+  {
+    toolName: 'analyzeStorytellingStructure',
+    execute: async (artifactId: string) => {
+      const { data: artifact } = await getSupabase()
+        .from('artifacts')
+        .select('type')
+        .eq('id', artifactId)
+        .single();
+
+      if (!artifact) {
+        return {
+          success: false,
+          error: { message: 'Artifact not found' },
+        };
+      }
+
+      return analyzeStorytellingStructure.execute!({
+        artifactId,
+        artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
+      }, {} as any);
+    },
+    expectedStatusBefore: 'foundations',
+    expectedStatusAfter: 'foundations',
+    required: true,
+  },
   {
     toolName: 'generateContentSkeleton',
     execute: async (artifactId: string) => {
       // Fetch artifact to get required fields
-      const { data: artifact } = await supabaseAdmin
+      const { data: artifact } = await getSupabase()
         .from('artifacts')
         .select('type, title, tone')
         .eq('id', artifactId)
@@ -167,7 +194,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     toolName: 'writeFullContent',
     execute: async (artifactId: string) => {
       // Fetch artifact to get required fields
-      const { data: artifact } = await supabaseAdmin
+      const { data: artifact } = await getSupabase()
         .from('artifacts')
         .select('type, tone')
         .eq('id', artifactId)
@@ -199,7 +226,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
     toolName: 'identifyImageNeeds',
     execute: async (artifactId: string) => {
       // Fetch artifact to get type and content
-      const { data: artifact } = await supabaseAdmin
+      const { data: artifact } = await getSupabase()
         .from('artifacts')
         .select('type, content')
         .eq('id', artifactId)
@@ -240,7 +267,7 @@ class CheckpointManager {
     metadata?: Record<string, unknown>
   ): Promise<PipelineCheckpoint> {
     // Fetch current artifact state
-    const { data: artifact, error } = await supabaseAdmin
+    const { data: artifact, error } = await getSupabase()
       .from('artifacts')
       .select('id, status')
       .eq('id', artifactId)
@@ -302,7 +329,7 @@ class CheckpointManager {
     });
 
     // Restore artifact status
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabase()
       .from('artifacts')
       .update({ status: checkpoint.status })
       .eq('id', artifactId);
@@ -453,7 +480,7 @@ export class PipelineExecutor {
             // [Artifact status] - status changed (after tool execution)
             if (toolResult.statusTransition) {
               // Fetch artifact title for structured log
-              const { data: artifactData } = await supabaseAdmin
+              const { data: artifactData } = await getSupabase()
                 .from('artifacts')
                 .select('title')
                 .eq('id', artifactId)
@@ -477,7 +504,7 @@ export class PipelineExecutor {
               });
 
               // Get artifact title for logging
-              const { data: artifactForLog } = await supabaseAdmin
+              const { data: artifactForLog } = await getSupabase()
                 .from('artifacts')
                 .select('title, status')
                 .eq('id', artifactId)
@@ -486,7 +513,7 @@ export class PipelineExecutor {
               const previousStatus = artifactForLog?.status || step.expectedStatusAfter;
 
               // Update status to foundations_approval
-              await supabaseAdmin
+              await getSupabase()
                 .from('artifacts')
                 .update({
                   status: 'foundations_approval',
@@ -717,7 +744,7 @@ export class PipelineExecutor {
     });
 
     // Verify artifact is in foundations_approval status
-    const { data: artifact, error: fetchError } = await supabaseAdmin
+    const { data: artifact, error: fetchError } = await getSupabase()
       .from('artifacts')
       .select('status')
       .eq('id', artifactId)
@@ -872,7 +899,7 @@ export class PipelineExecutor {
             // [Artifact status] - status changed (after resumed tool execution)
             if (toolResult.statusTransition) {
               // Fetch artifact title for structured log
-              const { data: artifactData } = await supabaseAdmin
+              const { data: artifactData } = await getSupabase()
                 .from('artifacts')
                 .select('title')
                 .eq('id', artifactId)

@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger } from '../../../lib/logger.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import { mockService } from '../mocks/index.js';
@@ -313,7 +313,7 @@ export const analyzeWritingCharacteristics = tool({
         const mockRecommendations = 'Use active voice, include relevant examples, maintain consistent formatting.';
 
         // Store mock characteristics in database
-        const { error: insertError } = await supabaseAdmin
+        const { error: insertError } = await getSupabase()
           .from('artifact_writing_characteristics')
           .upsert({
             artifact_id: artifactId,
@@ -333,7 +333,7 @@ export const analyzeWritingCharacteristics = tool({
         }
 
         // Update artifact status: research → foundations
-        await supabaseAdmin
+        await getSupabase()
           .from('artifacts')
           .update({
             status: 'foundations',
@@ -367,7 +367,7 @@ export const analyzeWritingCharacteristics = tool({
       }
 
       // 1. Fetch artifact data
-      const { data: artifact, error: artifactError } = await supabaseAdmin
+      const { data: artifact, error: artifactError } = await getSupabase()
         .from('artifacts')
         .select('id, user_id, title, content, tone')
         .eq('id', artifactId)
@@ -401,7 +401,7 @@ export const analyzeWritingCharacteristics = tool({
       }
 
       // 2. Fetch research results
-      const { data: researchResults } = await supabaseAdmin
+      const { data: researchResults } = await getSupabase()
         .from('artifact_research')
         .select('source_type, source_name, excerpt, relevance_score')
         .eq('artifact_id', artifactId)
@@ -419,7 +419,7 @@ export const analyzeWritingCharacteristics = tool({
       });
 
       // 3. Fetch user's active writing examples
-      const { data: writingExamples } = await supabaseAdmin
+      const { data: writingExamples } = await getSupabase()
         .from('user_writing_examples')
         .select('name, content, analyzed_characteristics')
         .eq('user_id', artifact.user_id)
@@ -437,7 +437,7 @@ export const analyzeWritingCharacteristics = tool({
       });
 
       // 4. Fetch user context
-      const { data: userContext } = await supabaseAdmin
+      const { data: userContext } = await getSupabase()
         .from('user_context')
         .select('about_me, profession, customers, goals')
         .eq('user_id', artifact.user_id)
@@ -460,7 +460,7 @@ export const analyzeWritingCharacteristics = tool({
       // 4.5. Fetch author's brief from artifact metadata
       let authorBrief: string | undefined;
       {
-        const { data: artifactMeta } = await supabaseAdmin
+        const { data: artifactMeta } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -522,7 +522,7 @@ export const analyzeWritingCharacteristics = tool({
       });
 
       // 7. Store in database
-      const { error: insertError } = await supabaseAdmin
+      const { error: insertError } = await getSupabase()
         .from('artifact_writing_characteristics')
         .upsert({
           artifact_id: artifactId,
@@ -563,7 +563,7 @@ export const analyzeWritingCharacteristics = tool({
       }
 
       // 8. Update artifact status: research → foundations
-      const { error: statusError } = await supabaseAdmin
+      const { error: statusError } = await getSupabase()
         .from('artifacts')
         .update({
           status: 'foundations',

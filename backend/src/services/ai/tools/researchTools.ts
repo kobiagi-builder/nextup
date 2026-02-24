@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger } from '../../../lib/logger.js';
 import { mockService, type ResearchToolResponse } from '../mocks/index.js';
 import { tavilyClient } from '../../../lib/tavily.js';
@@ -228,7 +228,7 @@ export const conductDeepResearch = tool({
         // Save author_brief to metadata even in mock mode
         // Guard: don't overwrite an existing interview-enriched brief
         if (topicDescription) {
-          const { data: currentArtifact } = await supabaseAdmin
+          const { data: currentArtifact } = await getSupabase()
             .from('artifacts')
             .select('metadata')
             .eq('id', artifactId)
@@ -236,7 +236,7 @@ export const conductDeepResearch = tool({
 
           const currentMetadata = (currentArtifact?.metadata as Record<string, unknown>) || {};
           if (!currentMetadata.author_brief) {
-            await supabaseAdmin
+            await getSupabase()
               .from('artifacts')
               .update({
                 metadata: { ...currentMetadata, author_brief: topicDescription },
@@ -246,7 +246,7 @@ export const conductDeepResearch = tool({
         }
 
         // Update artifact status to 'research' even in mock mode
-        await supabaseAdmin
+        await getSupabase()
           .from('artifacts')
           .update({ status: 'research', updated_at: new Date().toISOString() })
           .eq('id', artifactId);
@@ -263,7 +263,7 @@ export const conductDeepResearch = tool({
         }));
 
         // Insert mock research into database
-        const { error: insertError } = await supabaseAdmin
+        const { error: insertError } = await getSupabase()
           .from('artifact_research')
           .insert(mockResearchData);
 
@@ -306,7 +306,7 @@ export const conductDeepResearch = tool({
       }
 
       // 0. Update artifact status to 'research' (Phase 1: enables frontend polling)
-      const { error: statusError } = await supabaseAdmin
+      const { error: statusError } = await getSupabase()
         .from('artifacts')
         .update({ status: 'research', updated_at: new Date().toISOString() })
         .eq('id', artifactId);
@@ -327,7 +327,7 @@ export const conductDeepResearch = tool({
       // 0.5 Save author_brief to artifact metadata (preserves user intent through pipeline)
       // Guard: don't overwrite an existing interview-enriched brief with the simple topic description
       if (topicDescription) {
-        const { data: currentArtifact } = await supabaseAdmin
+        const { data: currentArtifact } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -335,7 +335,7 @@ export const conductDeepResearch = tool({
 
         const currentMetadata = (currentArtifact?.metadata as Record<string, unknown>) || {};
         if (!currentMetadata.author_brief) {
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               metadata: { ...currentMetadata, author_brief: topicDescription },
@@ -444,7 +444,7 @@ export const conductDeepResearch = tool({
       }
 
       // 6. Store results in database (includes fallback if used)
-      const { data, error } = await supabaseAdmin
+      const { data, error } = await getSupabase()
         .from('artifact_research')
         .insert(finalResults)
         .select();

@@ -5,7 +5,7 @@
  * Lists all artifacts with filters, and provides AI-powered topic research.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Search, FileText, MessageSquare, Trophy, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -64,6 +64,15 @@ export function PortfolioPage() {
   // Chat layout (split view on desktop, Sheet on mobile)
   const isMobile = useIsMobile()
   const { openChat, closeChat, isOpen: isChatOpen, chatConfig, configVersion } = useChatLayoutStore()
+
+  // Auto-open AI assistant on mount (so it's visible after login)
+  useEffect(() => {
+    if (!isChatOpen) {
+      openChat({ contextKey: 'portfolio:research', title: 'Content Research' })
+    }
+    // Only run on mount — intentionally omitting deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Data hooks
   const { data: artifacts = [], isLoading } = useArtifacts()

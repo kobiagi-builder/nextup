@@ -11,34 +11,33 @@ import { cn } from "@/lib/utils";
 import {
   Check,
   Edit,
+  ExternalLink,
   FileText,
   Loader2,
   MessageSquare,
   Sparkles,
+  TrendingUp,
   Trophy,
 } from "lucide-react";
 import { useState } from "react";
-import type { ArtifactType } from "../../types/portfolio";
+import type { ArtifactSuggestion, ContinuationType } from "../../types/chat";
 
 // =============================================================================
 // Types
 // =============================================================================
 
-export interface ArtifactSuggestion {
-  id: string;
-  title: string;
-  description: string;
-  type: ArtifactType;
-  rationale: string;
-  tags?: string[];
-}
-
 export interface ArtifactSuggestionCardProps {
   suggestion: ArtifactSuggestion;
   isAdded?: boolean;
   onCreate: (suggestion: ArtifactSuggestion) => Promise<void>;
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>; // Phase 1: AI content creation
+  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>;
 }
+
+const CONTINUATION_TYPE_LABELS: Record<ContinuationType, string> = {
+  sequel: 'Sequel',
+  different_angle: 'New Angle',
+  updated_version: 'Updated Version',
+};
 
 // =============================================================================
 // Component
@@ -136,6 +135,29 @@ export function ArtifactSuggestionCard({
               {tag}
             </span>
           ))}
+        </div>
+      )}
+
+      {/* Badges: Trending source + Continuation type */}
+      {(suggestion.trendingSource || suggestion.continuationType) && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {suggestion.trendingSource && (
+            <a
+              href={suggestion.trendingSource}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs text-orange-600 dark:text-orange-400 hover:underline"
+            >
+              <TrendingUp className="h-3 w-3" />
+              Source
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          )}
+          {suggestion.continuationType && (
+            <span className="inline-flex items-center gap-1 text-xs bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded-full">
+              {CONTINUATION_TYPE_LABELS[suggestion.continuationType]}
+            </span>
+          )}
         </div>
       )}
 

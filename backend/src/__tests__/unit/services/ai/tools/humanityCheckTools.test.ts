@@ -7,14 +7,12 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { applyHumanityCheck, checkContentHumanity } from '../../../../../services/ai/tools/humanityCheckTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
-import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 
 // Mock dependencies
-vi.mock('../../../../../lib/supabase.js', () => ({
-  supabaseAdmin: {
-    from: vi.fn(),
-  },
+const mockSupabase = { from: vi.fn() };
+vi.mock('../../../../../lib/requestContext.js', () => ({
+  getSupabase: vi.fn(() => mockSupabase),
 }));
 
 vi.mock('../../../../../services/ai/mocks/index.js', () => ({
@@ -34,7 +32,7 @@ const defaultTone = 'professional' as const;
 
 // Helper to setup supabase mock for update operations
 function mockSupabaseUpdate(error: { message: string } | null = null) {
-  (supabaseAdmin.from as any).mockReturnValue({
+  (mockSupabase.from as any).mockReturnValue({
     update: vi.fn().mockReturnValue({
       eq: vi.fn().mockResolvedValue({ data: null, error }),
     }),
@@ -100,7 +98,7 @@ describe('applyHumanityCheck', () => {
         tone: defaultTone,
       }, toolOptions);
 
-      expect(supabaseAdmin.from).toHaveBeenCalledWith('artifacts');
+      expect(mockSupabase.from).toHaveBeenCalledWith('artifacts');
     });
   });
 

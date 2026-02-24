@@ -6,7 +6,6 @@
 
 import { Router } from 'express';
 import { contentAgentController } from '../controllers/contentAgentController.js';
-import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -46,7 +45,7 @@ const router = Router();
  * Note: Artifact ownership validation is planned for Phase 5.
  * For now, the route is protected by requireAuth middleware only.
  */
-router.post('/execute', requireAuth, contentAgentController.execute);
+router.post('/execute', contentAgentController.execute);
 
 /**
  * POST /api/content-agent/clear-session
@@ -61,7 +60,7 @@ router.post('/execute', requireAuth, contentAgentController.execute);
  *
  * Authentication: Required
  */
-router.post('/clear-session', requireAuth, contentAgentController.clearSession);
+router.post('/clear-session', contentAgentController.clearSession);
 
 /**
  * GET /api/content-agent/history
@@ -80,6 +79,6 @@ router.post('/clear-session', requireAuth, contentAgentController.clearSession);
  *
  * Authentication: Required
  */
-router.get('/history', requireAuth, contentAgentController.getHistory);
+router.get('/history', contentAgentController.getHistory);
 
 export default router;

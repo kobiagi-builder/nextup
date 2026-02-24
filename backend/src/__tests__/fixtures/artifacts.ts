@@ -11,9 +11,9 @@ import type { MockArtifact } from '../utils/testHelpers.js';
 // =============================================================================
 
 export const draftArtifact: MockArtifact = {
-  id: 'artifact-draft-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000001',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'Getting Started with React Testing',
   type: 'blog',
   status: 'draft',
@@ -28,9 +28,9 @@ export const draftArtifact: MockArtifact = {
 // =============================================================================
 
 export const researchCompleteArtifact: MockArtifact = {
-  id: 'artifact-research-complete-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000002',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'Building Scalable Node.js APIs',
   type: 'blog',
   status: 'research',
@@ -45,9 +45,9 @@ export const researchCompleteArtifact: MockArtifact = {
 // =============================================================================
 
 export const skeletonReadyArtifact: MockArtifact = {
-  id: 'artifact-skeleton-ready-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000003',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'Microservices Architecture Best Practices',
   type: 'blog',
   status: 'skeleton',
@@ -88,9 +88,9 @@ Call to action for readers`,
 // =============================================================================
 
 export const writingArtifact: MockArtifact = {
-  id: 'artifact-writing-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000004',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'GraphQL vs REST: Choosing the Right API',
   type: 'blog',
   status: 'writing',
@@ -138,9 +138,9 @@ Summary and recommendations`,
 // =============================================================================
 
 export const creatingVisualsArtifact: MockArtifact = {
-  id: 'artifact-visuals-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000005',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'Docker Container Security Guide',
   type: 'showcase',
   status: 'creating_visuals',
@@ -191,9 +191,9 @@ Outcomes with metrics visual`,
 // =============================================================================
 
 export const readyArtifact: MockArtifact = {
-  id: 'artifact-ready-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000006',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'Kubernetes Production Readiness Checklist',
   type: 'blog',
   status: 'ready',
@@ -280,9 +280,9 @@ Summary and next steps`,
 // =============================================================================
 
 export const socialPostArtifact: MockArtifact = {
-  id: 'artifact-social-001',
-  user_id: 'user-123',
-  product_id: 'product-456',
+  id: '00000000-0000-4000-a000-000000000007',
+  user_id: '00000000-0000-4000-a000-000000000101',
+  product_id: '00000000-0000-4000-a000-000000000201',
   title: 'LinkedIn Post: Remote Work Productivity',
   type: 'social_post',
   status: 'ready',

@@ -1,10 +1,10 @@
 # Content Agent API Endpoints
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-29
+**Version:** 3.0.0
+**Last Updated:** 2026-02-20
 **Base URL:** `http://localhost:3001` (development) | `https://api.yourapp.com` (production)
 
-> **⚠️ IMPORTANT UPDATE**: This document has been updated for Phase 4 Writing Quality Enhancement. New endpoints added for foundations approval and writing characteristics.
+> **⚠️ v3.0.0**: Added frontend logging bridge, auth data migration, and artifact deletion endpoints. Updated for 11-status workflow with 13 tools.
 
 ## Overview
 
@@ -86,7 +86,7 @@ Execute a content agent request with natural language message and optional scree
     artifactId?: string;        // UUID of current artifact
     artifactType?: 'blog' | 'social_post' | 'showcase';
     artifactTitle?: string;     // Artifact title
-    artifactStatus?: 'draft' | 'research' | 'foundations' | 'skeleton' | 'foundations_approval' | 'writing' | 'creating_visuals' | 'ready' | 'published';  // Phase 4: 9 statuses
+    artifactStatus?: 'draft' | 'interviewing' | 'research' | 'foundations' | 'skeleton' | 'foundations_approval' | 'writing' | 'humanity_checking' | 'creating_visuals' | 'ready' | 'published';  // 11 statuses
   };
 }
 ```
@@ -737,6 +737,131 @@ curl -X DELETE http://localhost:3001/api/user/writing-examples/example-123 \
 
 ---
 
+### 7. Frontend Logging Bridge
+
+Accept structured log messages from the frontend for server-side aggregation.
+
+**Endpoint**: `POST /api/log`
+
+**Authentication**: **Not required** (public endpoint)
+
+#### Request Body
+
+```typescript
+{
+  level?: string;       // Log level: 'debug' | 'info' | 'warn' | 'error' | 'log' (default: 'log')
+  message?: string;     // Log message (default: 'No message')
+  data?: unknown;       // Additional context data
+}
+```
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```json
+{ "ok": true }
+```
+
+#### Notes
+
+- This endpoint has **no authentication** to avoid blocking frontend error reporting
+- Logs are processed by `logFrontend()` which applies the same sanitization as backend logs
+- No PII should be sent from the frontend (see production logging security rules)
+
+---
+
+### 8. Auth Data Migration
+
+Reassign anonymous/placeholder data to the authenticated user after login.
+
+**Endpoint**: `POST /api/auth/migrate-data`
+
+**Authentication**: Required
+
+#### Request Body
+
+None required. The authenticated user's ID is extracted from the JWT token.
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```typescript
+{
+  migrated: boolean;         // Whether any data was migrated
+  tablesUpdated: string[];   // Tables that had rows reassigned
+}
+```
+
+#### Example Request
+
+```bash
+curl -X POST http://localhost:3001/api/auth/migrate-data \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+#### Example Response
+
+```json
+{
+  "migrated": true,
+  "tablesUpdated": ["artifacts", "user_context", "skills"]
+}
+```
+
+#### Notes
+
+- **Idempotent**: Safe to call multiple times (no-op if already migrated)
+- Called automatically by the frontend after first login
+- Migrates data from placeholder user to authenticated user across all user-owned tables
+
+---
+
+### 9. Delete Artifact
+
+Delete an artifact and clean up all associated storage objects.
+
+**Endpoint**: `DELETE /api/artifacts/:id`
+
+**Authentication**: Required
+
+#### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Artifact ID to delete |
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```json
+{ "success": true }
+```
+
+#### Cleanup Process
+
+1. **Storage cleanup**: Lists and removes all files in `artifacts/{id}/` and `artifacts/{id}/images/final/` from Supabase Storage
+2. **Database cascade**: Deletes the artifact row, which cascades to `artifact_research`, `artifact_writing_characteristics`, `ai_conversations`, and `artifact_interviews`
+3. Storage failures are **non-blocking** — the artifact row is still deleted even if storage cleanup fails
+
+#### Error Responses
+
+**500 Internal Server Error** - Database deletion failed
+
+```json
+{ "error": "Failed to delete artifact" }
+```
+
+#### Notes
+
+- Uses user-scoped Supabase client — RLS policies enforce ownership automatically
+- Storage cleanup runs first to avoid orphaned files
+- Cascading deletes handle all related records via foreign key constraints
+
+---
+
 ## Error Handling Reference
 
 ### HTTP Status Codes
@@ -990,12 +1115,12 @@ async function executeWithRetry(request, maxRetries = 3) {
 - [intent-detection-guide.md](../ai-agents-and-prompts/intent-detection-guide.md) - How user messages are interpreted
 
 ### Tool References
-- [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md) - All 7 core content creation tools (v2.0.0)
+- [core-tools-reference.md](../ai-agents-and-prompts/core-tools-reference.md) - All 13 content creation tools (v3.0.0)
 - [context-tools-reference.md](../ai-agents-and-prompts/context-tools-reference.md) - Context fetching tools
 
 ### Workflow Execution
-- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Full pipeline execution with Phase 4 approval gate (v2.0.0)
-- [7-status-workflow-specification.md](../artifact-statuses/7-status-workflow-specification.md) - 9-status workflow specification (v3.0.0)
+- [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - 3 pipeline paths with interview, social post, and improvement flows (v4.0.0)
+- [STATUS_VALUES_REFERENCE.md](../artifact-statuses/STATUS_VALUES_REFERENCE.md) - 11-status workflow specification
 
 ### Security & Context
 - [authentication-and-security.md](./authentication-and-security.md) - Authentication flow and security measures
@@ -1007,6 +1132,12 @@ async function executeWithRetry(request, maxRetries = 3) {
 ---
 
 **Version History:**
+- **3.0.0** (2026-02-20) - **Phase 5 Updates**:
+  - Added `POST /api/log` endpoint (frontend logging bridge, public)
+  - Added `POST /api/auth/migrate-data` endpoint (auth data migration)
+  - Added `DELETE /api/artifacts/:id` endpoint (artifact deletion with storage cleanup)
+  - Updated `artifactStatus` to 11 statuses (added `interviewing`, `humanity_checking`)
+  - Updated tool reference links to v3.0.0 (13 tools)
 - **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
   - Added `POST /api/artifacts/:id/approve-foundations` endpoint
   - Added `GET /api/artifacts/:id/writing-characteristics` endpoint

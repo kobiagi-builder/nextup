@@ -1,6 +1,6 @@
-# Product Consultant Helper
+# NextUp
 
-A SaaS application that helps consultants create professional portfolios and content artifacts with AI assistance.
+An AI-native operating system for advisors, consultants, and fractional service providers.
 
 ## Tech Stack
 

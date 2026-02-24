@@ -3,12 +3,12 @@ import { z } from 'zod';
 import { google } from '@ai-sdk/google';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger, logToFile } from '../../../lib/logger.js';
 import { mockService, type ContentSectionResponse, type FullContentResponse } from '../mocks/index.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
-import type { WritingCharacteristics } from '../../../types/portfolio.js';
+import type { WritingCharacteristics, StorytellingGuidance } from '../../../types/portfolio.js';
 import { buildHumanityCheckPrompt } from './humanityCheckTools.js';
 
 /**
@@ -191,6 +191,75 @@ function getWritingCharacteristicsGuidance(characteristics?: WritingCharacterist
 }
 
 /**
+ * Extract storytelling guidance for section-level content writing
+ */
+function getStorytellingWritingGuidance(
+  storytelling?: StorytellingGuidance,
+  isFirstSection?: boolean,
+  sectionIndex?: number,
+  totalSections?: number
+): string {
+  if (!storytelling) return '';
+
+  const guidance: string[] = ['## Storytelling Guidance (weave narrative throughout this section)'];
+
+  // Framework context
+  guidance.push(`- Narrative Framework: ${storytelling.narrative_framework.name}`);
+
+  // Protagonist framing
+  guidance.push(`- Protagonist: ${storytelling.protagonist.type} — ${storytelling.protagonist.guidance}`);
+
+  // Section-specific emotional target from emotional journey
+  if (storytelling.emotional_journey?.length > 0 && sectionIndex !== undefined && totalSections) {
+    const journeyIndex = Math.floor((sectionIndex / totalSections) * storytelling.emotional_journey.length);
+    const currentStage = storytelling.emotional_journey[Math.min(journeyIndex, storytelling.emotional_journey.length - 1)];
+    guidance.push(`- Emotional Target for This Section: ${currentStage.emotion} (intensity: ${currentStage.intensity}/10)`);
+    guidance.push(`  Technique: ${currentStage.technique}`);
+  }
+
+  // Hook strategy (first section only)
+  if (isFirstSection) {
+    guidance.push(`- Hook Strategy: ${storytelling.hook_strategy.type} — ${storytelling.hook_strategy.guidance}`);
+    guidance.push(`- Story Arc Beginning: ${storytelling.story_arc.beginning}`);
+  }
+
+  // Section role from section mapping (if available)
+  if (storytelling.story_arc.section_mapping?.length > 0 && sectionIndex !== undefined && totalSections) {
+    const mappingIndex = Math.floor((sectionIndex / totalSections) * storytelling.story_arc.section_mapping.length);
+    const role = storytelling.story_arc.section_mapping[Math.min(mappingIndex, storytelling.story_arc.section_mapping.length - 1)];
+    guidance.push(`- This Section's Narrative Role: [${role.section_role}] ${role.guidance}`);
+  }
+
+  // Tension points relevant to this section position
+  if (storytelling.tension_points?.length > 0 && sectionIndex !== undefined && totalSections) {
+    const positionRatio = sectionIndex / totalSections;
+    const relevantTensions = storytelling.tension_points.filter(tp => {
+      if (positionRatio < 0.3) return tp.location === 'opening' || tp.location === 'after_setup';
+      if (positionRatio > 0.7) return tp.location === 'before_resolution';
+      return tp.location === 'mid_argument' || tp.location === 'mid_content';
+    });
+    if (relevantTensions.length > 0) {
+      guidance.push(`- Tension Point for This Section:`);
+      for (const tp of relevantTensions) {
+        guidance.push(`  - ${tp.type}: ${tp.description}`);
+      }
+    }
+  }
+
+  // Resolution (last section only)
+  if (sectionIndex !== undefined && totalSections && sectionIndex === totalSections - 1) {
+    guidance.push(`- Resolution Strategy: ${storytelling.resolution_strategy.type} — ${storytelling.resolution_strategy.guidance}`);
+    guidance.push(`- Story Arc End: ${storytelling.story_arc.end}`);
+  }
+
+  if (guidance.length === 1) {
+    return '';
+  }
+
+  return '\n' + guidance.join('\n') + '\n';
+}
+
+/**
  * Build content generation prompt
  */
 function buildContentPrompt(
@@ -201,10 +270,14 @@ function buildContentPrompt(
   researchContext: string,
   isFirstSection: boolean = false,
   characteristics?: WritingCharacteristics,
-  authorBrief?: string
+  authorBrief?: string,
+  storytelling?: StorytellingGuidance,
+  sectionIndex?: number,
+  totalSections?: number
 ): string {
   const toneModifier = toneModifiers[tone];
   const characteristicsGuidance = getWritingCharacteristicsGuidance(characteristics);
+  const storytellingWritingGuidance = getStorytellingWritingGuidance(storytelling, isFirstSection, sectionIndex, totalSections);
 
   const authorIntentSection = authorBrief
     ? `
@@ -237,6 +310,7 @@ ${researchContext || 'No specific research available. Write based on general kno
 ## Tone Requirements
 ${toneModifier}
 ${characteristicsGuidance}
+${storytellingWritingGuidance}
 ## Writing Guidelines
 
 ### Example Development (for every example used)
@@ -456,7 +530,7 @@ export const writeContentSection = tool({
       });
 
       const researchStartTime = Date.now();
-      const { data: researchResults, error: researchError } = await supabaseAdmin
+      const { data: researchResults, error: researchError } = await getSupabase()
         .from('artifact_research')
         .select('*')
         .eq('artifact_id', artifactId)
@@ -513,7 +587,7 @@ export const writeContentSection = tool({
       // =======================================================================
       let authorBriefForSection: string | undefined;
       {
-        const { data: artifactMeta } = await supabaseAdmin
+        const { data: artifactMeta } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -530,6 +604,26 @@ export const writeContentSection = tool({
       }
 
       // =======================================================================
+      // TRACE: Step 2.6 - Fetch Storytelling Guidance
+      // =======================================================================
+      let storytellingForSection: StorytellingGuidance | undefined;
+      {
+        const { data: stData } = await getSupabase()
+          .from('artifact_storytelling')
+          .select('storytelling_guidance')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (stData?.storytelling_guidance) {
+          storytellingForSection = stData.storytelling_guidance as StorytellingGuidance;
+          logPhase2('STORYTELLING_FETCH', 'Storytelling guidance loaded for section', {
+            traceId,
+            framework: storytellingForSection.narrative_framework?.name,
+          });
+        }
+      }
+
+      // =======================================================================
       // TRACE: Step 3 - Build Content Generation Prompt
       // =======================================================================
       const prompt = buildContentPrompt(
@@ -540,7 +634,8 @@ export const writeContentSection = tool({
         researchContext,
         false,  // isFirstSection - standalone tool doesn't know section position
         undefined,  // characteristics - not fetched in standalone mode
-        authorBriefForSection
+        authorBriefForSection,
+        storytellingForSection
       );
 
       logPhase2('PROMPT_BUILD', 'Content generation prompt built', {
@@ -749,7 +844,7 @@ export const writeFullContent = tool({
 
         // Update database to maintain workflow
         if (mockResponse.success) {
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               status: mockResponse.status || 'writing', // Keep 'writing' for Phase 3
@@ -771,7 +866,7 @@ export const writeFullContent = tool({
         toStatus: 'writing',
       });
 
-      const { error: statusError } = await supabaseAdmin
+      const { error: statusError } = await getSupabase()
         .from('artifacts')
         .update({
           status: 'writing',
@@ -822,7 +917,7 @@ export const writeFullContent = tool({
         artifactId,
       });
 
-      const { data: artifact, error: fetchError } = await supabaseAdmin
+      const { data: artifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('content, title')
         .eq('id', artifactId)
@@ -934,7 +1029,7 @@ export const writeFullContent = tool({
       });
 
       const researchStartTime = Date.now();
-      const { data: researchResults } = await supabaseAdmin
+      const { data: researchResults } = await getSupabase()
         .from('artifact_research')
         .select('*')
         .eq('artifact_id', artifactId)
@@ -966,7 +1061,7 @@ export const writeFullContent = tool({
           artifactId,
         });
 
-        const { data: charData } = await supabaseAdmin
+        const { data: charData } = await getSupabase()
           .from('artifact_writing_characteristics')
           .select('characteristics')
           .eq('artifact_id', artifactId)
@@ -995,7 +1090,7 @@ export const writeFullContent = tool({
       // =======================================================================
       let authorBrief: string | undefined;
       {
-        const { data: artifactMeta } = await supabaseAdmin
+        const { data: artifactMeta } = await getSupabase()
           .from('artifacts')
           .select('metadata')
           .eq('id', artifactId)
@@ -1011,6 +1106,30 @@ export const writeFullContent = tool({
           logger.debug('[WriteFullContent] Author brief loaded', {
             traceId,
             briefLength: authorBrief.length,
+          });
+        }
+      }
+
+      // =======================================================================
+      // TRACE: Step 4.7 - Fetch Storytelling Guidance
+      // =======================================================================
+      let storytellingData: StorytellingGuidance | undefined;
+      {
+        const { data: stData } = await getSupabase()
+          .from('artifact_storytelling')
+          .select('storytelling_guidance')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (stData?.storytelling_guidance) {
+          storytellingData = stData.storytelling_guidance as StorytellingGuidance;
+          logPhase2('STORYTELLING_FETCH', 'Storytelling guidance loaded', {
+            traceId,
+            framework: storytellingData.narrative_framework?.name,
+          });
+          logger.debug('[WriteFullContent] Storytelling guidance loaded', {
+            traceId,
+            framework: storytellingData.narrative_framework?.name,
           });
         }
       }
@@ -1052,7 +1171,10 @@ export const writeFullContent = tool({
             researchContext,
             i === 0,  // isFirstSection - first section gets featured/hero image
             writingCharacteristics,  // Phase 4: Pass writing characteristics
-            authorBrief  // Author's original intent as north star
+            authorBrief,  // Author's original intent as north star
+            storytellingData,  // Storytelling guidance for narrative structure
+            i,  // sectionIndex
+            sections.length  // totalSections
           );
 
           logPhase2('GEMINI_API_CALL', `Calling Gemini for section "${section.heading}"`, {
@@ -1246,7 +1368,7 @@ export const writeFullContent = tool({
         toStatus: 'humanity_checking',
       });
 
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           content: fullContent,
@@ -1373,7 +1495,7 @@ export const writeFullContent = tool({
         artifactId,
       });
 
-      await supabaseAdmin
+      await getSupabase()
         .from('artifacts')
         .update({
           status: 'skeleton',

@@ -4,28 +4,23 @@ import { aiRouter } from './ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
 import contentAgentRouter from './contentAgentRoutes.js'
 import writingExamplesRouter from './writingExamples.routes.js'
+import { authRouter } from './auth.routes.js'
+import { requireAuth } from '../middleware/auth.js'
 import { logFrontend } from '../lib/logger.js'
 
 export const router = Router()
 
-// Health check
+// Public routes (no auth)
 router.use('/health', healthRouter)
-
-// AI endpoints
-router.use('/ai', aiRouter)
-
-// Artifact research endpoints
-router.use('/artifacts', artifactResearchRouter)
-
-// Content agent endpoints
-router.use('/content-agent', contentAgentRouter)
-
-// User writing examples endpoints (Phase 4)
-router.use('/user/writing-examples', writingExamplesRouter)
-
-// Frontend logging endpoint - captures all FE logs to the debug file
 router.post('/log', (req, res) => {
   const { level, message, data } = req.body
   logFrontend(level || 'log', message || 'No message', data)
   res.status(200).json({ ok: true })
 })
+
+// Authenticated routes — requireAuth applied at mount level
+router.use('/auth', requireAuth, authRouter)
+router.use('/ai', requireAuth, aiRouter)
+router.use('/artifacts', requireAuth, artifactResearchRouter)
+router.use('/content-agent', requireAuth, contentAgentRouter)
+router.use('/user/writing-examples', requireAuth, writingExamplesRouter)

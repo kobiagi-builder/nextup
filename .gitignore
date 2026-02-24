@@ -23,6 +23,7 @@ frontend/.env.local
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
+.chrome-debug-profile
 .idea
 .DS_Store
 *.suo
@@ -30,3 +31,4 @@ frontend/.env.local
 *.njsproj
 *.sln
 *.sw?
+frontend/@/

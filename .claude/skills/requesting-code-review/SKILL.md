@@ -89,6 +89,20 @@ You: [Fix progress indicators]
 - Review before merge
 - Review when stuck
 
+## After Code Review: Product Documentation
+
+After code review is complete and all issues are resolved, **always invoke the `product-documentation` skill** to update documentation for the changes. This is part of the mandatory post-implementation sequence:
+
+```
+Code Review (this skill) → Receive Review → Fix Issues → Product Documentation
+```
+
+The product-documentation skill will:
+1. Identify what changed from the git diff
+2. Map changes to documentation layers (flows, features, API, architecture, etc.)
+3. Create or update affected docs under `docs/`
+4. Update `docs/DOCUMENTATION_INDEX.md`
+
 ## Red Flags
 
 **Never:**
@@ -96,6 +110,7 @@ You: [Fix progress indicators]
 - Ignore Critical issues
 - Proceed with unfixed Important issues
 - Argue with valid technical feedback
+- Skip documentation update after review
 
 **If reviewer wrong:**
 - Push back with technical reasoning

@@ -4,7 +4,8 @@
  * Factory functions and utilities for creating test data.
  */
 
-import type { ArtifactStatus, ArtifactType } from '../../types/portfolio.js';
+import type { ArtifactStatus, ArtifactType, StorytellingGuidance } from '../../types/portfolio.js';
+import { ErrorCategory } from '../../services/ai/types/contentAgent.js';
 import type { ScreenContext, ToolOutput } from '../../services/ai/types/contentAgent.js';
 import type { ToolExecutionOptions } from 'ai';
 
@@ -201,6 +202,102 @@ Results: Measurable outcomes and impact.`,
 }
 
 // =============================================================================
+// Mock Storytelling Guidance Factory
+// =============================================================================
+
+export function createMockStorytellingGuidance(artifactType: ArtifactType = 'blog'): StorytellingGuidance {
+  if (artifactType === 'showcase') {
+    return {
+      narrative_framework: { name: 'star', description: 'STAR method for case study', confidence: 0.85 },
+      story_arc: {
+        beginning: 'Set the scene with the professional context',
+        middle: 'Walk through the methodology and key decisions',
+        end: 'Reveal transformation and measurable outcomes',
+        section_mapping: [
+          { section_role: 'context', guidance: 'Establish situation and stakes', emotional_target: 'empathy' },
+          { section_role: 'challenge', guidance: 'Present core constraint', emotional_target: 'tension' },
+          { section_role: 'journey', guidance: 'Detail the approach taken', emotional_target: 'engagement' },
+          { section_role: 'transformation', guidance: 'Show measurable change', emotional_target: 'satisfaction' },
+          { section_role: 'framework', guidance: 'Distill reusable framework', emotional_target: 'empowerment' },
+        ],
+      },
+      emotional_journey: [
+        { stage: 'opening', emotion: 'empathy', intensity: 6, technique: 'Relatable scenario' },
+        { stage: 'challenge', emotion: 'tension', intensity: 7, technique: 'Stakes and constraints' },
+        { stage: 'insight', emotion: 'aha', intensity: 8, technique: 'Counter-intuitive approach' },
+        { stage: 'resolution', emotion: 'empowerment', intensity: 8, technique: 'Applicable framework' },
+      ],
+      hook_strategy: { type: 'in_medias_res', guidance: 'Start at key decision moment' },
+      protagonist: { type: 'customer_as_hero', guidance: 'Customer overcame challenge' },
+      tension_points: [
+        { location: 'after_setup', type: 'stakes_raise', description: 'Risk of failure' },
+      ],
+      resolution_strategy: { type: 'transformation_reveal', guidance: 'Before/after with metrics' },
+      _summary: 'Mock STAR storytelling for showcase.',
+      _recommendations: 'Focus on transformation narrative.',
+    };
+  }
+
+  if (artifactType === 'social_post') {
+    return {
+      narrative_framework: { name: 'bab', description: 'BAB micro for social post', confidence: 0.8 },
+      story_arc: {
+        beginning: 'Hook with surprising insight',
+        middle: 'Deliver core value',
+        end: 'Close with call-to-action',
+        section_mapping: [
+          { section_role: 'hook', guidance: 'Grab attention first line', emotional_target: 'curiosity' },
+          { section_role: 'tension', guidance: 'Create curiosity gap', emotional_target: 'recognition' },
+          { section_role: 'payoff', guidance: 'Deliver insight', emotional_target: 'empowerment' },
+        ],
+      },
+      emotional_journey: [
+        { stage: 'opening', emotion: 'curiosity', intensity: 8, technique: 'Surprising statement' },
+        { stage: 'middle', emotion: 'recognition', intensity: 7, technique: 'Relatable scenario' },
+        { stage: 'close', emotion: 'empowerment', intensity: 7, technique: 'Actionable takeaway' },
+      ],
+      hook_strategy: { type: 'startling_statistic', guidance: 'Open with surprising number' },
+      protagonist: { type: 'reader_as_hero', guidance: 'Address reader directly' },
+      tension_points: [],
+      resolution_strategy: { type: 'call_to_action', guidance: 'End with engagement prompt' },
+      _summary: 'Mock BAB micro-storytelling for social post.',
+      _recommendations: 'Hook-first, one insight.',
+    };
+  }
+
+  // Blog default
+  return {
+    narrative_framework: { name: 'bab', description: 'BAB for argument-driven blog', confidence: 0.85 },
+    story_arc: {
+      beginning: 'Establish status quo being challenged',
+      middle: 'Develop argument through examples',
+      end: 'Bridge to transformed understanding',
+      section_mapping: [
+        { section_role: 'setup', guidance: 'Challenge common belief', emotional_target: 'curiosity' },
+        { section_role: 'rising_action', guidance: 'Build case with named example', emotional_target: 'tension' },
+        { section_role: 'climax', guidance: 'Deliver core insight', emotional_target: 'aha' },
+        { section_role: 'resolution', guidance: 'Actionable takeaway', emotional_target: 'empowerment' },
+      ],
+    },
+    emotional_journey: [
+      { stage: 'opening', emotion: 'curiosity', intensity: 7, technique: 'Bold claim' },
+      { stage: 'problem', emotion: 'recognition', intensity: 6, technique: 'Relatable scenario' },
+      { stage: 'insight', emotion: 'aha', intensity: 9, technique: 'Counter-intuitive finding' },
+      { stage: 'resolution', emotion: 'empowerment', intensity: 8, technique: 'Diagnostic questions' },
+    ],
+    hook_strategy: { type: 'provocative_question', guidance: 'Question challenging conventional wisdom' },
+    protagonist: { type: 'reader_as_hero', guidance: 'Reader gaining important insight' },
+    tension_points: [
+      { location: 'after_setup', type: 'counter_argument', description: 'Why common approach seems reasonable' },
+      { location: 'mid_argument', type: 'stakes_raise', description: 'What is at stake' },
+    ],
+    resolution_strategy: { type: 'diagnostic_questions', guidance: 'Self-application questions' },
+    _summary: 'Mock BAB storytelling for blog.',
+    _recommendations: 'Provocative opening, examples, diagnostic questions.',
+  };
+}
+
+// =============================================================================
 // Cleanup Utilities
 // =============================================================================
 
@@ -222,16 +319,49 @@ const testToolOptions: ToolExecutionOptions = {
 
 /**
  * Execute a tool in test context with proper typing.
- * Handles the ToolExecutionOptions requirement and type narrowing.
+ * Validates input against the tool's Zod schema first (simulating AI SDK behavior),
+ * then calls execute with validated data.
  */
 export async function callTool(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  toolDef: { execute?: (...args: any[]) => any },
+  toolDef: { execute?: (...args: any[]) => any; inputSchema?: any },
   input: Record<string, unknown>,
 ): Promise<ToolOutput<any>> {
   if (!toolDef.execute) {
     throw new Error('Tool does not have an execute function');
   }
+
+  // Validate input against tool's Zod schema (if available)
+  if (toolDef.inputSchema && typeof toolDef.inputSchema.safeParse === 'function') {
+    const parseResult = toolDef.inputSchema.safeParse(input);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0];
+      const field = firstError?.path?.[0] as string;
+
+      // Map field names to specific error categories
+      const categoryMap: Record<string, ErrorCategory> = {
+        artifactId: ErrorCategory.INVALID_ARTIFACT_ID,
+        tone: ErrorCategory.INVALID_TONE,
+        numTopics: ErrorCategory.TOOL_EXECUTION_FAILED,
+        topic: ErrorCategory.TOOL_EXECUTION_FAILED,
+      };
+
+      return {
+        success: false,
+        traceId: 'validation-error',
+        data: null,
+        error: {
+          message: firstError?.message || 'Validation failed',
+          category: categoryMap[field] || ErrorCategory.TOOL_EXECUTION_FAILED,
+          recoverable: false,
+        },
+      };
+    }
+
+    // Use validated/coerced data
+    return toolDef.execute(parseResult.data, testToolOptions) as Promise<ToolOutput<any>>;
+  }
+
   return toolDef.execute(input, testToolOptions) as Promise<ToolOutput<any>>;
 }
 

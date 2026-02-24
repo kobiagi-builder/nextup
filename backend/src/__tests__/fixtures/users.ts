@@ -11,7 +11,7 @@ import type { MockUser } from '../utils/testHelpers.js';
 // =============================================================================
 
 export const standardUser: MockUser = {
-  id: 'user-standard-001',
+  id: '00000000-0000-4000-a000-000000000101',
   email: 'john.doe@example.com',
   full_name: 'John Doe',
   avatar_url: 'https://example.com/avatars/john.jpg',
@@ -23,7 +23,7 @@ export const standardUser: MockUser = {
 // =============================================================================
 
 export const premiumUser: MockUser = {
-  id: 'user-premium-001',
+  id: '00000000-0000-4000-a000-000000000102',
   email: 'jane.smith@example.com',
   full_name: 'Jane Smith',
   avatar_url: 'https://example.com/avatars/jane.jpg',
@@ -35,7 +35,7 @@ export const premiumUser: MockUser = {
 // =============================================================================
 
 export const newUser: MockUser = {
-  id: 'user-new-001',
+  id: '00000000-0000-4000-a000-000000000103',
   email: 'newuser@example.com',
   full_name: 'New User',
   avatar_url: undefined,
@@ -47,7 +47,7 @@ export const newUser: MockUser = {
 // =============================================================================
 
 export const userWithoutAvatar: MockUser = {
-  id: 'user-no-avatar-001',
+  id: '00000000-0000-4000-a000-000000000104',
   email: 'simple@example.com',
   full_name: 'Simple User',
   avatar_url: undefined,

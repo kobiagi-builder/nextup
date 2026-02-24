@@ -2,7 +2,7 @@ import { tool } from 'ai';
 import { z } from 'zod';
 import { anthropic } from '@ai-sdk/anthropic';
 import { generateText } from 'ai';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger, logToFile } from '../../../lib/logger.js';
 import { type ToolOutput, ErrorCategory } from '../types/contentAgent.js';
 import { buildHumanityCheckPrompt } from './humanityCheckTools.js';
@@ -110,7 +110,7 @@ export const writeSocialPostContent = tool({
 
     try {
       // --- Fetch source content from database ---
-      const { data: sourceArtifact, error: fetchError } = await supabaseAdmin
+      const { data: sourceArtifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('content')
         .eq('id', sourceArtifactId)
@@ -196,7 +196,7 @@ export const writeSocialPostContent = tool({
       }
 
       // Fetch existing metadata to merge (preserves source_artifact_id etc.)
-      const { data: existing } = await supabaseAdmin
+      const { data: existing } = await getSupabase()
         .from('artifacts')
         .select('metadata')
         .eq('id', artifactId)
@@ -205,7 +205,7 @@ export const writeSocialPostContent = tool({
       const currentMetadata = (existing?.metadata as Record<string, unknown>) || {};
 
       // Save final content and mark as ready
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           content: finalPost,

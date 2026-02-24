@@ -5,24 +5,37 @@
  * - React Router for client-side routing
  * - ThemeProvider for dark/light mode
  * - React Query for server state management
+ * - AuthProvider for Supabase auth state
+ * - ProtectedRoute for authenticated-only routes
  * - AppShell layout with sidebar navigation
  *
  * Routes:
- * - / : Home dashboard
- * - /portfolio : Portfolio (combined content + AI research)
- * - /topics : Topic backlog (kanban)
- * - /profile : User profile/context (includes Skills section)
- * - /settings : User preferences
+ * - /auth/* : Public auth routes (login, signup, confirm, reset, callback)
+ * - / : Redirect to /portfolio (protected)
+ * - /portfolio : Portfolio (protected)
+ * - /portfolio/artifacts/:id : Artifact editor (protected)
+ * - /profile : User profile (protected)
+ * - /settings : Settings (protected)
+ * - /settings/style : Writing style (protected)
  */
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ThemeProvider } from '@/providers/ThemeProvider'
+import { AuthProvider } from '@/providers/AuthProvider'
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute'
 import { AppShell } from '@/components/layout/AppShell'
 import { Toaster } from '@/components/ui/toaster'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 
-// Pages
+// Auth Pages
+import { LoginPage } from '@/features/auth/pages/LoginPage'
+import { SignupPage } from '@/features/auth/pages/SignupPage'
+import { EmailConfirmationPage } from '@/features/auth/pages/EmailConfirmationPage'
+import { PasswordResetPage } from '@/features/auth/pages/PasswordResetPage'
+import { AuthCallbackPage } from '@/features/auth/pages/AuthCallbackPage'
+
+// App Pages
 import { PortfolioPage } from '@/features/portfolio/pages/PortfolioPage'
 import { ArtifactPage } from '@/features/portfolio/pages/ArtifactPage'
 import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
@@ -57,32 +70,35 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider defaultTheme="system">
-          <BrowserRouter>
-            <Routes>
-              {/* All routes use AppShell layout */}
-              <Route element={<AppShell />}>
-                {/* Redirect root to Portfolio */}
-                <Route path="/" element={<Navigate to="/portfolio" replace />} />
+          <AuthProvider>
+            <BrowserRouter>
+              <Routes>
+                {/* Public auth routes — no AppShell, no ProtectedRoute */}
+                <Route path="/auth/login" element={<LoginPage />} />
+                <Route path="/auth/signup" element={<SignupPage />} />
+                <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
+                <Route path="/auth/reset-password" element={<PasswordResetPage />} />
+                <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-                {/* Portfolio (Combined Content + AI Research) */}
-                <Route path="/portfolio" element={<PortfolioPage />} />
+                {/* Protected app routes — wrapped in AppShell */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppShell />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route path="/" element={<Navigate to="/portfolio" replace />} />
+                  <Route path="/portfolio" element={<PortfolioPage />} />
+                  <Route path="/portfolio/artifacts/:id" element={<ArtifactPage />} />
+                  <Route path="/profile" element={<ProfilePage />} />
+                  <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/settings/style" element={<WritingStylePage />} />
+                </Route>
+              </Routes>
+            </BrowserRouter>
+          </AuthProvider>
 
-                {/* Artifact Editor */}
-                <Route path="/portfolio/artifacts/:id" element={<ArtifactPage />} />
-
-                {/* User Profile */}
-                <Route path="/profile" element={<ProfilePage />} />
-
-                {/* Settings */}
-                <Route path="/settings" element={<SettingsPage />} />
-
-                {/* Writing Style (Phase 4) */}
-                <Route path="/settings/style" element={<WritingStylePage />} />
-              </Route>
-            </Routes>
-          </BrowserRouter>
-
-          {/* Toast notifications */}
           <Toaster />
         </ThemeProvider>
       </QueryClientProvider>

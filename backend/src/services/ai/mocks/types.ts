@@ -21,7 +21,8 @@ export type MockCategory =
   | 'topicsResearchTools'
   | 'visualsCreatorTools'
   | 'imageGenerationTools'
-  | 'writingCharacteristicsTools';
+  | 'writingCharacteristicsTools'
+  | 'storytellingTools';
 
 export interface MockConfig {
   masterToggle: MasterToggleMode;
@@ -34,6 +35,7 @@ export interface MockConfig {
   visualsCreatorTools: MockMode;
   imageGenerationTools: MockMode;
   writingCharacteristicsTools: MockMode;
+  storytellingTools: MockMode;
   delayMinMs: number;
   delayMaxMs: number;
   captureResponses: boolean;

@@ -1,6 +1,6 @@
-# Product Consultant Helper
+# NextUp
 
-A SaaS application with React frontend and Node.js backend, using Supabase for database and auth.
+An AI-native operating system for advisors, consultants, and fractional service providers. Built with React frontend and Node.js backend, using Supabase for database and auth.
 
 ## Tech Stack
 
@@ -306,6 +306,32 @@ mcp__supabase__execute_sql({
 
 - Complete skill guide: `.claude/skills/debugging/SKILL.md`
 - Debugging rules: `.claude/rules/debugging/use-debugging-skill.md`
+
+## Product Documentation
+
+**MANDATORY:** After completing ANY feature implementation, feature update, bug fix that changes behavior, or refactoring that alters architecture, invoke the `product-documentation` skill to update `docs/`.
+
+The documentation covers 12 layers:
+
+| Layer | Location | What |
+|-------|----------|------|
+| Product Overview | `docs/PRODUCT_OVERVIEW.md` | Value proposition, feature list, current state |
+| User Flows | `docs/flows/` | Step-by-step user journeys with diagrams |
+| Screens | `docs/screens/` | Component hierarchy, interactions, responsive behavior |
+| State Machines | `docs/artifact-statuses/` | Transitions, guards, UI behavior per state |
+| Features | `docs/features/` | Deep feature docs (user + technical perspective) |
+| Architecture | `docs/Architecture/` | System, backend, frontend, database, AI, security |
+| API Reference | `docs/api/` | Endpoints, schemas, auth, rate limits, examples |
+| AI Agents & Tools | `docs/ai-agents-and-prompts/` | Agents, tools, prompts, pipeline, intent detection |
+| Database Schema | `docs/Architecture/database/` | Tables, relationships, indexes, RLS, JSONB structures |
+| Auth & Security | `docs/api/` + `docs/Architecture/backend/` | Auth flow, middleware, validation, rate limiting |
+| Testing | `docs/testing/` | Strategy, infrastructure, coverage |
+| Index | `docs/DOCUMENTATION_INDEX.md` | Master index of all documentation |
+
+**Workflow integration:**
+- The `product-documentation` skill runs automatically at the end of every development cycle
+- It is part of the mandatory post-implementation sequence: **Code Review → Documentation Update**
+- The skill reads the git diff and conversation context to determine what changed and which layers need updating
 
 ## Adding shadcn Components
 

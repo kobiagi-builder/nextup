@@ -1,18 +1,30 @@
 # Pipeline Execution Flow
 
-**Version:** 3.0.0
-**Last Updated:** 2026-01-29
-**Status:** Complete (Phase 4 Foundations Approval)
+**Version:** 4.0.0
+**Last Updated:** 2026-02-20
+**Status:** Complete (Phase 5 — Interview, Social Post, Content Improvement)
 
 ## Overview
 
-The Content Agent executes a **6-step content creation pipeline** that transforms a draft artifact into ready-to-publish content. Phase 4 introduces a **foundations approval workflow** that pauses the pipeline for user review before content writing begins.
+The Content Agent executes content creation through **3 distinct pipeline paths** depending on artifact type and trigger context. All pipelines share the `ToolOutput<T>` interface, checkpoint/rollback mechanism, and error recovery strategies.
+
+### Pipeline Paths
+
+| Pipeline | Artifact Types | Status Flow | Tools |
+|----------|---------------|-------------|-------|
+| **Blog/Showcase Full Pipeline** | blog, showcase | draft → research → ... → ready | 7 core tools |
+| **Showcase Interview Pipeline** | showcase (new) | draft → interviewing → research → ... → ready | 3 interview + 7 core tools |
+| **Social Post Pipeline** | social_post | draft → ready | 1 tool (writeSocialPostContent) |
+
+Additionally, **Content Improvement** tools (improveTextContent, improveImageContent) are on-demand editor actions that can be triggered on any artifact in an editable state.
 
 ### Pipeline Philosophy
 
 **Linear Progression with Approval Gate**: Each step builds on the previous step's output, with a mandatory user approval checkpoint after skeleton generation:
 ```
-draft → research → foundations → skeleton → [USER APPROVAL] → writing → creating_visuals → ready
+Blog/Showcase:  draft → research → foundations → skeleton → [USER APPROVAL] → writing → creating_visuals → ready
+Interview:      draft → interviewing → research → foundations → skeleton → [USER APPROVAL] → writing → creating_visuals → ready
+Social Post:    draft → ready (single tool)
 ```
 
 **Key Concepts:**
@@ -20,6 +32,7 @@ draft → research → foundations → skeleton → [USER APPROVAL] → writing 
 - **Idempotency**: Safe to retry failed steps without side effects
 - **Approval Gate**: Pipeline pauses at `skeleton` status for user approval
 - **Writing Characteristics**: AI analyzes user's writing style to guide content generation
+- **Interview Loop**: Showcase interview is multi-turn with incremental persistence
 
 ---
 
@@ -50,8 +63,14 @@ sequenceDiagram
     PE->>DB: INSERT artifact_writing_characteristics
     PE->>DB: UPDATE artifacts SET status='foundations'
 
+    Note over User,DB: Phase 2b: Foundations (Storytelling Analysis)
+    PE->>PE: analyzeStorytellingStructure
+    PE->>DB: SELECT artifact, research, user_context
+    PE->>DB: UPSERT artifact_storytelling
+    Note over PE: No status change (stays at 'foundations')
+
     Note over User,DB: Phase 3: Skeleton Generation
-    PE->>PE: generateContentSkeleton (with characteristics)
+    PE->>PE: generateContentSkeleton (with characteristics + storytelling)
     PE->>DB: UPDATE artifacts SET content=skeleton
     PE->>DB: UPDATE artifacts SET status='skeleton'
 
@@ -93,17 +112,18 @@ sequenceDiagram
 
 ## Pipeline Steps
 
-The Content Agent pipeline consists of **6 steps** with an **approval gate** between skeleton and writing:
+The Content Agent pipeline consists of **7 steps** with an **approval gate** between skeleton and writing:
 
 | Step | Tool | Status Transition | Duration | Required |
 |------|------|-------------------|----------|----------|
 | **1. Research** | `conductDeepResearch` | draft → research | ~30-60s | Yes |
-| **2. Foundations** | `analyzeWritingCharacteristics` | research → foundations | ~15-30s | Yes |
-| **3. Skeleton** | `generateContentSkeleton` | foundations → skeleton | ~20-40s | Yes |
+| **2. Foundations (Writing)** | `analyzeWritingCharacteristics` | research → foundations | ~15-30s | Yes |
+| **3. Foundations (Storytelling)** | `analyzeStorytellingStructure` | foundations → foundations (no change) | ~10-20s | Yes |
+| **4. Skeleton** | `generateContentSkeleton` | foundations → skeleton | ~20-40s | Yes |
 | **--- APPROVAL GATE ---** | User Action | skeleton → foundations_approval | Manual | Yes |
-| **4. Writing** | `writeFullContent` | foundations_approval → writing | ~60-120s | Yes |
-| **5. Visuals** | `identifyImageNeeds` | writing → creating_visuals → ready | ~60-180s | Yes |
-| **6. Humanity Check** | `applyHumanityCheck` | creating_visuals → ready | ~30-45s | Optional |
+| **5. Writing** | `writeFullContent` | foundations_approval → writing | ~60-120s | Yes |
+| **6. Visuals** | `identifyImageNeeds` | writing → creating_visuals → ready | ~60-180s | Yes |
+| **7. Humanity Check** | `applyHumanityCheck` | creating_visuals → ready | ~30-45s | Optional |
 
 ---
 
@@ -137,7 +157,7 @@ The Content Agent pipeline consists of **6 steps** with an **approval gate** bet
 
 ---
 
-### Step 2: Foundations (research → foundations) [NEW IN PHASE 4]
+### Step 2: Foundations — Writing Characteristics (research → foundations) [PHASE 4]
 
 **Tool**: `analyzeWritingCharacteristics`
 
@@ -202,11 +222,47 @@ interface WritingCharacteristicValue {
 
 ---
 
-### Step 3: Skeleton (foundations → skeleton)
+### Step 3: Foundations — Storytelling Analysis (foundations → foundations) [NEW]
+
+**Tool**: `analyzeStorytellingStructure`
+
+**Purpose**: Select the best narrative framework for the artifact and generate comprehensive storytelling guidance that shapes both skeleton structure and content writing.
+
+**Input Requirements**:
+- Artifact status: `foundations`
+- Research data exists
+- Writing characteristics already analyzed (Step 2)
+
+**Process**:
+1. Fetch artifact data (title, type, metadata including author_brief)
+2. Fetch top 10 research results by relevance
+3. Fetch user context (profession, goals, audience)
+4. Build type-specific storytelling prompt with framework recommendations
+5. Call Claude Sonnet (temperature 0.4) for analysis
+6. Parse and validate storytelling guidance
+7. Upsert into `artifact_storytelling` table
+8. **No status transition** — stays at `foundations`
+
+**Framework Selection**:
+- **Blog**: BAB, PAS, StoryBrand SB7, Duarte's Resonate, Story Spine
+- **Showcase**: STAR, Hero's Journey, McKee's Structure, Stories That Stick
+- **Social Post**: Story Spine condensed, BAB micro, Moth Method, PAS
+
+**Output Used By**:
+- `generateContentSkeleton` — story arc and section_mapping shape H2 section ordering
+- `writeFullContent` — emotional journey, hook strategy, tension points, and resolution guide each section's narrative
+
+**Storage**: `artifact_storytelling` table (JSONB `storytelling_guidance` column)
+
+**Error Handling**: On failure, default type-specific storytelling guidance is returned so downstream tools still function.
+
+---
+
+### Step 4: Skeleton (foundations → skeleton)
 
 **Tool**: `generateContentSkeleton`
 
-**Purpose**: Create structured content outline with H2 sections and visual placeholders, guided by writing characteristics.
+**Purpose**: Create structured content outline with H2 sections and visual placeholders, guided by writing characteristics and storytelling guidance.
 
 **Input Requirements**:
 - Artifact status: `foundations`
@@ -385,9 +441,9 @@ H2: Results
 
 ---
 
-## Writing References Flow
+## Writing & Storytelling References Flow
 
-The writing characteristics system pulls from multiple reference sources to understand the user's writing style:
+The foundations phase pulls from multiple reference sources to understand the user's writing style and design a narrative strategy:
 
 ```mermaid
 flowchart TB
@@ -395,14 +451,17 @@ flowchart TB
         UWE[user_writing_examples<br/>500+ word samples]
         UC[user_context<br/>profession, goals, audience]
         AR[artifact_research<br/>topic-specific research]
+        AB[artifacts.metadata<br/>author_brief from interview]
     end
 
-    subgraph "Analysis Tool"
+    subgraph "Analysis Tools (Foundations Phase)"
         AWC[analyzeWritingCharacteristics]
+        ASS[analyzeStorytellingStructure]
     end
 
-    subgraph "Characteristics Storage"
+    subgraph "Storage"
         AWCTable[artifact_writing_characteristics<br/>JSONB: tone, voice, pacing, etc.]
+        ASTTable[artifact_storytelling<br/>JSONB: framework, arc, emotions, etc.]
     end
 
     subgraph "Content Tools (Consumers)"
@@ -414,12 +473,18 @@ flowchart TB
     UWE -->|"Active examples<br/>(up to 5)"| AWC
     UC -->|"about_me, profession,<br/>customers, goals"| AWC
     AR -->|"Top 10 by relevance"| AWC
+    AR -->|"Top 10 by relevance"| ASS
+    UC -->|"profession, goals,<br/>audience"| ASS
+    AB -->|"author_brief"| ASS
 
     AWC -->|"Claude analysis"| AWCTable
+    ASS -->|"Claude Sonnet<br/>(temp 0.4)"| ASTTable
 
     AWCTable -->|"structure, depth,<br/>length, visuals"| GCS
     AWCTable -->|"tone, voice, pacing,<br/>evidence, cta_style"| WFC
     AWCTable -->|"tone, audience"| IIN
+    ASTTable -->|"story arc,<br/>section mapping"| GCS
+    ASTTable -->|"emotional journey,<br/>hook, tension, resolution"| WFC
 ```
 
 ### Reference Tables
@@ -469,6 +534,168 @@ CREATE TABLE artifact_writing_characteristics (
 
 ---
 
+## Showcase Interview Pipeline
+
+The interview pipeline is used for **showcase** artifacts when the user wants Claude to conduct an interactive interview before content creation. It adds an `interviewing` phase before the standard research → writing flow.
+
+### Interview Pipeline Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FE as Frontend
+    participant BE as Backend API
+    participant CA as ContentAgent
+    participant DB as Supabase
+
+    Note over User,DB: Phase 0: Interview Start
+    User->>FE: Create showcase artifact
+    FE->>BE: POST /api/content-agent/chat
+    BE->>CA: processMessage(intent: SHOWCASE_INTERVIEW)
+    CA->>CA: startShowcaseInterview
+    CA->>DB: UPDATE artifacts SET status='interviewing'
+    CA->>DB: SELECT user_context, skills
+    CA-->>FE: Stream: First interview question
+
+    Note over User,DB: Phase 0: Interview Loop (multi-turn)
+    loop Until coverage >= 95
+        User->>FE: Answer question
+        FE->>BE: POST /api/content-agent/chat
+        CA->>CA: saveInterviewAnswer
+        CA->>DB: UPSERT artifact_interviews
+        CA-->>FE: Stream: Next question (targets lowest dimension)
+    end
+
+    Note over User,DB: Phase 0: Interview Completion
+    CA->>CA: completeShowcaseInterview
+    CA->>DB: UPSERT all Q&A pairs
+    CA->>DB: UPDATE artifacts.metadata.author_brief
+
+    Note over User,DB: Phase 1-6: Standard Pipeline
+    CA->>CA: conductDeepResearch (interviewing → research)
+    Note over CA: Continues with standard pipeline...
+    Note over CA: research → foundations → skeleton → [APPROVAL] → writing → visuals → ready
+```
+
+### Coverage Scoring
+
+The interview uses 5 dimensions scored 0-20 each (total 100):
+
+| Dimension | What It Captures | Max |
+|-----------|-----------------|-----|
+| `case_context` | Background, setting, client description | 20 |
+| `problem_challenge` | Problem or challenge addressed | 20 |
+| `approach_methodology` | Methods, frameworks, process used | 20 |
+| `results_outcomes` | Measurable results and impact | 20 |
+| `lessons_insights` | Lessons learned and key insights | 20 |
+
+**Completion threshold**: Total coverage >= 95 triggers `readyToComplete: true`
+
+### Interview Resume
+
+If the user leaves mid-interview:
+1. All answered Q&A pairs are already saved incrementally via `saveInterviewAnswer`
+2. On return, `startShowcaseInterview` detects `interviewing` status
+3. Returns `isResume: true` with `existingPairs` and `lastCoverageScores`
+4. Claude continues from `questionCount + 1`, targeting the lowest dimension
+
+### Interview Data Storage
+
+| Table | Data |
+|-------|------|
+| `artifact_interviews` | Individual Q&A pairs with dimension and coverage scores |
+| `artifacts.metadata` | `author_brief`, `interview_completed`, `interview_coverage_scores`, `interview_question_count` |
+
+---
+
+## Social Post Pipeline
+
+The social post pipeline is a **single-tool execution** that generates a promotional post from an existing blog or showcase artifact.
+
+### Social Post Pipeline Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant FE as Frontend
+    participant BE as Backend API
+    participant CA as ContentAgent
+    participant DB as Supabase
+
+    Note over User,DB: Trigger: User creates social post from source artifact
+    User->>FE: Click "Create Social Post" (kebab menu or auto-trigger)
+    FE->>BE: POST /api/content-agent/chat
+    BE->>CA: processMessage(intent: SOCIAL_POST)
+
+    Note over User,DB: Single Tool Execution
+    CA->>CA: writeSocialPostContent
+    CA->>DB: SELECT content FROM artifacts WHERE id=sourceArtifactId
+    CA->>CA: Extract hero image from source HTML
+    CA->>CA: Strip HTML, truncate to 15K chars
+    CA->>CA: Generate post (Claude Sonnet, temp 0.8)
+    CA->>CA: Humanize post (Claude Sonnet, temp 0.5)
+    CA->>CA: Post-process (em dash cleanup)
+    CA->>CA: Attach hero image from source
+    CA->>DB: UPDATE artifacts SET content=post, status='ready'
+    CA-->>FE: Stream: "Social post created!"
+```
+
+### Key Differences from Full Pipeline
+
+| Aspect | Full Pipeline | Social Post |
+|--------|--------------|-------------|
+| Steps | 6 tools + approval gate | 1 tool |
+| Status transitions | draft → research → ... → ready | draft → ready |
+| User approval | Required (skeleton review) | Not needed |
+| Research phase | Yes (5+ external sources) | No (uses source artifact content) |
+| Image generation | Yes (DALL-E 3 / Imagen 4) | No (inherits hero image from source) |
+| Humanization | Separate tool (applyHumanityCheck) | Built into writeSocialPostContent |
+| Duration | ~2-5 minutes | ~15-30 seconds |
+
+### Trigger Mechanisms
+
+1. **Kebab menu**: User clicks "..." on eligible artifact → "Create Social Post"
+2. **Auto-trigger**: URL param `?createSocialPost=true&sourceId=<id>` on ArtifactPage
+3. **Eligibility**: Source artifact must be blog or showcase with status `ready` or `published`
+
+---
+
+## Content Improvement (On-Demand)
+
+Content improvement tools are **not a pipeline** — they are ad-hoc editor actions that operate on specific selections within any editable artifact.
+
+### Text Improvement Flow
+
+```
+User selects text → Sparkle button appears (BubbleMenu) → User clicks
+→ Chat opens with selection context → User types instruction
+→ improveTextContent tool called → Replacement text returned
+→ Frontend swaps selected text in TipTap editor
+```
+
+### Image Improvement Flow
+
+```
+User clicks image → ImageBubbleMenu appears → User clicks "AI Improve"
+→ Chat opens with image context → User types feedback
+→ improveImageContent tool called → New image URL returned
+→ Frontend swaps image src in TipTap editor
+```
+
+### Selection Context (editorSelectionStore)
+
+The Zustand store `editorSelectionStore` captures:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `type` | `'text' \| 'image'` | What was selected |
+| `selectedText` | string | Highlighted text (text type) |
+| `surroundingContext` | object | 2 paragraphs before/after + nearest heading |
+| `imageUrl` | string | Current image URL (image type) |
+| `imageDescription` | string | Original generation prompt |
+
+---
+
 ## Status Flow Reference
 
 ### Complete Status Lifecycle
@@ -476,8 +703,21 @@ CREATE TABLE artifact_writing_characteristics (
 ```mermaid
 stateDiagram-v2
     [*] --> draft: Create artifact
-    draft --> research: conductDeepResearch
+
+    %% Blog/Showcase full pipeline
+    draft --> research: conductDeepResearch (blog/showcase)
+
+    %% Showcase interview path
+    draft --> interviewing: startShowcaseInterview (showcase)
+    interviewing --> interviewing: saveInterviewAnswer (loop)
+    interviewing --> research: conductDeepResearch (after completeShowcaseInterview)
+
+    %% Social post path
+    draft --> ready: writeSocialPostContent (social_post)
+
+    %% Standard pipeline (shared by blog/showcase/interview)
     research --> foundations: analyzeWritingCharacteristics
+    foundations --> foundations: analyzeStorytellingStructure
     foundations --> skeleton: generateContentSkeleton
 
     skeleton --> skeleton: Pipeline pauses
@@ -489,15 +729,16 @@ stateDiagram-v2
 
     ready --> published: User publishes
 
+    note right of interviewing
+        INTERVIEW LOOP
+        Multi-turn Q&A until
+        coverage >= 95
+    end note
+
     note right of skeleton
         APPROVAL GATE
         Pipeline waits for user
         to click "Foundations Approved"
-    end note
-
-    note right of foundations_approval
-        User approved skeleton
-        Pipeline resumes
     end note
 ```
 
@@ -506,6 +747,7 @@ stateDiagram-v2
 | Status | Description | Polling | UI State |
 |--------|-------------|---------|----------|
 | `draft` | Initial state, awaiting content creation | No | Show "Create Content" button |
+| `interviewing` | Showcase interview in progress (multi-turn) | No | Show interview chat |
 | `research` | Deep research in progress | Yes (2s) | Show loading in ResearchArea |
 | `foundations` | Writing characteristics analysis in progress | Yes (2s) | Show loading indicator |
 | `skeleton` | Skeleton generated, awaiting approval | **No** | Show FoundationsSection expanded |
@@ -525,6 +767,7 @@ stateDiagram-v2
 
 **Non-Processing States** (no polling):
 - `draft`
+- `interviewing` - Interactive interview (chat-driven)
 - `skeleton` - Waiting for user approval
 - `foundations_approval` - Brief transition
 - `ready`
@@ -667,13 +910,17 @@ if (result.success) {
 
 ### Pipeline Duration by Artifact Type
 
-| Artifact Type | Avg Duration | Breakdown |
-|---------------|--------------|-----------|
-| **Social Post** | ~120-180s | Research (30s) + Foundations (15s) + Skeleton (10s) + [Approval] + Writing (15s) + Visuals (30-90s) |
-| **Blog** | ~210-330s | Research (50s) + Foundations (20s) + Skeleton (30s) + [Approval] + Writing (70s) + Visuals (60-150s) |
-| **Showcase** | ~180-270s | Research (40s) + Foundations (18s) + Skeleton (20s) + [Approval] + Writing (45s) + Visuals (45-120s) |
+| Artifact Type | Pipeline | Avg Duration | Breakdown |
+|---------------|----------|--------------|-----------|
+| **Social Post** | Social Post | ~15-30s | Single tool: fetch source + generate + humanize + save |
+| **Blog** | Full Pipeline | ~210-330s | Research (50s) + Foundations (20s) + Skeleton (30s) + [Approval] + Writing (70s) + Visuals (60-150s) |
+| **Showcase** | Full Pipeline | ~180-270s | Research (40s) + Foundations (18s) + Skeleton (20s) + [Approval] + Writing (45s) + Visuals (45-120s) |
+| **Showcase** | Interview Pipeline | ~240-360s+ | Interview (user-paced) + Research (40s) + Foundations (18s) + Skeleton (20s) + [Approval] + Writing (45s) + Visuals (45-120s) |
 
-**Note**: Approval time is user-dependent and not included in duration estimates.
+**Notes**:
+- Approval time is user-dependent and not included in duration estimates
+- Interview duration depends on number of questions (typically 5-8 turns)
+- Content improvement tools (text/image) take ~5-30s per invocation
 
 ---
 
@@ -753,6 +1000,8 @@ const processingStates = ['research', 'foundations', 'writing', 'creating_visual
 ---
 
 **Version History:**
+- **5.0.0** (2026-02-20) - Added storytelling analysis step (analyzeStorytellingStructure) to foundations phase, 7-step pipeline, storytelling references flow
+- **4.0.0** (2026-02-20) - Phase 5: Added showcase interview pipeline, social post pipeline, content improvement flows, `interviewing` status, coverage scoring, interview resume
 - **3.0.0** (2026-01-29) - Phase 4: Added foundations approval workflow, writing characteristics analysis, 6-step pipeline, approval gate documentation
 - **2.0.0** (2026-01-28) - Phase 3: Image generation with DALL-E 3 / Gemini Imagen
 - **1.0.0** (2026-01-26) - Initial documentation with checkpoint/rollback mechanism

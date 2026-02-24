@@ -9,7 +9,7 @@
 
 import { tool } from 'ai'
 import { z } from 'zod'
-import { supabaseAdmin } from '../../../lib/supabase.js'
+import { getSupabase } from '../../../lib/requestContext.js'
 import { logger, logToFile } from '../../../lib/logger.js'
 import type { ArtifactType } from '../../../types/portfolio.js'
 
@@ -27,7 +27,7 @@ export const createArtifactDraft = tool({
   }),
   execute: async ({ type, title, content, tags }) => {
     logToFile('🔧 TOOL EXECUTED: createArtifactDraft', { type, title, contentLength: content?.length, tags })
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifacts')
       .insert({
         type: type as ArtifactType,
@@ -63,7 +63,7 @@ export const updateArtifactContent = tool({
     const updates: Record<string, unknown> = { content }
     if (title) updates.title = title
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifacts')
       .update(updates)
       .eq('id', artifactId)
@@ -89,7 +89,7 @@ export const getArtifactContent = tool({
   }),
   execute: async ({ artifactId }) => {
     logToFile('🔧 TOOL EXECUTED: getArtifactContent', { artifactId })
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifacts')
       .select('*')
       .eq('id', artifactId)
@@ -122,7 +122,7 @@ export const listRecentArtifacts = tool({
   execute: async ({ limit, type }) => {
     logToFile('🔧 TOOL EXECUTED: listRecentArtifacts', { limit, type })
     const effectiveLimit = limit ?? 5
-    let query = supabaseAdmin
+    let query = getSupabase()
       .from('artifacts')
       .select('id, type, title, tags, created_at')
       .order('created_at', { ascending: false })
@@ -154,28 +154,35 @@ export const listRecentArtifacts = tool({
 /**
  * Suggest artifact ideas for the user to review and create
  * Returns suggestions WITHOUT saving to database
+ * Supports 3 topic types: personalized, trending, continue_series
  */
 export const suggestArtifactIdeas = tool({
-  description: 'Suggest content artifact ideas for the user to review. Returns structured suggestions that can be created as draft artifacts.',
+  description: 'Suggest content artifact ideas for the user to review. Returns structured suggestions that can be created as draft artifacts. Each call should be for a SINGLE topic type.',
   inputSchema: z.object({
+    topicType: z.enum(['personalized', 'trending', 'continue_series']).describe('Category of topic suggestion: personalized (from user profile), trending (from web research), or continue_series (follow-up on existing content)'),
     suggestions: z.array(z.object({
       title: z.string().describe('Title of the suggested content'),
       description: z.string().describe('Brief description of the content idea'),
       type: z.enum(['social_post', 'blog', 'showcase']).describe('Artifact type'),
       rationale: z.string().describe('Why this content would be valuable'),
       tags: z.array(z.string()).optional().describe('Suggested tags'),
+      trendingSource: z.string().optional().describe('Source URL for trending topics'),
+      parentArtifactId: z.string().optional().describe('ID of the artifact this continues (for continue_series)'),
+      continuationType: z.enum(['sequel', 'different_angle', 'updated_version']).optional().describe('How this relates to the parent artifact (for continue_series)'),
     })).min(1).max(10),
   }),
-  execute: async ({ suggestions }) => {
-    logToFile('🔧 TOOL EXECUTED: suggestArtifactIdeas', { count: suggestions.length })
+  execute: async ({ topicType, suggestions }) => {
+    logToFile('🔧 TOOL EXECUTED: suggestArtifactIdeas', { topicType, count: suggestions.length })
     return {
       success: true,
       type: 'artifact_suggestions',
+      topicType,
       suggestions: suggestions.map((s, i) => ({
-        id: `suggestion-${Date.now()}-${i}`,
+        id: `suggestion-${topicType}-${Date.now()}-${i}`,
         ...s,
+        topicType,
       })),
-      message: `Generated ${suggestions.length} content suggestions`,
+      message: `Generated ${suggestions.length} ${topicType} content suggestions`,
     }
   },
 })

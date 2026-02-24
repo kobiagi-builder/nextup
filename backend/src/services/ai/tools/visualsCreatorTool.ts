@@ -1,6 +1,6 @@
 import { tool } from 'ai';
 import { z } from 'zod';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger } from '../../../lib/logger.js';
 import { generateMockTraceId } from '../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../types/contentAgent.js';
@@ -103,7 +103,7 @@ export const generateContentVisuals = tool({
 
         // Update database to maintain workflow
         if (mockResponse.success) {
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               status: 'ready',
@@ -116,7 +116,7 @@ export const generateContentVisuals = tool({
       }
 
       // 1. Fetch artifact content
-      const { data: artifact, error: fetchError } = await supabaseAdmin
+      const { data: artifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('content')
         .eq('id', artifactId)
@@ -168,7 +168,7 @@ export const generateContentVisuals = tool({
       });
 
       // 3. Update artifact status to 'ready'
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           status: 'ready',

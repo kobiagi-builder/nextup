@@ -1,29 +1,42 @@
 # Core Tools Reference
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-29
-**Status:** Phase 4 (Writing Quality Enhancement)
+**Version:** 3.0.0
+**Last Updated:** 2026-02-20
+**Status:** Phase 5 (Interview, Social Post, Content Improvement)
 
 ---
 
 ## Introduction
 
-This document provides complete reference documentation for the **7 core content creation tools** used by the Content Agent to orchestrate the 9-status workflow. Each tool performs a specific step in the content creation pipeline, from research gathering to visual generation.
+This document provides complete reference documentation for the **14 content creation tools** used by the Content Agent to orchestrate the 11-status workflow. Tools are organized into 4 categories: core pipeline tools, interview tools, social post tools, and content improvement tools.
 
-**Core Tools Overview:**
+**Core Pipeline Tools (8):**
 1. **conductDeepResearch** - Gather research from 5+ sources (draft → research)
 2. **analyzeWritingCharacteristics** - Analyze writing style from examples and context (research → foundations)
-3. **generateContentSkeleton** - Create structured outline (foundations → skeleton)
-4. **writeContentSection** - Write single section content (skeleton → skeleton)
-5. **writeFullContent** - Write all sections at once (foundations_approval → writing)
-6. **applyHumanityCheck** - Remove AI patterns (writing → humanity_checking → creating_visuals)
-7. **generateContentVisuals** - Generate/detect visual placeholders (creating_visuals → ready)
+3. **analyzeStorytellingStructure** - Select narrative framework, design story arc (foundations → foundations, no status change)
+4. **generateContentSkeleton** - Create structured outline (foundations → skeleton)
+5. **writeContentSection** - Write single section content (skeleton → skeleton)
+6. **writeFullContent** - Write all sections at once (foundations_approval → writing)
+7. **applyHumanityCheck** - Remove AI patterns (writing → humanity_checking → creating_visuals)
+8. **generateContentVisuals** - Generate/detect visual placeholders (creating_visuals → ready)
+
+**Interview Tools (3):**
+8. **startShowcaseInterview** - Start/resume showcase interview (draft → interviewing)
+9. **saveInterviewAnswer** - Save incremental Q&A pair (no status change)
+10. **completeShowcaseInterview** - Store synthesized brief (no status change)
+
+**Social Post Tools (1):**
+11. **writeSocialPostContent** - Generate viral social post from source artifact (draft → ready)
+
+**Content Improvement Tools (2):**
+12. **improveTextContent** - Surgically improve selected text in editor (no status change)
+13. **improveImageContent** - Regenerate image based on user feedback (no status change)
 
 **What this document covers:**
 - ToolOutput<T> interface specification
 - Complete input/output schemas for each tool
 - Status transition rules and constraints
-- AI provider specifications (Claude, Gemini, Tavily)
+- AI provider specifications (Claude, Gemini, Tavily, OpenAI)
 - Error scenarios and recovery strategies
 - Usage examples with code
 - Tool chaining and integration patterns
@@ -556,12 +569,158 @@ const result = await analyzeWritingCharacteristics.execute({
 ### Related Tools
 
 - **Previous Tool**: `conductDeepResearch` (provides research context)
-- **Next Tool**: `generateContentSkeleton` (uses characteristics for structure)
+- **Next Tool**: `analyzeStorytellingStructure` (narrative framework selection)
 - **Context Tool**: `fetchWritingCharacteristics` (retrieve stored characteristics)
 
 ---
 
-## 3. generateContentSkeleton
+## 3. analyzeStorytellingStructure
+
+**Purpose**: Analyze artifact context and generate storytelling guidance — narrative framework, story arc, emotional journey, hook strategy, tension points, and resolution strategy. Output shapes both skeleton structure and section-level content writing.
+
+**AI Provider**: Claude Sonnet (Anthropic API, temperature 0.4)
+
+**Status Transition**: None — runs within `foundations` status (no status change)
+
+### Input Schema
+
+```typescript
+{
+  artifactId: string;      // UUID format
+  artifactType: 'blog' | 'social_post' | 'showcase';
+}
+```
+
+**Zod Validation**:
+```typescript
+z.object({
+  artifactId: z.string().uuid().describe('ID of the artifact to analyze storytelling for'),
+  artifactType: z.enum(['blog', 'social_post', 'showcase']).describe('Type of artifact'),
+})
+```
+
+### Output Schema
+
+```typescript
+ToolOutput<{
+  storytellingGuidance: StorytellingGuidance;  // Full storytelling guidance object
+  narrativeFramework: string;                  // Selected framework name
+  summary: string;                             // Human-readable summary
+  recommendations: string;                     // Narrative recommendations
+}>
+```
+
+### StorytellingGuidance Schema
+
+```typescript
+interface StorytellingGuidance {
+  narrative_framework: {
+    name: string;        // storybrand, heros_journey, bab, pas, star, etc.
+    description: string; // Why this framework fits
+    confidence: number;  // 0.0-1.0
+  };
+  story_arc: {
+    beginning: string;   // Opening strategy
+    middle: string;      // Development strategy
+    end: string;         // Resolution strategy
+    section_mapping: Array<{
+      section_role: string;        // setup, rising_action, climax, etc.
+      guidance: string;            // Section-specific narrative guidance
+      emotional_target: string;    // Target emotion for this section
+    }>;
+  };
+  emotional_journey: Array<{
+    stage: string;       // opening, problem, insight, resolution
+    emotion: string;     // curiosity, tension, aha, empowerment
+    intensity: number;   // 1-10
+    technique: string;   // Specific technique to evoke emotion
+  }>;
+  hook_strategy: {
+    type: string;        // provocative_question, in_medias_res, startling_statistic
+    guidance: string;    // How to implement the hook
+  };
+  protagonist: {
+    type: string;        // reader_as_hero, customer_as_hero
+    guidance: string;    // How to position the protagonist
+  };
+  tension_points: Array<{
+    location: string;    // after_setup, mid_argument
+    type: string;        // counter_argument, stakes_raise
+    description: string; // What creates tension
+  }>;
+  resolution_strategy: {
+    type: string;        // diagnostic_questions, transformation_reveal, call_to_action
+    guidance: string;    // How to resolve
+  };
+  _summary: string;
+  _recommendations: string;
+}
+```
+
+### Framework Selection by Artifact Type
+
+| Artifact Type | Recommended Frameworks | Default |
+|---------------|----------------------|---------|
+| **Blog** | BAB, PAS, StoryBrand SB7, Duarte's Resonate, Story Spine | BAB |
+| **Showcase** | STAR, Hero's Journey, McKee's Story Structure, Stories That Stick | STAR |
+| **Social Post** | Story Spine (condensed), BAB micro, Moth Method, PAS | BAB |
+
+### Section Mapping by Type
+
+| Type | Section Roles | Count |
+|------|--------------|-------|
+| **Blog** | setup, rising_action, climax, falling_action, resolution | 4-5 |
+| **Showcase** | context, challenge, journey, transformation, framework, resolution | 5-6 |
+| **Social Post** | hook, tension, payoff | 3 |
+
+### Data Sources
+
+1. **Artifact** — title, type, metadata (including author_brief from interview)
+2. **Research** — top 10 results by relevance from `artifact_research`
+3. **User Context** — profession, expertise, audience, goals from `user_context`
+4. **Author Brief** — from `artifacts.metadata.author_brief` (if available)
+
+### Storage
+
+Storytelling guidance is stored in `artifact_storytelling` table:
+```sql
+CREATE TABLE artifact_storytelling (
+  id UUID PRIMARY KEY,
+  artifact_id UUID REFERENCES artifacts(id) UNIQUE,
+  storytelling_guidance JSONB NOT NULL,
+  narrative_framework TEXT,
+  summary TEXT,
+  recommendations TEXT,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+);
+```
+
+### Downstream Consumers
+
+- **`generateContentSkeleton`** — Uses story arc and section_mapping to structure H2 sections as narrative arc (not topic list)
+- **`writeFullContent`** — Uses emotional journey, hook strategy, tension points, and resolution for section-level narrative guidance
+
+### Error Scenarios
+
+| Error Category | Condition | Recoverable | Recovery Strategy |
+|----------------|-----------|-------------|-------------------|
+| `ARTIFACT_NOT_FOUND` | Artifact doesn't exist | No | Check artifact ID |
+| `TOOL_EXECUTION_FAILED` | Database upsert fails | No | Check database connectivity |
+| `AI_PROVIDER_ERROR` | Claude API error | Yes | Retry with exponential backoff |
+| `AI_RATE_LIMIT` | Claude rate limit exceeded | Yes | Wait + retry |
+
+On error, default storytelling guidance is returned (type-specific defaults) so downstream tools can still function.
+
+### Related Tools
+
+- **Previous Tool**: `analyzeWritingCharacteristics` (runs first in foundations phase)
+- **Next Tool**: `generateContentSkeleton` (uses storytelling to structure sections)
+- **Research Reference**: [storytelling-analysis.md](../features/storytelling-analysis.md)
+
+---
+
+## 4. generateContentSkeleton
 
 **Purpose**: Create structured content outline/skeleton based on research findings, writing characteristics, and user-selected tone.
 
@@ -1904,6 +2063,550 @@ class CircuitBreaker {
 
 ---
 
+## Tool 8: startShowcaseInterview
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | `draft` → `interviewing` |
+| **AI Provider** | None (data orchestration only) |
+| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Purpose** | Start or resume a showcase interview session |
+
+### Description
+
+Validates that the artifact is a `showcase` in `draft` status, transitions to `interviewing`, and returns the user's profile context (about_me, profession, customers, goals, skills) for adaptive questioning. Supports **interview resume** — if the artifact is already in `interviewing` status, fetches existing Q&A pairs from `artifact_interviews` and returns them with the last coverage scores so Claude can continue from where the user left off.
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string()  // The artifact ID from screenContext
+})
+```
+
+### Output Schema
+
+**Success (new interview):**
+```typescript
+{
+  success: true,
+  statusTransition: { from: 'draft', to: 'interviewing' },
+  artifactTitle: string,
+  artifactDescription: string,            // From artifact.content
+  userProfile: {
+    aboutMe: JSONB | null,
+    profession: JSONB | null,
+    customers: JSONB | null,
+    goals: JSONB | null,
+  } | null,
+  userSkills: Array<{
+    name: string,
+    category: string,
+    proficiency: string,
+    yearsExperience: number,
+  }>,
+  initialCoverageScores: {                // All dimensions start at 0
+    case_context: 0,
+    problem_challenge: 0,
+    approach_methodology: 0,
+    results_outcomes: 0,
+    lessons_insights: 0,
+  },
+  instructions: string,                   // Prompt instructions for Claude
+}
+```
+
+**Success (resume):**
+```typescript
+{
+  success: true,
+  alreadyStarted: true,
+  isResume: boolean,                      // true if existingPairs.length > 0
+  existingPairs: Array<{
+    question_number: number,
+    dimension: string,
+    question: string,
+    answer: string,
+    coverage_scores: CoverageScores,
+  }>,
+  lastCoverageScores: CoverageScores,
+  questionCount: number,
+  artifactTitle: string,
+  userProfile: { ... } | null,
+  userSkills: Array<{ ... }>,
+  instructions: string,                   // Resume instructions for Claude
+}
+```
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| `Artifact not found` | Invalid artifactId | No |
+| `Interview is only for showcase artifacts` | Artifact type is blog or social_post | No |
+| `Artifact must be in draft status` | Status is not draft or interviewing | No |
+| `Failed to update status` | Database write error | Yes |
+
+### Usage Example
+
+```typescript
+const result = await startShowcaseInterview.execute({
+  artifactId: 'abc-123',
+});
+
+if (result.success && result.isResume) {
+  // Continue from existing Q&A pairs
+  const nextQuestionNumber = result.questionCount + 1;
+}
+```
+
+---
+
+## Tool 9: saveInterviewAnswer
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | None (stays in `interviewing`) |
+| **AI Provider** | None (data persistence only) |
+| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Purpose** | Incrementally save a single Q&A pair during interview |
+
+### Description
+
+Saves a single interview question-answer pair to the `artifact_interviews` table. Called by Claude after each user answer during the showcase interview. Uses `UPSERT` on `(artifact_id, question_number)` to handle retries safely. Returns the running total coverage score and a `readyToComplete` flag when score reaches >= 95.
+
+### Coverage Dimensions
+
+Each dimension is scored 0-20, for a maximum total of 100:
+
+| Dimension | Description | Max Score |
+|-----------|-------------|-----------|
+| `case_context` | Background and setting of the case | 20 |
+| `problem_challenge` | Problem or challenge addressed | 20 |
+| `approach_methodology` | Approach and methodology used | 20 |
+| `results_outcomes` | Results and measurable outcomes | 20 |
+| `lessons_insights` | Lessons learned and insights | 20 |
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string(),
+  questionNumber: z.number(),             // Sequential, 1-based
+  dimension: z.enum([
+    'case_context', 'problem_challenge', 'approach_methodology',
+    'results_outcomes', 'lessons_insights'
+  ]),
+  question: z.string(),                   // The question Claude asked
+  answer: z.string(),                     // The user's answer
+  coverageScores: z.object({              // Updated cumulative scores
+    case_context: z.number().min(0).max(20),
+    problem_challenge: z.number().min(0).max(20),
+    approach_methodology: z.number().min(0).max(20),
+    results_outcomes: z.number().min(0).max(20),
+    lessons_insights: z.number().min(0).max(20),
+  }),
+})
+```
+
+### Output Schema
+
+```typescript
+{
+  success: true,
+  questionNumber: number,
+  totalCoverageScore: number,             // Sum of all 5 dimensions (0-100)
+  readyToComplete: boolean,               // true when totalScore >= 95
+}
+```
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| Database upsert failure | Connection or constraint error | Yes |
+
+### Usage Example
+
+```typescript
+const result = await saveInterviewAnswer.execute({
+  artifactId: 'abc-123',
+  questionNumber: 3,
+  dimension: 'approach_methodology',
+  question: 'What specific methodology did you use?',
+  answer: 'We used a combination of design thinking and agile sprints...',
+  coverageScores: {
+    case_context: 18,
+    problem_challenge: 16,
+    approach_methodology: 15,
+    results_outcomes: 0,
+    lessons_insights: 0,
+  },
+});
+
+if (result.readyToComplete) {
+  // Prompt user for summary confirmation, then call completeShowcaseInterview
+}
+```
+
+---
+
+## Tool 10: completeShowcaseInterview
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | None (stays in `interviewing` — `conductDeepResearch` transitions next) |
+| **AI Provider** | None (data persistence only) |
+| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Purpose** | Finalize interview data and store synthesized brief |
+
+### Description
+
+Completes the showcase interview after coverage score reaches >= 95 and the user confirms the summary. Performs a bulk upsert of all Q&A pairs (catches any missed `saveInterviewAnswer` calls), then stores the synthesized author brief in `artifacts.metadata.author_brief`. The status remains `interviewing` — the next step is to call `conductDeepResearch`, which will transition from `interviewing` → `research`.
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string(),
+  interviewPairs: z.array(z.object({
+    questionNumber: z.number(),
+    dimension: z.enum([...DIMENSIONS]),
+    question: z.string(),
+    answer: z.string(),
+  })).min(1),
+  coverageScores: CoverageScoresSchema,   // Final cumulative scores
+  synthesizedBrief: z.string(),           // Comprehensive brief from all answers
+})
+```
+
+### Output Schema
+
+```typescript
+{
+  success: true,
+  briefSaved: true,
+  questionCount: number,
+  totalCoverageScore: number,
+  instructions: string,                   // "Now call conductDeepResearch..."
+}
+```
+
+### Metadata Stored
+
+After completion, `artifacts.metadata` is updated with:
+
+```typescript
+{
+  ...existingMetadata,
+  author_brief: string,                   // The synthesized brief
+  interview_completed: true,
+  interview_coverage_scores: CoverageScores,
+  interview_question_count: number,
+}
+```
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| `Artifact not found` | Invalid artifactId | No |
+| `Expected interviewing status` | Artifact not in interviewing state | No |
+| `Failed to save interview data` | Database upsert error | Yes |
+| `Failed to update artifact metadata` | Database update error | Yes |
+
+### Usage Example
+
+```typescript
+const result = await completeShowcaseInterview.execute({
+  artifactId: 'abc-123',
+  interviewPairs: [
+    { questionNumber: 1, dimension: 'case_context', question: '...', answer: '...' },
+    { questionNumber: 2, dimension: 'problem_challenge', question: '...', answer: '...' },
+    // ... all pairs
+  ],
+  coverageScores: {
+    case_context: 19, problem_challenge: 20, approach_methodology: 18,
+    results_outcomes: 20, lessons_insights: 18,
+  },
+  synthesizedBrief: 'The consultant helped a mid-market SaaS company...',
+});
+
+// Next step: call conductDeepResearch with the artifactId
+```
+
+---
+
+## Tool 11: writeSocialPostContent
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | `draft` → `ready` (direct, no intermediate statuses) |
+| **AI Provider** | Claude Sonnet (generation + humanization) |
+| **Source File** | `backend/src/services/ai/tools/socialPostTools.ts` |
+| **Purpose** | Generate a viral social media post promoting a source article |
+
+### Description
+
+Generates a social media post that promotes an existing blog or showcase artifact. Fetches the source artifact's full content, extracts the hero image, generates a promotional post with Claude, applies a humanity check pass (using `buildHumanityCheckPrompt`), post-processes em dashes, attaches the hero image, then saves the content and marks the social post artifact as `ready`.
+
+### Pipeline
+
+```
+Fetch source content → Extract hero image → Generate post (Claude, temp 0.8)
+→ Humanize (Claude, temp 0.5) → Post-process (em dash cleanup)
+→ Attach hero image → Save to DB → status: ready
+```
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string().uuid(),          // The NEW social post artifact ID
+  sourceArtifactId: z.string().uuid(),    // The source blog/showcase to promote
+  sourceTitle: z.string(),
+  sourceType: z.enum(['blog', 'showcase']),
+  sourceTags: z.array(z.string()),
+  tone: z.enum([
+    'formal', 'casual', 'professional', 'conversational',
+    'technical', 'friendly', 'authoritative', 'humorous',
+  ]),
+})
+```
+
+### Output Schema (ToolOutput<SocialPostResult>)
+
+```typescript
+{
+  success: true,
+  traceId: string,
+  duration: number,
+  data: {
+    content: string,                      // Final post with hero image appended
+    hashtags: string[],                   // Generated from sourceTags
+    characterCount: number,
+  },
+}
+```
+
+### Key Behaviors
+
+- **Hero image extraction**: Parses source content for `<img>` tags or markdown images, extracts the first match
+- **Source content truncation**: Strips HTML and limits to 15,000 characters for the generation prompt
+- **Humanization**: Runs the generated post through `buildHumanityCheckPrompt` to remove AI patterns
+- **Post-processing**: Replaces em dashes (`—`) with ` - ` via `postProcessHumanization()`
+- **Hashtags**: Converted from `sourceTags` by prepending `#` and removing spaces
+- **Link placeholder**: Post includes `[LINK_PLACEHOLDER]` for the article URL
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| `Failed to fetch source article content` | Source artifact missing or empty | No |
+| `Content generated but failed to save` | DB update error after successful generation | Yes |
+| `TOOL_EXECUTION_FAILED` | AI generation error | Yes |
+
+### Usage Example
+
+```typescript
+const result = await writeSocialPostContent.execute({
+  artifactId: 'new-social-post-id',
+  sourceArtifactId: 'source-blog-id',
+  sourceTitle: 'How to Scale a Consulting Practice',
+  sourceType: 'blog',
+  sourceTags: ['consulting', 'growth', 'strategy'],
+  tone: 'professional',
+});
+
+// result.data.content contains the final post with hero image
+// result.data.hashtags = ['#consulting', '#growth', '#strategy']
+```
+
+---
+
+## Tool 12: improveTextContent
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | None (on-demand editor action) |
+| **AI Provider** | Claude Sonnet (temperature 0.6) |
+| **Source File** | `backend/src/services/ai/tools/contentImprovementTools.ts` |
+| **Purpose** | Surgically improve selected text based on user feedback |
+
+### Description
+
+Improves a specific text selection from the editor. Called when the user selects text, clicks the sparkle button, and provides improvement instructions via chat. Returns ONLY the replacement text — the frontend handles insertion into the TipTap editor. Uses surrounding context (2 paragraphs before/after + nearest heading) to maintain flow.
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string().uuid(),
+  selectedText: z.string().min(10).max(5000),
+  surroundingContext: z.object({
+    before: z.string(),                   // Up to 2 paragraphs before selection
+    after: z.string(),                    // Up to 2 paragraphs after selection
+    sectionHeading: z.string().optional(), // Nearest heading above selection
+  }),
+  userInstruction: z.string().min(3).max(1000),
+  tone: z.enum([
+    'formal', 'casual', 'professional', 'conversational',
+    'technical', 'friendly', 'authoritative', 'humorous',
+  ]),
+})
+```
+
+### Output Schema (ToolOutput<ImprovedTextResult>)
+
+```typescript
+{
+  success: true,
+  traceId: string,
+  duration: number,
+  data: {
+    improvedText: string,                 // Replacement text (no preamble)
+    originalLength: number,
+    improvedLength: number,
+  },
+}
+```
+
+### Key Behaviors
+
+- **Surgical editing**: Only the selected text is improved; surrounding context is reference-only
+- **Length control**: Output capped at 130% of original length unless expansion is explicitly requested
+- **Format preservation**: Maintains bold, italic, links present in the original
+- **Max tokens**: Dynamically calculated as `max(500, selectedText.length * 2)`
+- **Length warning**: Logs a warning if output exceeds 2x the input length
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| `TOOL_EXECUTION_FAILED` | AI generation error | Yes |
+
+### Usage Example
+
+```typescript
+const result = await improveTextContent.execute({
+  artifactId: 'abc-123',
+  selectedText: 'Our methodology combines several approaches to deliver results.',
+  surroundingContext: {
+    before: 'We worked closely with the client team over 6 months.',
+    after: 'The outcomes exceeded expectations across all metrics.',
+    sectionHeading: 'Our Approach',
+  },
+  userInstruction: 'Make this more specific and compelling',
+  tone: 'professional',
+});
+
+// result.data.improvedText = "Our methodology integrates design thinking workshops..."
+```
+
+---
+
+## Tool 13: improveImageContent
+
+| Property | Value |
+|----------|-------|
+| **Status Transition** | None (on-demand editor action) |
+| **AI Provider** | OpenAI (image-to-image editing) + Claude Haiku (prompt refinement fallback) + DALL-E 3 / Gemini Imagen 4 (text-to-image fallback) |
+| **Source File** | `backend/src/services/ai/tools/contentImprovementTools.ts` |
+| **Purpose** | Regenerate an image in the editor based on user feedback |
+
+### Description
+
+Regenerates an image in the editor when the user clicks an image, selects "AI Improve" from the `ImageBubbleMenu`, and provides feedback via chat. Uses a 3-tier generation strategy:
+
+1. **Image-to-image** (preferred): Downloads the current image, uses OpenAI's image editing API to modify it while preserving composition
+2. **Text-to-image fallback**: If image editing fails, uses Claude Haiku to refine the description incorporating user feedback, then generates a new image via `generateWithRetry`
+3. **Text-to-image only**: If source image download fails entirely, goes directly to text-to-image
+
+The new image is uploaded to Supabase Storage and its URL is returned for the frontend to swap in the editor.
+
+### Input Schema
+
+```typescript
+z.object({
+  artifactId: z.string().uuid(),
+  currentImageUrl: z.string().url(),
+  currentDescription: z.string(),         // Original prompt used to generate the image
+  userFeedback: z.string().min(3).max(500),
+  imageStyle: z.enum([
+    'professional', 'modern', 'abstract',
+    'realistic', 'editorial', 'cinematic',
+  ]),
+  tone: z.enum([
+    'formal', 'casual', 'professional', 'conversational',
+    'technical', 'friendly', 'authoritative', 'humorous',
+  ]),
+})
+```
+
+### Output Schema (ToolOutput<ImprovedImageResult>)
+
+```typescript
+{
+  success: true,
+  traceId: string,
+  duration: number,
+  data: {
+    newImageUrl: string,                  // Supabase Storage URL for the new image
+    refinedDescription: string,           // The prompt used (user feedback or refined)
+  },
+}
+```
+
+### Generation Strategy Flow
+
+```
+Download current image
+├── Success → Image-to-image edit (OpenAI)
+│   ├── Success → Upload to Storage
+│   └── Failure → Text-to-image fallback
+│                  ├── Refine prompt (Claude Haiku)
+│                  ├── Generate image (DALL-E 3 / Imagen 4)
+│                  └── Upload to Storage
+└── Failure → Text-to-image only
+              ├── Refine prompt (Claude Haiku)
+              ├── Generate image (DALL-E 3 / Imagen 4)
+              └── Upload to Storage
+```
+
+### Fallback Prompt Refinement
+
+When falling back to text-to-image, Claude Haiku refines the prompt:
+- Incorporates user feedback into existing description
+- Keeps under 1000 characters (DALL-E limit)
+- Maintains specified image style and tone
+- Specifies visual elements (colors, lighting, composition)
+- Generation uses `1792x1024` resolution at `hd` quality with 3 retries
+
+### Error Scenarios
+
+| Error | Cause | Recoverable |
+|-------|-------|-------------|
+| `STORAGE_ERROR` | Image generated but upload to Storage failed | Yes |
+| `TOOL_EXECUTION_FAILED` | All generation strategies failed | Yes |
+
+### Usage Example
+
+```typescript
+const result = await improveImageContent.execute({
+  artifactId: 'abc-123',
+  currentImageUrl: 'https://storage.supabase.co/...',
+  currentDescription: 'Professional team collaborating in modern office',
+  userFeedback: 'Make it more diverse and add natural lighting',
+  imageStyle: 'professional',
+  tone: 'friendly',
+});
+
+// result.data.newImageUrl = new Storage URL
+// Frontend swaps the image src in TipTap editor
+```
+
+---
+
 ## Tool Integration Patterns
 
 ### Full Pipeline Execution (Phase 4)
@@ -2017,6 +2720,89 @@ async function researchAndSkeletonOnly(artifactId: string, topic: string, tone: 
 }
 ```
 
+### Showcase Interview Pipeline
+
+**Sequence**: `startShowcaseInterview` → `saveInterviewAnswer` (×N) → `completeShowcaseInterview` → `conductDeepResearch` → `analyzeWritingCharacteristics` → `generateContentSkeleton` → **[USER APPROVAL]** → `writeFullContent` → `applyHumanityCheck` → `generateContentVisuals`
+
+```typescript
+// Showcase pipeline - Interview phase (interactive, multi-turn)
+async function executeShowcaseInterview(artifactId: string) {
+  // Step 1: Start or resume interview (draft → interviewing)
+  const startResult = await startShowcaseInterview.execute({ artifactId });
+
+  if (startResult.isResume) {
+    // Resume from existing Q&A pairs — Claude continues from last question
+    return { existingPairs: startResult.existingPairs, lastScores: startResult.lastCoverageScores };
+  }
+
+  // Steps 2-N: Claude asks questions, user answers, each pair is saved
+  // (This happens in the chat loop via streamText, not in code)
+  // Claude calls saveInterviewAnswer after each user response
+  // When readyToComplete === true, Claude asks user to confirm summary
+
+  // Final step: Complete interview and store brief
+  // Claude calls completeShowcaseInterview with synthesized brief
+  // Then automatically calls conductDeepResearch to continue pipeline
+}
+```
+
+### Social Post Pipeline
+
+**Sequence**: `writeSocialPostContent` (single tool, draft → ready)
+
+```typescript
+// Social post pipeline - Single tool execution
+async function executeSocialPostPipeline(
+  artifactId: string,
+  sourceArtifactId: string,
+  sourceTitle: string,
+  sourceType: 'blog' | 'showcase',
+  sourceTags: string[],
+  tone: ToneOption
+) {
+  // Single step: Generate social post (draft → ready)
+  // Internally: fetch source → generate → humanize → attach hero image → save
+  const result = await writeSocialPostContent.execute({
+    artifactId,
+    sourceArtifactId,
+    sourceTitle,
+    sourceType,
+    sourceTags,
+    tone,
+  });
+
+  // No additional pipeline steps needed — social posts go directly to ready
+  return result;
+}
+```
+
+### Content Improvement (On-Demand)
+
+**Not a pipeline** — these are ad-hoc editor actions triggered by user selection:
+
+```typescript
+// Text improvement: User selects text → clicks sparkle → provides instructions
+const textResult = await improveTextContent.execute({
+  artifactId,
+  selectedText: editorSelectionStore.selectedText,
+  surroundingContext: editorSelectionStore.surroundingContext,
+  userInstruction: chatMessage,
+  tone: artifact.tone,
+});
+// Frontend replaces selected text with textResult.data.improvedText
+
+// Image improvement: User clicks image → AI Improve → provides feedback
+const imageResult = await improveImageContent.execute({
+  artifactId,
+  currentImageUrl: editorSelectionStore.imageUrl,
+  currentDescription: editorSelectionStore.imageDescription,
+  userFeedback: chatMessage,
+  imageStyle: 'professional',
+  tone: artifact.tone,
+});
+// Frontend swaps image src with imageResult.data.newImageUrl
+```
+
 ### Section-by-Section Workflow
 
 **Example: Granular Control Over Content Writing**
@@ -2079,6 +2865,31 @@ async function writeSectionBySection(artifactId: string, sections: string[], ton
 ---
 
 ## Version History
+
+### v3.0.0 (2026-02-20) - Phase 5 (Interview, Social Post, Content Improvement)
+
+**New Tools (6)**:
+- **Interview Tools** (3):
+  - `startShowcaseInterview` — Start/resume showcase interview with adaptive questioning
+  - `saveInterviewAnswer` — Incremental Q&A persistence with coverage scoring (5 dimensions, 0-20 each)
+  - `completeShowcaseInterview` — Store synthesized author_brief in artifact metadata
+- **Social Post Tools** (1):
+  - `writeSocialPostContent` — Generate viral post from source artifact with hero image extraction and built-in humanization
+- **Content Improvement Tools** (2):
+  - `improveTextContent` — Surgical text editing with surrounding context awareness (Claude Sonnet)
+  - `improveImageContent` — 3-tier image regeneration: image-to-image (OpenAI) → text-to-image fallback (Haiku + DALL-E/Imagen)
+
+**New Pipeline Paths**:
+- Showcase Interview: `draft → interviewing → [interview loop] → research → ... → ready`
+- Social Post: `draft → ready` (single tool, fetches source content internally)
+- Content Improvement: On-demand editor actions (no status transitions)
+
+**New Status**:
+- `interviewing` — User is in showcase interview with Claude
+
+**Total**: 13 tools across 4 categories, 11 artifact statuses
+
+---
 
 ### v2.0.0 (2026-01-29) - Phase 4 (Writing Quality Enhancement)
 

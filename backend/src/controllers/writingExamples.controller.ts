@@ -6,7 +6,7 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 import type { WritingExampleSourceType, WritingCharacteristics } from '../types/portfolio.js';
 
@@ -46,7 +46,7 @@ export const listWritingExamples = async (req: Request, res: Response): Promise<
       activeOnly,
     });
 
-    let query = supabaseAdmin
+    let query = getSupabase()
       .from('user_writing_examples')
       .select('*')
       .eq('user_id', userId)
@@ -116,7 +116,7 @@ export const getWritingExample = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('user_writing_examples')
       .select('*')
       .eq('id', id)
@@ -219,7 +219,7 @@ export const createWritingExample = async (req: Request, res: Response): Promise
       sourceType: source_type,
     });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('user_writing_examples')
       .insert({
         user_id: userId,
@@ -302,7 +302,7 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
     }
 
     // Verify ownership
-    const { data: existing, error: fetchError } = await supabaseAdmin
+    const { data: existing, error: fetchError } = await getSupabase()
       .from('user_writing_examples')
       .select('id, user_id')
       .eq('id', id)
@@ -381,7 +381,7 @@ export const updateWritingExample = async (req: Request, res: Response): Promise
       updateFields: Object.keys(updates),
     });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('user_writing_examples')
       .update(updates)
       .eq('id', id)
@@ -444,7 +444,7 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
     }
 
     // Verify ownership
-    const { data: existing, error: fetchError } = await supabaseAdmin
+    const { data: existing, error: fetchError } = await getSupabase()
       .from('user_writing_examples')
       .select('id, user_id')
       .eq('id', id)
@@ -470,7 +470,7 @@ export const deleteWritingExample = async (req: Request, res: Response): Promise
       exampleId: id,
     });
 
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabase()
       .from('user_writing_examples')
       .delete()
       .eq('id', id);

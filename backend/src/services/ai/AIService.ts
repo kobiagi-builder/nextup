@@ -11,7 +11,7 @@
 import { streamText, generateText, stepCountIs, simulateReadableStream } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { openai } from '@ai-sdk/openai'
-import { supabaseAdmin } from '../../lib/supabase.js'
+import { getSupabase, requestContextStorage } from '../../lib/requestContext.js'
 import { logger, logToFile } from '../../lib/logger.js'
 import { getBaseSystemPrompt } from './prompts/systemPrompts.js'
 import { mockService, type AIServiceResponse } from './mocks/index.js'
@@ -27,6 +27,9 @@ import * as imageNeedsTools from './tools/imageNeedsTools.js'
 import * as contentImprovementTools from './tools/contentImprovementTools.js'
 import * as socialPostTools from './tools/socialPostTools.js'
 import * as interviewTools from './tools/interviewTools.js'
+import * as storytellingTools from './tools/storytellingTools.js'
+import * as trendingTopicsTools from './tools/trendingTopicsTools.js'
+import * as followUpTopicsTools from './tools/followUpTopicsTools.js'
 import { pipelineExecutor } from './PipelineExecutor.js'
 import type { UserContext } from '../../types/portfolio.js'
 
@@ -135,6 +138,12 @@ const AVAILABLE_TOOLS: Record<string, any> = {
   startShowcaseInterview: interviewTools.startShowcaseInterview,
   saveInterviewAnswer: interviewTools.saveInterviewAnswer,
   completeShowcaseInterview: interviewTools.completeShowcaseInterview,
+  // Storytelling analysis tools
+  analyzeStorytellingStructure: storytellingTools.analyzeStorytellingStructure,
+  // Trending topics tools (topic type: "trending")
+  researchTrendingTopics: trendingTopicsTools.researchTrendingTopics,
+  // Follow-up topics tools (topic type: "continue_series")
+  analyzeFollowUpTopics: followUpTopicsTools.analyzeFollowUpTopics,
   // Response tools
   structuredResponse: responseTools.structuredResponse,
 }
@@ -145,7 +154,7 @@ const AVAILABLE_TOOLS: Record<string, any> = {
 
 async function fetchUserContext(): Promise<UserContext | null> {
   try {
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('user_context')
       .select('*')
       .limit(1)
@@ -214,10 +223,16 @@ export class AIService {
           hasArtifactId: !!artifactId,
         })
 
-        // Trigger pipeline execution asynchronously (don't await)
-        pipelineExecutor.execute(artifactId).catch((error) => {
-          logger.error(`[AIService] ${error instanceof Error ? error.message : String(error)}`, {
-            sourceCode: 'AIService.streamChat.mockPipelineTrigger',
+        // Trigger pipeline execution asynchronously (don't await).
+        // Re-enter AsyncLocalStorage context explicitly: the fire-and-forget Promise
+        // outlives the HTTP request's run() scope, so we capture and re-enter the store
+        // to ensure getSupabase() remains available throughout the pipeline.
+        const store = requestContextStorage.getStore()!
+        requestContextStorage.run(store, () => {
+          pipelineExecutor.execute(artifactId).catch((error) => {
+            logger.error(`[AIService] ${error instanceof Error ? error.message : String(error)}`, {
+              sourceCode: 'AIService.streamChat.mockPipelineTrigger',
+            })
           })
         })
 
@@ -328,7 +343,7 @@ export class AIService {
     // Fetch interview context for resume scenarios (showcase interview Phase 2)
     let interviewContext: { pairs: Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>; lastCoverageScores: Record<string, number>; questionCount: number } | null = null;
     if (screenContext?.artifactStatus === 'interviewing' && screenContext?.artifactId) {
-      const { data: existingPairs } = await supabaseAdmin
+      const { data: existingPairs } = await getSupabase()
         .from('artifact_interviews')
         .select('question_number, dimension, question, answer, coverage_scores')
         .eq('artifact_id', screenContext.artifactId)

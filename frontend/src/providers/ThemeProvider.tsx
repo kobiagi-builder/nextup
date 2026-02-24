@@ -37,7 +37,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined)
 
 // Storage key for localStorage
-const STORAGE_KEY = 'consulting-toolkit-theme'
+const STORAGE_KEY = 'nextup-theme'
 
 // Props for ThemeProvider
 interface ThemeProviderProps {

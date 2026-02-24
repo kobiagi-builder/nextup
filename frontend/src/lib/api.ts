@@ -1,3 +1,5 @@
+import { supabase } from '@/lib/supabase'
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 interface RequestOptions extends RequestInit {
@@ -15,7 +17,14 @@ class ApiClient {
     endpoint: string,
     options: RequestOptions = {}
   ): Promise<T> {
-    const { token, ...fetchOptions } = options
+    const { token: explicitToken, ...fetchOptions } = options
+
+    // Auto-inject token from Supabase session if not explicitly provided
+    let token = explicitToken
+    if (!token) {
+      const { data: { session } } = await supabase.auth.getSession()
+      token = session?.access_token ?? undefined
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -38,6 +47,14 @@ class ApiClient {
 
     if (!response.ok) {
       const body = await response.json().catch(() => ({ error: 'Request failed' }))
+
+      // Handle 401: redirect to login.
+      // Supabase SDK auto-refreshes tokens via onAuthStateChange before they
+      // expire. A 401 means the token is genuinely invalid, so redirect.
+      if (response.status === 401) {
+        window.location.href = '/auth/login'
+        throw new Error('Session expired')
+      }
 
       // Tag Supabase connectivity errors for better UX handling
       if (response.status === 503 && body.code === 'SUPABASE_UNAVAILABLE') {

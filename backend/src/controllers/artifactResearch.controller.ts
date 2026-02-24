@@ -6,7 +6,7 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 import type { ArtifactResearch } from '../types/portfolio.js';
 
@@ -21,7 +21,7 @@ export async function getArtifactResearch(req: Request, res: Response) {
     logger.debug('[GetArtifactResearch] Fetching research', { artifactId });
 
     // Fetch research results ordered by relevance
-    const { data: research, error } = await supabaseAdmin
+    const { data: research, error } = await getSupabase()
       .from('artifact_research')
       .select('*')
       .eq('artifact_id', artifactId)
@@ -72,7 +72,7 @@ export async function addArtifactResearch(req: Request, res: Response) {
     }
 
     // Insert research entry
-    const { data: newResearch, error } = await supabaseAdmin
+    const { data: newResearch, error } = await getSupabase()
       .from('artifact_research')
       .insert({
         artifact_id: artifactId,
@@ -122,7 +122,7 @@ export async function deleteArtifactResearch(req: Request, res: Response) {
     });
 
     // Delete research entry
-    const { error } = await supabaseAdmin
+    const { error } = await getSupabase()
       .from('artifact_research')
       .delete()
       .eq('id', researchId)

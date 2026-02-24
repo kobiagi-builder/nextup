@@ -7,7 +7,6 @@
 
 import { Router } from 'express';
 import * as writingExamplesController from '../controllers/writingExamples.controller.js';
-import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -25,7 +24,7 @@ const router = Router();
  *   count: number;
  * }
  */
-router.get('/', requireAuth, writingExamplesController.listWritingExamples);
+router.get('/', writingExamplesController.listWritingExamples);
 
 /**
  * GET /api/user/writing-examples/:id
@@ -34,7 +33,7 @@ router.get('/', requireAuth, writingExamplesController.listWritingExamples);
  *
  * Response: UserWritingExample
  */
-router.get('/:id', requireAuth, writingExamplesController.getWritingExample);
+router.get('/:id', writingExamplesController.getWritingExample);
 
 /**
  * POST /api/user/writing-examples
@@ -51,7 +50,7 @@ router.get('/:id', requireAuth, writingExamplesController.getWritingExample);
  *
  * Response: UserWritingExample (201)
  */
-router.post('/', requireAuth, writingExamplesController.createWritingExample);
+router.post('/', writingExamplesController.createWritingExample);
 
 /**
  * PUT /api/user/writing-examples/:id
@@ -67,7 +66,7 @@ router.post('/', requireAuth, writingExamplesController.createWritingExample);
  *
  * Response: UserWritingExample
  */
-router.put('/:id', requireAuth, writingExamplesController.updateWritingExample);
+router.put('/:id', writingExamplesController.updateWritingExample);
 
 /**
  * DELETE /api/user/writing-examples/:id
@@ -76,6 +75,6 @@ router.put('/:id', requireAuth, writingExamplesController.updateWritingExample);
  *
  * Response: 204 No Content
  */
-router.delete('/:id', requireAuth, writingExamplesController.deleteWritingExample);
+router.delete('/:id', writingExamplesController.deleteWritingExample);
 
 export default router;

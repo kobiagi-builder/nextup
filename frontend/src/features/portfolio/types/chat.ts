@@ -35,6 +35,36 @@ export interface ResponseInterpretation {
 }
 
 // =============================================================================
+// Topic Types
+// =============================================================================
+
+/**
+ * Category of topic suggestion
+ */
+export type TopicType = 'personalized' | 'trending' | 'continue_series'
+
+/**
+ * Display configuration for each topic type
+ */
+export const TOPIC_TYPE_CONFIG: Record<TopicType, { label: string; iconName: string; description: string }> = {
+  personalized: {
+    label: 'Personalized',
+    iconName: 'User',
+    description: 'Based on your profile and expertise',
+  },
+  trending: {
+    label: 'Trending',
+    iconName: 'TrendingUp',
+    description: 'Hot topics in your domain right now',
+  },
+  continue_series: {
+    label: 'Continue a Series',
+    iconName: 'ListTree',
+    description: 'Build on your existing content',
+  },
+}
+
+// =============================================================================
 // Actionable Items
 // =============================================================================
 
@@ -61,6 +91,8 @@ export interface ActionableItem {
   description: string
   /** Additional type-specific data */
   metadata?: Record<string, unknown>
+  /** Group label for visual sectioning */
+  sectionGroup?: string
 }
 
 /**
@@ -124,6 +156,11 @@ export function isStructuredResponseToolResult(
 // =============================================================================
 
 /**
+ * Continuation type for follow-up topic suggestions
+ */
+export type ContinuationType = 'sequel' | 'different_angle' | 'updated_version'
+
+/**
  * Artifact suggestion from suggestArtifactIdeas tool
  */
 export interface ArtifactSuggestion {
@@ -133,6 +170,14 @@ export interface ArtifactSuggestion {
   type: 'social_post' | 'blog' | 'showcase'
   rationale: string
   tags?: string[]
+  /** Which topic type generated this suggestion */
+  topicType?: TopicType
+  /** Source URL for trending suggestions */
+  trendingSource?: string
+  /** Parent artifact ID for continue_series suggestions */
+  parentArtifactId?: string
+  /** How this relates to the parent artifact */
+  continuationType?: ContinuationType
 }
 
 /**

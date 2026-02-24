@@ -13,7 +13,7 @@
  *         {image_id}.png  (debugging, 7-day TTL)
  */
 
-import { supabaseAdmin as supabase } from './supabase.js';
+import { getSupabase } from './requestContext.js';
 import sharp from 'sharp';
 
 /**
@@ -37,7 +37,7 @@ export async function uploadFinalImage(
 
   const path = `${artifactId}/images/final/${imageId}.png`;
 
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from('artifacts')
     .upload(path, optimizedBuffer, {
       contentType: 'image/png',
@@ -49,7 +49,7 @@ export async function uploadFinalImage(
     throw new Error(`Failed to upload image: ${error.message}`);
   }
 
-  const url = supabase.storage.from('artifacts').getPublicUrl(path).data.publicUrl;
+  const url = getSupabase().storage.from('artifacts').getPublicUrl(path).data.publicUrl;
 
   return { url, path };
 }
@@ -69,7 +69,7 @@ export async function uploadRejectedImage(
 ): Promise<{ url: string; path: string }> {
   const path = `${artifactId}/images/rejected/${imageId}.png`;
 
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from('artifacts')
     .upload(path, buffer, {
       contentType: 'image/png',
@@ -81,7 +81,7 @@ export async function uploadRejectedImage(
     throw new Error(`Failed to upload rejected image: ${error.message}`);
   }
 
-  const url = supabase.storage.from('artifacts').getPublicUrl(path).data.publicUrl;
+  const url = getSupabase().storage.from('artifacts').getPublicUrl(path).data.publicUrl;
 
   return { url, path };
 }
@@ -92,13 +92,13 @@ export async function uploadRejectedImage(
  * @param artifactId - Artifact UUID
  */
 export async function deleteRejectedImages(artifactId: string): Promise<void> {
-  const { data: files } = await supabase.storage
+  const { data: files } = await getSupabase().storage
     .from('artifacts')
     .list(`${artifactId}/images/rejected/`);
 
   if (files?.length) {
     const paths = files.map(f => `${artifactId}/images/rejected/${f.name}`);
-    await supabase.storage.from('artifacts').remove(paths);
+    await getSupabase().storage.from('artifacts').remove(paths);
   }
 }
 
@@ -108,7 +108,7 @@ export async function deleteRejectedImages(artifactId: string): Promise<void> {
  * @param path - Full storage path
  */
 export async function deleteImage(path: string): Promise<void> {
-  const { error } = await supabase.storage
+  const { error } = await getSupabase().storage
     .from('artifacts')
     .remove([path]);
 
@@ -124,7 +124,7 @@ export async function deleteImage(path: string): Promise<void> {
  * @returns Public CDN URL
  */
 export function getPublicUrl(path: string): string {
-  return supabase.storage.from('artifacts').getPublicUrl(path).data.publicUrl;
+  return getSupabase().storage.from('artifacts').getPublicUrl(path).data.publicUrl;
 }
 
 /**
@@ -134,13 +134,13 @@ export function getPublicUrl(path: string): string {
  */
 export async function deleteArtifactImages(artifactId: string): Promise<void> {
   // List all files in artifact folder
-  const { data: files } = await supabase.storage
+  const { data: files } = await getSupabase().storage
     .from('artifacts')
     .list(`${artifactId}/images/`);
 
   if (files?.length) {
     const paths = files.map(f => `${artifactId}/images/${f.name}`);
-    await supabase.storage.from('artifacts').remove(paths);
+    await getSupabase().storage.from('artifacts').remove(paths);
   }
 }
 
@@ -151,7 +151,7 @@ export async function deleteArtifactImages(artifactId: string): Promise<void> {
  * @returns True if image exists
  */
 export async function imageExists(path: string): Promise<boolean> {
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from('artifacts')
     .list(path.split('/').slice(0, -1).join('/'));
 
@@ -168,7 +168,7 @@ export async function imageExists(path: string): Promise<boolean> {
  * @returns File size in KB
  */
 export async function getImageSize(path: string): Promise<number> {
-  const { data, error } = await supabase.storage
+  const { data, error } = await getSupabase().storage
     .from('artifacts')
     .list(path.split('/').slice(0, -1).join('/'));
 

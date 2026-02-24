@@ -25,6 +25,16 @@ vi.mock('../../../src/lib/api', () => ({
   },
 }))
 
+vi.mock('../../../src/lib/supabase', () => ({
+  getAccessToken: vi.fn().mockResolvedValue('mock-token'),
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+    },
+  },
+}))
+
 // =============================================================================
 // Test Setup
 // =============================================================================
@@ -70,7 +80,8 @@ describe('useImageGeneration Hook', () => {
         {
           approvedIds: imageIds,
           rejectedIds: [],
-        }
+        },
+        { token: 'mock-token' }
       )
     })
 
@@ -102,7 +113,8 @@ describe('useImageGeneration Hook', () => {
         {
           approvedIds: [],
           rejectedIds: imageIds,
-        }
+        },
+        { token: 'mock-token' }
       )
     })
 
@@ -131,7 +143,9 @@ describe('useImageGeneration Hook', () => {
       await result.current.generateFinals()
 
       expect(apiModule.api.post).toHaveBeenCalledWith(
-        `/api/artifacts/${mockArtifactId}/images/generate`
+        `/api/artifacts/${mockArtifactId}/images/generate`,
+        undefined,
+        { token: 'mock-token' }
       )
     })
 
@@ -163,7 +177,8 @@ describe('useImageGeneration Hook', () => {
 
       expect(apiModule.api.post).toHaveBeenCalledWith(
         `/api/artifacts/${mockArtifactId}/images/${imageId}/regenerate`,
-        { description }
+        { description },
+        { token: 'mock-token' }
       )
     })
 

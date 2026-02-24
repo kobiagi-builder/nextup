@@ -78,6 +78,7 @@ class MockService {
       visualsCreatorTools: this.config.visualsCreatorTools,
       imageGenerationTools: this.config.imageGenerationTools,
       writingCharacteristicsTools: this.config.writingCharacteristicsTools,
+      storytellingTools: this.config.storytellingTools,
       captureEnabled: this.config.captureResponses,
     });
 
@@ -99,6 +100,7 @@ class MockService {
       visualsCreatorTools: (process.env.MOCK_VISUALS_CREATOR_TOOLS as MockMode) || 'API',
       imageGenerationTools: (process.env.MOCK_IMAGE_GENERATION_TOOLS as MockMode) || 'API',
       writingCharacteristicsTools: (process.env.MOCK_WRITING_CHARACTERISTICS_TOOLS as MockMode) || 'API',
+      storytellingTools: (process.env.MOCK_STORYTELLING_TOOLS as MockMode) || 'API',
       delayMinMs: parseInt(process.env.MOCK_DELAY_MIN_MS || '500', 10),
       delayMaxMs: parseInt(process.env.MOCK_DELAY_MAX_MS || '2000', 10),
       captureResponses: process.env.MOCK_CAPTURE_RESPONSES === 'true',
@@ -262,6 +264,8 @@ class MockService {
       updateImageApproval: 'imageGenerationTools',
       generateFinalImages: 'imageGenerationTools',
       regenerateImage: 'imageGenerationTools',
+      // Storytelling tools
+      analyzeStorytellingStructure: 'storytellingTools',
     };
 
     return toolToDir[toolName] || 'other';
@@ -473,7 +477,8 @@ What would you like to focus on?`,
       this.config.topicsResearchTools === 'MOCK' ||
       this.config.visualsCreatorTools === 'MOCK' ||
       this.config.imageGenerationTools === 'MOCK' ||
-      this.config.writingCharacteristicsTools === 'MOCK'
+      this.config.writingCharacteristicsTools === 'MOCK' ||
+      this.config.storytellingTools === 'MOCK'
     );
   }
 

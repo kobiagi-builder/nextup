@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express'
-import { supabaseAdmin } from '../lib/supabase.js'
+import { supabaseAdmin, createClientWithAuth } from '../lib/supabase.js'
 import { ApiError } from './errorHandler.js'
+import { requestContextStorage } from '../lib/requestContext.js'
 
 // Extend Express Request to include user
 declare global {
@@ -43,7 +44,9 @@ export async function requireAuth(req: Request, _res: Response, next: NextFuncti
     }
     req.accessToken = token
 
-    next()
+    // Create user-scoped Supabase client and run downstream in AsyncLocalStorage context
+    const supabase = createClientWithAuth(token)
+    requestContextStorage.run({ supabase, userId: user.id }, () => next())
   } catch (error) {
     next(error)
   }

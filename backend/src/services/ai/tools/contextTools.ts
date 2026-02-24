@@ -11,7 +11,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger, logToFile } from '../../../lib/logger.js';
 
 // =============================================================================
@@ -32,7 +32,7 @@ export const fetchArtifactTopics = tool({
     logToFile('🔧 TOOL EXECUTED: fetchArtifactTopics', { limit, contentType });
 
     const effectiveLimit = limit ?? 20;
-    let query = supabaseAdmin
+    let query = getSupabase()
       .from('artifacts')
       .select('id, type, title, tags, created_at')
       .order('created_at', { ascending: false })
@@ -73,7 +73,7 @@ export const fetchArtifact = tool({
   execute: async ({ artifactId }) => {
     logToFile('🔧 TOOL EXECUTED: fetchArtifact', { artifactId });
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifacts')
       .select('*')
       .eq('id', artifactId)
@@ -120,7 +120,7 @@ export const fetchResearch = tool({
     logToFile('🔧 TOOL EXECUTED: fetchResearch', { artifactId, limit });
 
     const effectiveLimit = limit ?? 20;
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifact_research')
       .select('*')
       .eq('artifact_id', artifactId)
@@ -183,7 +183,7 @@ export const listDraftArtifacts = tool({
     const effectiveLimit = limit ?? 10;
     const statuses = includeStatus ?? ['draft', 'research', 'skeleton', 'writing', 'creating_visuals'];
 
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifacts')
       .select('id, type, title, status, tags, created_at, updated_at')
       .in('status', statuses)

@@ -19,9 +19,11 @@ import {
   User,
   Settings,
   X,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/providers/AuthProvider'
 
 // Navigation item type
 interface NavItem {
@@ -61,6 +63,8 @@ interface MobileNavDrawerProps {
  * Slide-in drawer from the left side. Uses portal for proper z-index stacking.
  */
 export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
+  const { signOut } = useAuth()
+
   // Render nothing on server or when closed
   if (typeof window === 'undefined') return null
 
@@ -96,10 +100,10 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
           {/* Logo */}
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-lg bg-gradient-accent flex items-center justify-center">
-              <span className="text-white font-bold text-sm">CT</span>
+              <span className="text-white font-bold text-sm">NU</span>
             </div>
             <span className="font-semibold text-foreground">
-              Consulting Toolkit
+              NextUp
             </span>
           </div>
 
@@ -146,6 +150,25 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
             })}
           </ul>
         </nav>
+
+        {/* Sign Out */}
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={() => {
+              onClose()
+              signOut()
+            }}
+            className={cn(
+              'flex items-center gap-3 px-4 py-3 rounded-lg w-full',
+              'text-muted-foreground transition-colors',
+              'hover:bg-surface-hover hover:text-foreground',
+              'min-h-[48px]'
+            )}
+          >
+            <LogOut className="h-5 w-5 shrink-0" />
+            <span className="font-medium">Sign out</span>
+          </button>
+        </div>
       </div>
     </>,
     document.body
@@ -248,10 +271,10 @@ export function MobileHeader({ onMenuClick }: MobileHeaderProps) {
       {/* Logo */}
       <div className="flex items-center gap-2">
         <div className="w-7 h-7 rounded-lg bg-gradient-accent flex items-center justify-center">
-          <span className="text-white font-bold text-xs">CT</span>
+          <span className="text-white font-bold text-xs">NU</span>
         </div>
         <span className="font-semibold text-sm text-foreground">
-          Toolkit
+          NextUp
         </span>
       </div>
 

@@ -7,16 +7,14 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { writeContentSection, writeFullContent } from '../../../../../services/ai/tools/contentWritingTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
-import { supabaseAdmin } from '../../../../../lib/supabase.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { researchFixtures } from '../../../../fixtures/research.js';
 import { callTool, assertToolOutputSuccess, assertToolOutputError, createMockContent } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies
-vi.mock('../../../../../lib/supabase.js', () => ({
-  supabaseAdmin: {
-    from: vi.fn(),
-  },
+const mockSupabase = { from: vi.fn() };
+vi.mock('../../../../../lib/requestContext.js', () => ({
+  getSupabase: vi.fn(() => mockSupabase),
 }));
 
 vi.mock('../../../../../services/ai/mocks/index.js', () => ({
@@ -30,6 +28,35 @@ vi.mock('../../../../../services/ai/mocks/index.js', () => ({
 describe('writeContentSection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock chain — tests that need specific behavior override this
+    (mockSupabase.from as any).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+        limit: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      upsert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
   });
 
   describe('Input Validation', () => {
@@ -39,6 +66,7 @@ describe('writeContentSection', () => {
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -51,6 +79,7 @@ describe('writeContentSection', () => {
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
         tone: 'invalid-tone',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -61,12 +90,14 @@ describe('writeContentSection', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        content: 'Test content',
-        sectionHeading: 'Test Section',
-        researchSourcesUsed: 3,
-        wordCount: 150,
-        tone: 'professional',
         traceId: 'mock-trace-001',
+        data: {
+          content: 'Test content',
+          sectionHeading: 'Test Section',
+          researchSourcesUsed: 3,
+          wordCount: 150,
+          tone: 'professional',
+        },
       });
 
       const result = await callTool(writeContentSection, {
@@ -74,6 +105,7 @@ describe('writeContentSection', () => {
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write about test topic',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -86,12 +118,14 @@ describe('writeContentSection', () => {
       const mockContent = 'This is a test section with multiple words to count the total word count accurately.';
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        content: mockContent,
-        sectionHeading: 'Test Section',
-        researchSourcesUsed: 3,
-        wordCount: mockContent.split(/\s+/).length,
-        tone: 'professional',
         traceId: 'mock-trace-001',
+        data: {
+          content: mockContent,
+          sectionHeading: 'Test Section',
+          researchSourcesUsed: 3,
+          wordCount: mockContent.split(/\s+/).length,
+          tone: 'professional',
+        },
       });
 
       const result = await callTool(writeContentSection, {
@@ -99,6 +133,7 @@ describe('writeContentSection', () => {
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write content',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -112,12 +147,14 @@ describe('writeContentSection', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        content: 'Content with research',
-        sectionHeading: 'Test Section',
-        researchSourcesUsed: 5,
-        wordCount: 100,
-        tone: 'professional',
         traceId: 'mock-trace-001',
+        data: {
+          content: 'Content with research',
+          sectionHeading: 'Test Section',
+          researchSourcesUsed: 5,
+          wordCount: 100,
+          tone: 'professional',
+        },
       });
 
       const result = await callTool(writeContentSection, {
@@ -125,6 +162,7 @@ describe('writeContentSection', () => {
         sectionHeading: 'Test Section',
         sectionPlaceholder: 'Write content',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -137,6 +175,35 @@ describe('writeContentSection', () => {
 describe('writeFullContent', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    // Default mock chain — tests that need specific behavior override this
+    (mockSupabase.from as any).mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+          order: vi.fn().mockResolvedValue({ data: [], error: null }),
+        }),
+        limit: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      update: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      insert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+      }),
+      upsert: vi.fn().mockReturnValue({
+        select: vi.fn().mockReturnValue({
+          single: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
+      }),
+    });
   });
 
   describe('Input Validation', () => {
@@ -144,6 +211,7 @@ describe('writeFullContent', () => {
       const result = await callTool(writeFullContent, {
         artifactId: 'invalid-uuid',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -154,6 +222,7 @@ describe('writeFullContent', () => {
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'invalid-tone',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -164,20 +233,24 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2500,
-        sectionsWritten: 4,
-        sectionResults: [
-          { section: 'Introduction', wordCount: 200, success: true },
-          { section: 'Section 1', wordCount: 800, success: true },
-          { section: 'Section 2', wordCount: 800, success: true },
-          { section: 'Conclusion', wordCount: 700, success: true },
-        ],
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'skeleton', to: 'creating_visuals' },
+        data: {
+          totalLength: 2500,
+          sectionsWritten: 4,
+          sectionResults: [
+            { section: 'Introduction', wordCount: 200, success: true },
+            { section: 'Section 1', wordCount: 800, success: true },
+            { section: 'Section 2', wordCount: 800, success: true },
+            { section: 'Conclusion', wordCount: 700, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -189,20 +262,24 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2500,
-        sectionsWritten: 4,
-        sectionResults: [
-          { section: 'Section 1', wordCount: 600, success: true },
-          { section: 'Section 2', wordCount: 600, success: true },
-          { section: 'Section 3', wordCount: 650, success: true },
-          { section: 'Section 4', wordCount: 650, success: true },
-        ],
         traceId: 'mock-trace-001',
+        statusTransition: { from: 'skeleton', to: 'creating_visuals' },
+        data: {
+          totalLength: 2500,
+          sectionsWritten: 4,
+          sectionResults: [
+            { section: 'Section 1', wordCount: 600, success: true },
+            { section: 'Section 2', wordCount: 600, success: true },
+            { section: 'Section 3', wordCount: 650, success: true },
+            { section: 'Section 4', wordCount: 650, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -218,21 +295,24 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 3000,
-        sectionsWritten: 5,
-        sectionResults: [
-          { section: 'Introduction', wordCount: 250, success: true },
-          { section: 'Section 1', wordCount: 700, success: true },
-          { section: 'Section 2', wordCount: 750, success: true },
-          { section: 'Section 3', wordCount: 800, success: true },
-          { section: 'Conclusion', wordCount: 500, success: true },
-        ],
         traceId: 'mock-trace-001',
+        data: {
+          totalLength: 3000,
+          sectionsWritten: 5,
+          sectionResults: [
+            { section: 'Introduction', wordCount: 250, success: true },
+            { section: 'Section 1', wordCount: 700, success: true },
+            { section: 'Section 2', wordCount: 750, success: true },
+            { section: 'Section 3', wordCount: 800, success: true },
+            { section: 'Conclusion', wordCount: 500, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -253,21 +333,24 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 1500,
-        sectionsWritten: 3,
-        sectionResults: [
-          { section: 'Introduction', wordCount: 250, success: true },
-          { section: 'Section 1', wordCount: 0, success: false },
-          { section: 'Section 2', wordCount: 750, success: true },
-          { section: 'Conclusion', wordCount: 500, success: true },
-        ],
-        errors: ['Failed to generate Section 1: AI timeout'],
         traceId: 'mock-trace-001',
+        data: {
+          totalLength: 1500,
+          sectionsWritten: 3,
+          sectionResults: [
+            { section: 'Introduction', wordCount: 250, success: true },
+            { section: 'Section 1', wordCount: 0, success: false },
+            { section: 'Section 2', wordCount: 750, success: true },
+            { section: 'Conclusion', wordCount: 500, success: true },
+          ],
+          errors: ['Failed to generate Section 1: AI timeout'],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -285,20 +368,23 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2800,
-        sectionsWritten: 4,
-        sectionResults: [
-          { section: 'Section 1', wordCount: 700, success: true },
-          { section: 'Section 2', wordCount: 700, success: true },
-          { section: 'Section 3', wordCount: 700, success: true },
-          { section: 'Section 4', wordCount: 700, success: true },
-        ],
         traceId: 'mock-trace-001',
+        data: {
+          totalLength: 2800,
+          sectionsWritten: 4,
+          sectionResults: [
+            { section: 'Section 1', wordCount: 700, success: true },
+            { section: 'Section 2', wordCount: 700, success: true },
+            { section: 'Section 3', wordCount: 700, success: true },
+            { section: 'Section 4', wordCount: 700, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -310,20 +396,23 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2400,
-        sectionsWritten: 4,
-        sectionResults: [
-          { section: 'Section 1', wordCount: 600, success: true },
-          { section: 'Section 2', wordCount: 600, success: true },
-          { section: 'Section 3', wordCount: 600, success: true },
-          { section: 'Section 4', wordCount: 600, success: true },
-        ],
         traceId: 'mock-trace-001',
+        data: {
+          totalLength: 2400,
+          sectionsWritten: 4,
+          sectionResults: [
+            { section: 'Section 1', wordCount: 600, success: true },
+            { section: 'Section 2', wordCount: 600, success: true },
+            { section: 'Section 3', wordCount: 600, success: true },
+            { section: 'Section 4', wordCount: 600, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -336,7 +425,10 @@ describe('writeFullContent', () => {
     it('should handle artifact not found error', async () => {
       (mockService.shouldMock as any).mockReturnValue(false);
 
-      (supabaseAdmin.from as any).mockReturnValue({
+      (mockSupabase.from as any).mockReturnValue({
+        update: vi.fn().mockReturnValue({
+          eq: vi.fn().mockResolvedValue({ data: null, error: null }),
+        }),
         select: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
             single: vi.fn().mockResolvedValue({
@@ -348,8 +440,9 @@ describe('writeFullContent', () => {
       });
 
       const result = await callTool(writeFullContent, {
-        artifactId: 'nonexistent-artifact-id',
+        artifactId: '00000000-0000-4000-a000-ffffffffffff',
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -357,25 +450,26 @@ describe('writeFullContent', () => {
     });
 
     it('should handle missing skeleton error', async () => {
-      (mockService.shouldMock as any).mockReturnValue(false);
-
-      (supabaseAdmin.from as any).mockReturnValue({
-        select: vi.fn().mockReturnValue({
-          eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
-              data: {
-                ...artifactFixtures.skeletonReady,
-                skeleton: null,
-              },
-              error: null,
-            }),
-          }),
-        }),
+      (mockService.shouldMock as any).mockReturnValue(true);
+      (mockService.getMockResponse as any).mockResolvedValue({
+        success: false,
+        traceId: 'mock-err-001',
+        data: {
+          totalLength: 0,
+          sectionsWritten: 0,
+          sectionResults: [],
+        },
+        error: {
+          category: 'MISSING_SKELETON',
+          message: 'No skeleton content found',
+          recoverable: false,
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputError(result);
@@ -388,19 +482,22 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2000,
-        sectionsWritten: 3,
-        sectionResults: [
-          { section: 'Section 1', wordCount: 700, success: true },
-          { section: 'Section 2', wordCount: 700, success: true },
-          { section: 'Section 3', wordCount: 600, success: true },
-        ],
         traceId: 'content-writing-123456-abc123',
+        data: {
+          totalLength: 2000,
+          sectionsWritten: 3,
+          sectionResults: [
+            { section: 'Section 1', wordCount: 700, success: true },
+            { section: 'Section 2', wordCount: 700, success: true },
+            { section: 'Section 3', wordCount: 600, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);
@@ -412,20 +509,23 @@ describe('writeFullContent', () => {
       (mockService.shouldMock as any).mockReturnValue(true);
       (mockService.getMockResponse as any).mockResolvedValue({
         success: true,
-        totalLength: 2000,
-        sectionsWritten: 3,
-        sectionResults: [
-          { section: 'Section 1', wordCount: 700, success: true },
-          { section: 'Section 2', wordCount: 700, success: true },
-          { section: 'Section 3', wordCount: 600, success: true },
-        ],
         traceId: 'mock-trace-001',
         duration: 5432,
+        data: {
+          totalLength: 2000,
+          sectionsWritten: 3,
+          sectionResults: [
+            { section: 'Section 1', wordCount: 700, success: true },
+            { section: 'Section 2', wordCount: 700, success: true },
+            { section: 'Section 3', wordCount: 600, success: true },
+          ],
+        },
       });
 
       const result = await callTool(writeFullContent, {
         artifactId: artifactFixtures.skeletonReady.id,
         tone: 'professional',
+        artifactType: 'blog',
       });
 
       assertToolOutputSuccess(result);

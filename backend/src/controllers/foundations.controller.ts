@@ -8,7 +8,7 @@
  */
 
 import { Request, Response } from 'express';
-import { supabaseAdmin } from '../lib/supabase.js';
+import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 import { pipelineExecutor } from '../services/ai/PipelineExecutor.js';
 import type { WritingCharacteristics } from '../types/portfolio.js';
@@ -42,7 +42,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
     });
 
     // Verify artifact exists and belongs to user
-    const { data: artifact, error: fetchError } = await supabaseAdmin
+    const { data: artifact, error: fetchError } = await getSupabase()
       .from('artifacts')
       .select('id, status, user_id')
       .eq('id', artifactId)
@@ -97,7 +97,7 @@ export const approveFoundations = async (req: Request, res: Response): Promise<v
         contentLength: skeleton_content.length,
       });
 
-      const { error: updateError } = await supabaseAdmin
+      const { error: updateError } = await getSupabase()
         .from('artifacts')
         .update({
           content: skeleton_content,
@@ -192,7 +192,7 @@ export const getWritingCharacteristics = async (req: Request, res: Response): Pr
     });
 
     // Verify artifact exists and belongs to user (via join)
-    const { data, error } = await supabaseAdmin
+    const { data, error } = await getSupabase()
       .from('artifact_writing_characteristics')
       .select(`
         id,

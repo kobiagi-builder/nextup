@@ -13,7 +13,7 @@
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import { supabaseAdmin } from '../../../lib/supabase.js';
+import { getSupabase } from '../../../lib/requestContext.js';
 import { logger } from '../../../lib/logger.js';
 import type { VisualsMetadata } from '../../../types/portfolio.js';
 import {
@@ -51,7 +51,7 @@ export const generateFinalImages = tool({
   execute: async ({ artifactId }) => {
     try {
       // Fetch artifact metadata including tone and author_brief
-      const { data: artifact, error: fetchError } = await supabaseAdmin
+      const { data: artifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('visuals_metadata, type, content, user_id, tone, metadata')
         .eq('id', artifactId)
@@ -83,7 +83,7 @@ export const generateFinalImages = tool({
       const visualIdentity = generateVisualIdentity(artifactTone, artifact.type);
 
       // Update phase to generating_images
-      await supabaseAdmin
+      await getSupabase()
         .from('artifacts')
         .update({
           visuals_metadata: {
@@ -141,7 +141,7 @@ export const generateFinalImages = tool({
           await replaceImageInContent(artifactId, need.id, url, need.description);
 
           // Update progress
-          await supabaseAdmin
+          await getSupabase()
             .from('artifacts')
             .update({
               visuals_metadata: {
@@ -170,7 +170,7 @@ export const generateFinalImages = tool({
       }
 
       // Update final metadata
-      const { error: finalUpdateError } = await supabaseAdmin
+      const { error: finalUpdateError } = await getSupabase()
         .from('artifacts')
         .update({
           visuals_metadata: {
@@ -223,7 +223,7 @@ export const regenerateImage = tool({
   execute: async ({ artifactId, imageId, newDescription }) => {
     try {
       // Fetch artifact metadata including tone for visual identity
-      const { data: artifact, error: fetchError } = await supabaseAdmin
+      const { data: artifact, error: fetchError } = await getSupabase()
         .from('artifacts')
         .select('visuals_metadata, type, content, tone, metadata')
         .eq('id', artifactId)
@@ -301,7 +301,7 @@ export const regenerateImage = tool({
           n.id === imageId ? { ...n, description: newDescription } : n
         );
 
-        await supabaseAdmin
+        await getSupabase()
           .from('artifacts')
           .update({
             visuals_metadata: {
@@ -312,7 +312,7 @@ export const regenerateImage = tool({
           })
           .eq('id', artifactId);
       } else {
-        await supabaseAdmin
+        await getSupabase()
           .from('artifacts')
           .update({
             visuals_metadata: {
@@ -355,7 +355,7 @@ async function replaceImageInContent(
   url: string,
   description: string
 ): Promise<void> {
-  const { data: artifact } = await supabaseAdmin
+  const { data: artifact } = await getSupabase()
     .from('artifacts')
     .select('content, visuals_metadata')
     .eq('id', artifactId)
@@ -418,7 +418,7 @@ async function replaceImageInContent(
     }
   }
 
-  await supabaseAdmin
+  await getSupabase()
     .from('artifacts')
     .update({ content: updatedContent })
     .eq('id', artifactId);
