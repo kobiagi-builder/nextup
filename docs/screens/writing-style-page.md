@@ -1,16 +1,16 @@
-# Writing Style Page (WritingStylePage)
+# Writing References (Embedded in Settings)
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-24
-**Version:** 2.0.0
+**Last Updated:** 2026-02-25
+**Version:** 3.0.0
 **Status:** Complete
 
 ## Overview
 
-The Writing Style Page (renamed "Writing References") manages per-artifact-type writing examples. Users upload reference samples of their own writing — categorized by Blog, Social Post, or Showcase — so the AI can learn their voice for each content format. Supports 4 upload methods: paste text, file upload (DOCX/PDF/MD/TXT), file URL extraction, and publication URL scraping (LinkedIn, Medium, Substack, Reddit).
+The Writing References section manages per-artifact-type writing examples. Users upload reference samples of their own writing — categorized by Blog, Social Post, or Showcase — so the AI can learn their voice for each content format. Supports 4 upload methods: paste text, file upload (DOCX/PDF/MD/TXT), file URL extraction, and publication URL scraping (LinkedIn, Medium, Substack, Reddit).
 
-**Route:** `/settings/style`
-**Component:** `frontend/src/features/portfolio/pages/WritingStylePage.tsx`
+**Route:** `/settings` (writing references are embedded in SettingsPage; `/settings/style` redirects here)
+**Component:** `WritingReferencesManager` embedded in `frontend/src/features/portfolio/pages/SettingsPage.tsx`
 
 ---
 

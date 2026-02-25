@@ -1,21 +1,19 @@
 # Content Agent Overview
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-29
-**Status:** Production Ready (Phase 4 Foundations Approval)
+**Version:** 3.0.0
+**Last Updated:** 2026-02-25
+**Status:** Production Ready (Vercel AI SDK v6 Refactor)
 
 ## Table of Contents
 
 - [Introduction](#introduction)
 - [Architecture](#architecture)
 - [Core Components](#core-components)
-  - [ContentAgent Orchestrator](#contentagent-orchestrator)
+  - [AIService (Orchestrator)](#aiservice-orchestrator)
   - [PipelineExecutor](#pipelineexecutor)
-  - [Session State Management](#session-state-management)
   - [Token Budget Management](#token-budget-management)
-  - [Intent Detection](#intent-detection)
 - [Workflow Modes](#workflow-modes)
-- [Phase 4: Foundations Approval Workflow](#phase-4-foundations-approval-workflow)
+- [Foundations Approval Workflow](#foundations-approval-workflow)
 - [Data Flow](#data-flow)
 - [Usage Examples](#usage-examples)
 - [Configuration](#configuration)
@@ -25,14 +23,18 @@
 
 ## Introduction
 
-The **Content Agent** is the unified orchestrator for the content creation pipeline in the Product Consultant Helper platform. It manages the end-to-end workflow from initial research through to ready-to-publish content, handling:
+The **Content Agent** is the AI-powered content creation system in the NextUp platform. It uses **Vercel AI SDK v6** with `streamText`/`generateText` for multi-provider support (Anthropic Claude, OpenAI). The LLM autonomously decides which tools to invoke based on user messages and screen context — there is no explicit intent detection code.
 
-- **Intelligent Intent Detection** - Understands user requests using a hybrid regex + AI approach
-- **Session Management** - Maintains conversation state with automatic timeout handling
-- **Token Budget Control** - Manages Claude Sonnet 4's 200K context window efficiently
-- **Tool Orchestration** - Coordinates 7 core tools + 4 context tools for content creation
+> **v3.0.0 Migration Note**: `ContentAgent.ts` was deleted and replaced by `AIService.ts`. `intentDetection.ts` was deleted — intent detection is now handled implicitly by the LLM via tool-calling. Server-side session state was removed — the frontend manages conversation via message arrays.
+
+Key capabilities:
+
+- **Streaming Chat** - Real-time streaming responses via Vercel AI SDK v6 `streamText`
+- **LLM Tool-Calling** - Claude autonomously decides which of 35+ tools to invoke
+- **Token Budget Control** - Manages Claude's 200K context window efficiently
+- **Pipeline Execution** - PipelineExecutor handles multi-step content creation workflows
 - **Error Recovery** - Implements checkpoint/rollback for pipeline atomicity
-- **Foundations Approval** - Phase 4 user approval gate for writing characteristics and skeleton review
+- **Foundations Approval** - User approval gate for writing characteristics and skeleton review
 
 ### Key Capabilities
 
@@ -58,17 +60,15 @@ graph TB
     end
 
     subgraph "API Layer"
-        Controller[ContentAgentController]
+        Controller[ai.controller.ts]
         Middleware[Security Middleware]
-        Approval[ApprovalEndpoint]
+        Approval[foundations.controller.ts]
     end
 
     subgraph "Orchestration Layer"
-        CA[ContentAgent Orchestrator]
+        CA[AIService - streamText/generateText]
         PE[PipelineExecutor]
-        Intent[Intent Detection]
         Token[Token Budget Manager]
-        Session[Session State]
     end
 
     subgraph "Tool Execution Layer"
@@ -111,9 +111,7 @@ graph TB
     Middleware --> CA
     Approval --> PE
     CA --> PE
-    CA --> Intent
     CA --> Token
-    CA --> Session
     PE --> T1 & T2 & T3 & T4 & T5 & T6
     CA --> C1 & C2 & C3 & C4
     T1 & T2 & T3 & T4 & T5 & T6 --> Security
@@ -136,9 +134,9 @@ graph TB
 | Layer | Purpose | Key Components |
 |-------|---------|----------------|
 | **Frontend** | User interface for artifact editing | ArtifactPage, FoundationsSection, useScreenContext |
-| **API** | REST endpoints with security | ContentAgentController, approval endpoint |
-| **Orchestration** | Request routing and state management | ContentAgent, PipelineExecutor, Intent Detection |
-| **Tool Execution** | Content creation operations | 7 core tools + 4 context tools |
+| **API** | REST endpoints with security | ai.controller.ts, foundations.controller.ts |
+| **Orchestration** | Streaming chat and tool execution | AIService (Vercel AI SDK v6), PipelineExecutor |
+| **Tool Execution** | Content creation operations | 35+ tools across 19 tool files |
 | **Data** | Writing references and characteristics | user_writing_examples, user_context, artifact_writing_characteristics |
 | **Infrastructure** | Security, observability, external APIs | Validation, tracing, Tavily, Claude, DALL-E |
 
@@ -146,41 +144,53 @@ graph TB
 
 ## Core Components
 
-### ContentAgent Orchestrator
+### AIService (Orchestrator)
 
-The `ContentAgent` class is the central orchestrator that coordinates all content creation operations.
+The `AIService` module is the central orchestrator that handles all AI chat interactions using Vercel AI SDK v6.
 
-**Location:** `/backend/src/services/ai/ContentAgent.ts`
+**Location:** `/backend/src/services/ai/AIService.ts`
 
 **Key Responsibilities:**
 
-- Process user requests with intent detection
-- Manage session state and conversation history
-- Orchestrate tool execution (full pipeline or individual tools)
-- Handle errors with automatic recovery
-- Enforce token budget constraints
-- Coordinate with PipelineExecutor for pipeline execution
+- Process streaming chat via `streamText` with multi-turn tool execution
+- Process non-streaming chat via `generateText`
+- Register all 35+ tools for LLM tool-calling
+- Build context-aware system prompts (screen context, selection context, interview context)
+- Coordinate with PipelineExecutor for multi-step pipeline execution
+- Support multiple AI providers (Anthropic Claude, OpenAI GPT-4o)
 
-**Public API:**
+**Key Functions:**
 
 ```typescript
-class ContentAgent {
-  // Main entry point for user requests
-  async processRequest(message: string, screenContext: ScreenContext): Promise<AgentResponse>
+// Streaming chat with tools (primary endpoint)
+export function streamChat(
+  messages: ChatMessage[],
+  options: StreamChatOptions
+): ReadableStream
 
-  // Execute complete content creation pipeline
-  async executeFullPipeline(request: PipelineExecutionRequest): Promise<PipelineResult>
+// Non-streaming chat
+export async function chat(
+  messages: ChatMessage[],
+  options: ChatOptions
+): Promise<{ text: string; toolCalls?: any[]; toolResults?: any[] }>
 
-  // Execute individual tool
-  async executeSingleTool(toolName: ToolName, params: unknown): Promise<ToolOutput>
-
-  // Access conversation history
-  getConversationHistory(): ConversationTurn[]
-
-  // Reset session and clear state
-  clearSession(): void
-}
+// Content generation
+export async function generateContent(
+  prompt: string,
+  options: GenerateOptions
+): Promise<string>
 ```
+
+**Tool Registration:**
+
+AIService imports and registers tools from all 19 tool files:
+- contentTools, profileTools, responseTools, researchTools
+- skeletonTools, contentWritingTools, humanityCheckTools
+- visualsCreatorTool, imageNeedsTools, contentImprovementTools
+- socialPostTools, interviewTools, storytellingTools
+- trendingTopicsTools, followUpTopicsTools
+
+> **Note**: There is no explicit intent detection. The LLM (Claude) autonomously decides which tools to call based on the user's message, screen context, and conversation history.
 
 ---
 
@@ -226,29 +236,6 @@ await pipelineExecutor.executeSingleTool('writeFullContent', artifactId);
 
 ---
 
-### Session State Management
-
-Session state tracks the agent's current context across multiple interactions with 30-minute automatic timeout.
-
-**State Structure:**
-
-```typescript
-interface SessionState {
-  sessionId: string;
-  currentArtifactId?: string;
-  lastToolExecuted?: string;
-  pipelineProgress?: {
-    currentStep: number;
-    totalSteps: number;
-    completedTools: string[];
-    pausedForApproval: boolean;  // NEW: Phase 4
-  };
-  lastActivityTimestamp: number;
-}
-```
-
----
-
 ### Token Budget Management
 
 The Token Budget Manager ensures efficient use of Claude Sonnet 4's 200K context window.
@@ -267,27 +254,6 @@ The Token Budget Manager ensures efficient use of Claude Sonnet 4's 200K context
 | **Available for Dynamic Content** | **182,500** | - |
 
 ---
-
-### Intent Detection
-
-Intent detection uses a **hybrid approach** combining regex patterns (fast, high-confidence) with Claude Haiku (AI-powered, handles ambiguity).
-
-**Available Intents:**
-
-```typescript
-enum UserIntent {
-  GENERATE_TOPICS,      // "suggest topic ideas"
-  RESEARCH_TOPIC,       // "research this topic"
-  CREATE_SKELETON,      // "create outline"
-  WRITE_CONTENT,        // "write the content"
-  HUMANIZE_CONTENT,     // "make it sound more human"
-  CREATE_VISUALS,       // "generate images"
-  FULL_PIPELINE,        // "create content" (end-to-end)
-  APPROVE_FOUNDATIONS,  // "approve the skeleton" [NEW]
-  STATUS_CHECK,         // "what's the status?"
-  UNCLEAR               // Conversational or ambiguous
-}
-```
 
 ---
 
@@ -359,7 +325,7 @@ sequenceDiagram
     participant DB as Database
 
     Note over User,DB: User clicks "Create Content"
-    FE->>BE: POST /api/content-agent/chat
+    FE->>BE: POST /api/ai/chat/stream
     BE->>PE: execute(artifactId)
 
     Note over PE,DB: Step 1: Research
@@ -454,21 +420,18 @@ sequenceDiagram
     participant User
     participant Frontend
     participant API
-    participant Agent
-    participant Intent
+    participant AIService
     participant Pipeline
     participant Tools
     participant DB
 
     User->>Frontend: Types "Create content"
     Frontend->>Frontend: Get screen context
-    Frontend->>API: POST /api/content-agent/chat
-    API->>Agent: processRequest(message, context)
+    Frontend->>API: POST /api/ai/chat/stream
+    API->>AIService: streamText(messages, tools, context)
 
-    Agent->>Intent: detectIntent(message, context)
-    Intent-->>Agent: FULL_PIPELINE (0.95)
-
-    Agent->>Pipeline: execute(artifactId)
+    Note over AIService: Claude decides to call pipeline tools
+    AIService->>Pipeline: execute(artifactId)
 
     Pipeline->>Tools: conductDeepResearch
     Tools->>DB: INSERT artifact_research
@@ -486,8 +449,8 @@ sequenceDiagram
 
     Note over Pipeline: PAUSES FOR APPROVAL
 
-    Pipeline-->>Agent: Paused at skeleton
-    Agent-->>Frontend: "Foundations complete! Review skeleton..."
+    Pipeline-->>AIService: Paused at skeleton
+    AIService-->>Frontend: "Foundations complete! Review skeleton..."
 
     Note over User,Frontend: User reviews, edits, approves
 
@@ -504,63 +467,55 @@ sequenceDiagram
     Tools->>DB: UPDATE status = 'ready'
     Tools-->>Pipeline: Success
 
-    Pipeline-->>Agent: Complete
-    Agent-->>Frontend: "Content ready!"
+    Pipeline-->>AIService: Complete
+    AIService-->>Frontend: "Content ready!"
 ```
 
 ---
 
 ## Usage Examples
 
-### Example 1: Full Pipeline with Approval Gate
+### Example 1: Streaming Chat with Tool Execution
 
 ```typescript
-import { createContentAgent } from '@/services/ai/ContentAgent';
+// Frontend sends chat message via Vercel AI SDK useChat hook
+// POST /api/ai/chat/stream
+const response = await fetch('/api/ai/chat/stream', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: [{ role: 'user', content: 'Create content for my blog post about AI in product management' }],
+    screenContext: { currentPage: 'artifact', artifactId: 'blog-001', artifactType: 'blog', artifactStatus: 'draft' }
+  })
+});
 
-const agent = createContentAgent();
+// Claude autonomously decides to call pipeline tools:
+// conductDeepResearch → analyzeWritingCharacteristics → generateContentSkeleton
+// Pipeline PAUSES at skeleton — stream response: "Foundations complete!"
 
-// Step 1: User requests content creation
-const response = await agent.processRequest(
-  "Create content for my blog post about AI in product management",
-  {
-    currentPage: 'artifact',
-    artifactId: 'blog-001',
-    artifactType: 'blog',
-    artifactStatus: 'draft'
-  }
-);
+// Step 2: User reviews skeleton, clicks "Foundations Approved"
+await fetch('/api/artifacts/blog-001/approve-foundations', { method: 'POST' });
 
-// Pipeline executes: research → foundations → skeleton
-// Pipeline PAUSES at skeleton status
-// Response: "Foundations complete! Review the skeleton and click 'Foundations Approved'..."
-
-// Step 2: User reviews skeleton in FoundationsSection
-// User optionally edits the skeleton
-// User clicks "Foundations Approved" button
-
-// Step 3: Frontend calls approval endpoint
-await fetch('/api/artifact/blog-001/approve-foundations', { method: 'POST' });
-
-// Pipeline resumes: writing → creating_visuals → ready
-// Final content with images is generated
+// Pipeline resumes: writeFullContent → identifyImageNeeds → ready
 ```
 
-### Example 2: Resume from Approval
+### Example 2: In-Editor Content Improvement
 
 ```typescript
-// User has artifact in 'skeleton' status
-// FoundationsSection shows skeleton and approval button
-
-// Frontend detects status and shows approval UI
-if (artifact.status === 'skeleton' || artifact.status === 'foundations_approval') {
-  // Show FoundationsSection with approval button
-}
-
-// User clicks approval
-const approveFoundations = async () => {
-  await api.post(`/api/artifact/${artifactId}/approve-foundations`);
-  // Pipeline continues automatically
-};
+// User selects text in editor and asks for improvement
+const response = await fetch('/api/ai/chat/stream', {
+  method: 'POST',
+  headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    messages: [{ role: 'user', content: 'Make this paragraph more concise' }],
+    selectionContext: {
+      type: 'text',
+      selectedText: 'The selected paragraph text...',
+      surroundingContext: { before: '...', after: '...', sectionHeading: 'Introduction' }
+    }
+  })
+});
+// Claude calls improveTextContent tool, returns replacement text
 ```
 
 ---
@@ -596,19 +551,18 @@ const NON_PROCESSING_STATES = ['draft', 'skeleton', 'foundations_approval', 'rea
 
 ### Core Documentation
 
-- **[Pipeline Execution Flow](./pipeline-execution-flow.md)** - Complete 6-step pipeline with approval gate
-- **[Core Tools Reference](./core-tools-reference.md)** - All 7 core tools with schemas
-- **[Intent Detection Guide](./intent-detection-guide.md)** - Hybrid intent detection
+- **[Pipeline Execution Flow](./pipeline-execution-flow.md)** - Complete pipeline with approval gate
+- **[Core Tools Reference](./core-tools-reference.md)** - All tools with schemas
 - **[System Prompt Specification](./system-prompt-specification.md)** - System prompt and behavior
 
 ### Status Reference
 
-- **[STATUS_VALUES_REFERENCE.md](../artifact-statuses/STATUS_VALUES_REFERENCE.md)** - Complete 9-status definitions
+- **[STATUS_VALUES_REFERENCE.md](../artifact-statuses/STATUS_VALUES_REFERENCE.md)** - Complete 11-status definitions
 - **[Status Flow Reference](../artifact-statuses/status-flow-reference.md)** - Status transitions and UI
 
 ### API Documentation
 
-- **[Content Agent Endpoints](../api/content-agent-endpoints.md)** - REST API including approval endpoint
+- **[API Endpoints](../api/content-agent-endpoints.md)** - REST API (`/api/ai/*` routes)
 - **[Screen Context Specification](../api/screen-context-specification.md)** - Frontend context integration
 
 ### Architecture Documentation
@@ -617,20 +571,23 @@ const NON_PROCESSING_STATES = ['draft', 'skeleton', 'foundations_approval', 'rea
 
 ### Implementation Files
 
-- **ContentAgent:** `/backend/src/services/ai/ContentAgent.ts`
+- **AIService:** `/backend/src/services/ai/AIService.ts`
 - **PipelineExecutor:** `/backend/src/services/ai/PipelineExecutor.ts`
-- **Writing Characteristics Tool:** `/backend/src/services/ai/tools/writingCharacteristicsTools.ts`
-- **FoundationsSection:** `/frontend/src/features/portfolio/components/artifact/FoundationsSection.tsx`
+- **AI Controller:** `/backend/src/controllers/ai.controller.ts`
+- **AI Routes:** `/backend/src/routes/ai.ts`
+- **System Prompts:** `/backend/src/services/ai/prompts/systemPrompts.ts`
+- **Tools Directory:** `/backend/src/services/ai/tools/` (19 tool files)
 - **Types:** `/backend/src/services/ai/types/contentAgent.ts`
 
 ---
 
 **Version History:**
 
+- **v3.0.0** (2026-02-25) - Vercel AI SDK v6 Refactor
+  - `ContentAgent.ts` deleted, replaced by `AIService.ts`
+  - `intentDetection.ts` deleted — LLM handles intent via tool-calling
+  - Server-side session state removed
+  - Routes changed from `/api/content-agent/*` to `/api/ai/*`
+  - Updated architecture diagram and all file references
 - **v2.0.0** (2026-01-29) - Phase 4: Foundations approval workflow
-  - Added `analyzeWritingCharacteristics` tool
-  - Added 6-step pipeline with approval gate
-  - Added writing references system
-  - Updated architecture diagram
-  - Added FoundationsSection documentation
 - **v1.0.0** (2026-01-26) - Initial release with Phase 1 MVP

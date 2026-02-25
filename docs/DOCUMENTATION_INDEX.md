@@ -1,19 +1,20 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-02-24
-**Total Documentation Files:** 50+
-**Status:** Complete (Phase 6 — Writing References Redesign)
+**Last Updated:** 2026-02-25
+**Total Documentation Files:** 55+
+**Status:** Complete (Phase 7 — Vercel AI SDK v6 Refactor + Auth & Testing Docs)
 
 ## Overview
 
 This index catalogs all product documentation for the NextUp platform. Documentation is organized into 12 layers covering product overview, user flows, screens, features, architecture, API, AI tools, database, and testing.
 
 **Current state:**
-- **11 artifact statuses**: draft, interviewing, research, foundations, skeleton, foundations_approval, writing, humanity_checking, creating_visuals, ready, published
-- **14 AI tools** across 4 categories (core pipeline, interview, social post, content improvement)
+- **11 artifact statuses**: draft, interviewing, research, foundations, skeleton, foundations_approval, writing, humanity_checking, creating_visuals, ready, published (+ archived in DB)
+- **35+ AI tools** across 7 categories (core pipeline, interview, social post, content improvement, content management, image generation, profile/context, research/topics, response)
 - **3 pipeline paths**: blog/showcase full pipeline, showcase interview pipeline, social post pipeline
 - **3 artifact types**: blog, showcase, social_post
+- **AI backend**: Vercel AI SDK v6 with `streamText`/`generateText` (AIService.ts)
 
 ---
 
@@ -23,17 +24,18 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md) | Value proposition, feature list, tech stack summary, current state |
+| [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md) | Value proposition, feature list, tech stack summary, current state (v2.0.0) |
 
 ---
 
-## Layer 2: User Flows (7 files)
+## Layer 2: User Flows (8 files)
 
 **Location:** `docs/flows/`
 
 | File | Description |
 |------|-------------|
 | [artifact-creation-flow.md](./flows/artifact-creation-flow.md) | End-to-end artifact creation from portfolio page to ready state |
+| [auth-flow.md](./flows/auth-flow.md) | Authentication flows: login, signup, OAuth, password reset, sign out |
 | [content-improvement-flow.md](./flows/content-improvement-flow.md) | AI text/image improvement via editor selection and chat |
 | [image-generation-flow.md](./flows/image-generation-flow.md) | Image placeholder detection, approval, generation, and embedding |
 | [portfolio-management-flow.md](./flows/portfolio-management-flow.md) | Portfolio page CRUD, filtering, and artifact card interactions |
@@ -43,7 +45,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 3: Screens (7 files)
+## Layer 3: Screens (8 files)
 
 **Location:** `docs/screens/`
 
@@ -51,11 +53,12 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 |------|-------------|
 | [app-shell.md](./screens/app-shell.md) | AppShell layout with sidebar, mobile nav, and chat panel |
 | [artifact-page.md](./screens/artifact-page.md) | ArtifactPage with editor, foundations section, research area, chat |
+| [auth-screens.md](./screens/auth-screens.md) | Auth pages: LoginPage, SignupPage, EmailConfirmation, PasswordReset, AuthCallback |
 | [home-page.md](./screens/home-page.md) | Dashboard with greeting, domain cards, recent content |
 | [portfolio-page.md](./screens/portfolio-page.md) | Portfolio grid with artifact cards, filters, creation modal |
 | [profile-page.md](./screens/profile-page.md) | Profile setup with 4 sections, skills inventory, completion tracking |
-| [settings-page.md](./screens/settings-page.md) | Theme switching, AI interaction mode, writing style link |
-| [writing-style-page.md](./screens/writing-style-page.md) | Writing references: tabbed UI (Blog/Social/Showcase), 4 upload methods, extraction status |
+| [settings-page.md](./screens/settings-page.md) | Theme switching, AI interaction mode, embedded writing references |
+| [writing-style-page.md](./screens/writing-style-page.md) | Writing references (embedded in Settings; `/settings/style` redirects to `/settings`) |
 
 ---
 
@@ -94,17 +97,17 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 6: Architecture (7 files)
+## Layer 6: Architecture (8 files)
 
 **Location:** `docs/Architecture/`
 
 | File | Description |
 |------|-------------|
 | [UNIFIED_CONTENT_AGENT_ARCHITECTURE.md](./Architecture/UNIFIED_CONTENT_AGENT_ARCHITECTURE.md) | High-level system architecture overview |
-| [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend system architecture with tool orchestration |
+| [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend AI architecture: AIService.ts, Vercel AI SDK v6, tool orchestration (v3.0.0) |
 | [backend/security-architecture.md](./Architecture/backend/security-architecture.md) | Multi-layered security (prompt injection, PII, rate limiting) |
 | [backend/observability-architecture.md](./Architecture/backend/observability-architecture.md) | Distributed tracing, metrics, circuit breaker |
-| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 10 tables with columns, types, relationships, RLS |
+| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 11 tables with columns, types, relationships, RLS |
 | [database/artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) | Table relationships and data flow diagrams |
 | [database/artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) | Artifacts table schema with status workflow |
 | [frontend/screen-context-integration.md](./Architecture/frontend/screen-context-integration.md) | useScreenContext hook, React Query caching |
@@ -117,10 +120,10 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | 13+ endpoints: execute, clear-session, history, foundations, writing, examples (8 endpoints), log, auth, delete |
+| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | **18 endpoints** across AI chat (`/api/ai/*`), artifacts, writing examples, logging, auth (v4.0.0) |
 | [authentication-and-security.md](./api/authentication-and-security.md) | Bearer token auth, rate limits (10/min, 100/hr, 20 pipelines/day) |
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
-| [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for intent detection |
+| [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
 | [MOCK_CONFIGURATION_GUIDE.md](./api/MOCK_CONFIGURATION_GUIDE.md) | Mock toggle configuration for development/testing |
 
 ---
@@ -131,11 +134,11 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [content-agent-overview.md](./ai-agents-and-prompts/content-agent-overview.md) | ContentAgent orchestrator, session management, token budget |
-| [core-tools-reference.md](./ai-agents-and-prompts/core-tools-reference.md) | **14 tools** across 4 categories with full schemas (v4.0.0) |
-| [context-tools-reference.md](./ai-agents-and-prompts/context-tools-reference.md) | 4 context fetcher tools (artifact, research, drafts, topics) |
-| [pipeline-execution-flow.md](./ai-agents-and-prompts/pipeline-execution-flow.md) | **3 pipeline paths**: full, interview, social post (v4.0.0) |
-| [intent-detection-guide.md](./ai-agents-and-prompts/intent-detection-guide.md) | Hybrid intent detection (regex + Haiku), confidence thresholds |
+| [content-agent-overview.md](./ai-agents-and-prompts/content-agent-overview.md) | AIService orchestrator (Vercel AI SDK v6), PipelineExecutor, token budget (v3.0.0) |
+| [core-tools-reference.md](./ai-agents-and-prompts/core-tools-reference.md) | **35+ tools** across 7 categories with full schemas (v4.0.0) |
+| [context-tools-reference.md](./ai-agents-and-prompts/context-tools-reference.md) | Context fetcher tools (artifact, research, drafts, topics) |
+| [pipeline-execution-flow.md](./ai-agents-and-prompts/pipeline-execution-flow.md) | **3 pipeline paths**: full, interview, social post |
+| [intent-detection-guide.md](./ai-agents-and-prompts/intent-detection-guide.md) | **DEPRECATED** — intent detection removed; LLM handles via tool-calling |
 | [system-prompt-specification.md](./ai-agents-and-prompts/system-prompt-specification.md) | Complete system prompt with structured response format |
 
 ---
@@ -143,7 +146,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 ## Layer 9: Database Schema
 
 Covered by Layer 6 Architecture files:
-- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (10 tables)
+- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (11 tables)
 - [artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) — Relationships and data flow
 - [artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) — Artifacts table detail
 
@@ -151,20 +154,23 @@ Covered by Layer 6 Architecture files:
 
 ## Layer 10: Auth & Security
 
-Covered by Layers 6 and 7:
-- [authentication-and-security.md](./api/authentication-and-security.md) — Auth flow, middleware, rate limiting
+Covered by Layers 2, 3, 6, and 7:
+- [auth-flow.md](./flows/auth-flow.md) — Complete auth user flows (login, signup, OAuth, password reset, sign out)
+- [auth-screens.md](./screens/auth-screens.md) — Auth page components (LoginPage, SignupPage, EmailConfirmation, PasswordReset, AuthCallback)
+- [authentication-and-security.md](./api/authentication-and-security.md) — Backend auth middleware, rate limiting
 - [security-architecture.md](./Architecture/backend/security-architecture.md) — Input validation, privacy, prompt injection
 
 ---
 
-## Layer 11: Testing (2 files)
+## Layer 11: Testing (3 files)
 
 **Location:** `docs/testing/`
 
 | File | Description |
 |------|-------------|
-| [sanity-test-analysis-2026-01-26.md](./testing/sanity-test-analysis-2026-01-26.md) | Initial test analysis report |
-| [playwright/README.md](./testing/playwright/README.md) | Playwright E2E test setup notes |
+| [testing-infrastructure.md](./testing/testing-infrastructure.md) | **Complete reference** — Vitest + Playwright configs, test inventory, coverage, commands |
+| [sanity-test-analysis-2026-01-26.md](./testing/sanity-test-analysis-2026-01-26.md) | Initial sanity test report (historical, issues since fixed) |
+| [playwright/README.md](./testing/playwright/README.md) | Playwright E2E test guide with patterns, test IDs, examples |
 
 ---
 
@@ -218,32 +224,50 @@ Interview:      draft → interviewing → research → foundations → skeleton
 Social Post:    draft → ready
 ```
 
-### 13 AI Tools
+### AI Tools Summary (35+ tools)
 
-| Category | Tools |
-|----------|-------|
-| **Core Pipeline** (8) | conductDeepResearch, analyzeWritingCharacteristics, analyzeStorytellingStructure, generateContentSkeleton, writeContentSection, writeFullContent, applyHumanityCheck, generateContentVisuals |
-| **Interview** (3) | startShowcaseInterview, saveInterviewAnswer, completeShowcaseInterview |
-| **Social Post** (1) | writeSocialPostContent |
-| **Content Improvement** (2) | improveTextContent, improveImageContent |
+| Category | Count | Key Tools |
+|----------|-------|-----------|
+| **Core Pipeline** | 8 | conductDeepResearch, analyzeWritingCharacteristics, analyzeStorytellingStructure, generateContentSkeleton, writeContentSection, writeFullContent, applyHumanityCheck, generateContentVisuals |
+| **Interview** | 3 | startShowcaseInterview, saveInterviewAnswer, completeShowcaseInterview |
+| **Social Post** | 1 | writeSocialPostContent |
+| **Content Improvement** | 2 | improveTextContent, improveImageContent |
+| **Content Management** | 5 | createArtifactDraft, updateArtifactContent, getArtifactContent, listRecentArtifacts, suggestArtifactIdeas |
+| **Image Generation** | 4 | identifyImageNeeds, updateImageApproval, generateFinalImages, regenerateImage |
+| **Profile & Context** | 7 | getUserContext, getUserSkills, suggestProfileUpdates, fetchArtifact, fetchResearch, fetchArtifactTopics, listDraftArtifacts |
+| **Research & Topics** | 3 | topicsResearch, researchTrendingTopics, analyzeFollowUpTopics |
+| **Response** | 1 | structuredResponse |
 
 ### Key Counts
 
 | What | Count |
 |------|-------|
-| Artifact statuses | 11 |
-| AI tools | 14 (+ 4 context tools) |
+| Artifact statuses | 11 (+ archived in DB) |
+| AI tools | 35+ across 19 tool files |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 9+ |
+| API endpoints | 18 |
 | Database tables | 11 |
 | Error categories | 13 |
-| Documentation files | 50+ |
+| Documentation files | 55+ |
+
+### Key Implementation Files
+
+| Component | File |
+|-----------|------|
+| AI Orchestrator | `backend/src/services/ai/AIService.ts` |
+| Pipeline Executor | `backend/src/services/ai/PipelineExecutor.ts` |
+| AI Controller | `backend/src/controllers/ai.controller.ts` |
+| AI Routes | `backend/src/routes/ai.ts` |
+| System Prompts | `backend/src/services/ai/prompts/systemPrompts.ts` |
+| Tool Definitions | `backend/src/services/ai/tools/` (19 files) |
 
 ---
 
 **Version History:**
-- **4.0.0** (2026-02-24) — Writing References Redesign: per-artifact-type refs, 4 upload methods, publication scraping, updated API/schema/flow/screen/feature docs
-- **3.0.0** (2026-02-20) — Full rewrite: 12-layer index, 50+ files, 11 statuses, 13 tools, 3 pipeline paths
+- **6.0.0** (2026-02-25) — Added auth docs (auth-flow.md, auth-screens.md), testing infrastructure doc (testing-infrastructure.md), updated index to 55+ files, expanded Layer 10 auth references, expanded Layer 11 testing section
+- **5.0.0** (2026-02-25) — Vercel AI SDK v6 audit: updated all references from ContentAgent.ts to AIService.ts, corrected API routes from `/api/content-agent/*` to `/api/ai/*`, updated tool count from 14 to 35+, marked intent-detection-guide as deprecated, fixed writing-style-page route, updated architecture docs
+- **4.0.0** (2026-02-24) — Writing References Redesign: per-artifact-type refs, 4 upload methods, publication scraping
+- **3.0.0** (2026-02-20) — Full rewrite: 12-layer index, 50+ files, 11 statuses
 - **2.0.0** (2026-01-28) — Phase 3 image generation update
 - **1.0.0** (2026-01-26) — Initial documentation index (19 files)

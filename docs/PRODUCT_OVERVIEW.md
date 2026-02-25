@@ -1,8 +1,8 @@
 # NextUp
 
 **Created:** 2026-01-15
-**Last Updated:** 2026-02-24
-**Version:** 1.0.0
+**Last Updated:** 2026-02-25
+**Version:** 2.0.0
 **Status:** Active
 
 ## Overview
@@ -49,8 +49,8 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | UI | Tailwind CSS 3, shadcn/ui (Radix) | 20+ UI components |
 | State | Zustand (client), TanStack Query (server) | 4 stores, cache management |
 | Backend | Node.js, Express 4, TypeScript | REST API on port 3001 |
-| Database | Supabase (PostgreSQL) | 10 tables, RLS enabled |
-| AI | Anthropic Claude, Google Gemini, DALL-E 3 | Multi-provider pipeline |
+| Database | Supabase (PostgreSQL) | 11 tables, RLS enabled |
+| AI | Anthropic Claude (Vercel AI SDK v6), DALL-E 3, Gemini | Multi-provider via Vercel AI SDK |
 | Research | Tavily API | Multi-source web research |
 | Auth | Supabase Auth | JWT tokens, session management |
 
@@ -60,14 +60,26 @@ For full tech stack details, see [CLAUDE.md](../CLAUDE.md).
 
 ### Routes
 
+**Protected Routes (require auth):**
+
 | Path | Page | Description |
 |------|------|-------------|
 | `/` | Redirect | Redirects to `/portfolio` |
 | `/portfolio` | PortfolioPage | Artifact grid with filters, create dialog, AI chat |
 | `/portfolio/artifacts/:id` | ArtifactPage | Full editor with chat panel, foundations, image approval |
 | `/profile` | ProfilePage | User context, skills management |
-| `/settings` | SettingsPage | Theme, interaction mode preferences |
-| `/settings/style` | WritingStylePage | Writing references management (tabbed by artifact type) |
+| `/settings` | SettingsPage | Theme, interaction mode, writing references (embedded) |
+| `/settings/style` | Redirect | Redirects to `/settings` (writing refs now embedded) |
+
+**Auth Routes (public):**
+
+| Path | Page | Description |
+|------|------|-------------|
+| `/auth/login` | LoginPage | Email/password login |
+| `/auth/signup` | SignupPage | New account registration |
+| `/auth/confirm` | EmailConfirmationPage | Email verification |
+| `/auth/reset-password` | PasswordResetPage | Password reset flow |
+| `/auth/callback` | AuthCallbackPage | OAuth callback handler |
 
 ### Content Types
 
@@ -93,8 +105,9 @@ draft -> [interviewing] -> research -> foundations -> skeleton
 
 - **Phases 1-4:** Complete (Foundation, Research, Image Generation, Writing Quality)
 - **Phase 5:** Complete (Security, Observability, Error Handling)
-- **Phase 6:** Complete (Frontend Integration, Status Workflow)
-- **Active development:** Showcase interview flow, content improvement, social post generation
+- **Phase 6:** Complete (Frontend Integration, Status Workflow, Writing References Redesign)
+- **Phase 7:** Complete (Content Agent refactor to Vercel AI SDK v6, chat markdown rendering, AI voice humanization)
+- All core features shipped. Platform is production-ready.
 
 ## Related Documentation
 

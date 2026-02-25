@@ -1,14 +1,16 @@
 # Content Agent Architecture
 
-**Version:** 2.0.0
-**Last Updated:** 2026-01-28
-**Status:** Complete (Phase 3 Image Generation)
+**Version:** 3.0.0
+**Last Updated:** 2026-02-25
+**Status:** Complete (Vercel AI SDK v6 Refactor)
 
 ## Overview
 
-The Content Agent is a unified orchestrator that manages the entire content creation pipeline, from research through writing to visual generation. Built as a conversational AI system, it combines intent detection, tool orchestration, session management, and token budget optimization to provide a seamless user experience.
+The Content Agent system manages the entire content creation pipeline, from research through writing to visual generation. Built on **Vercel AI SDK v6** with `streamText`/`generateText`, it uses **LLM tool-calling** for intelligent orchestration — the LLM autonomously decides which tools to invoke based on user messages and context.
 
-This architecture leverages Claude Sonnet 4's 200K context window, integrates with multiple AI providers (Anthropic, Google, Tavily), and implements production-grade error handling, observability, and security patterns.
+> **v3.0.0 Migration**: `ContentAgent.ts` replaced by `AIService.ts`. `intentDetection.ts` removed (LLM handles intent via tool-calling). Server-side session state removed (frontend manages via message arrays). Routes changed from `/api/content-agent/*` to `/api/ai/*`.
+
+This architecture leverages Claude's 200K context window, integrates with multiple AI providers (Anthropic, OpenAI, Tavily), and implements production-grade error handling, observability, and security patterns.
 
 ## System Architecture
 
@@ -20,15 +22,13 @@ graph TB
     end
 
     subgraph "API Layer"
-        Controller[ContentAgentController]
+        Controller[ai.controller.ts]
         Middleware[Security Middleware<br/>auth, rate limit, validation]
     end
 
-    subgraph "Content Agent Orchestrator"
-        CA[ContentAgent Class]
-        Intent[Intent Detection<br/>Hybrid: Regex + Haiku]
+    subgraph "AI Service (Vercel AI SDK v6)"
+        CA[AIService - streamText/generateText]
         Token[Token Budget Manager<br/>200K context]
-        Session[Session State Manager<br/>30min timeout]
     end
 
     subgraph "Tool Execution Layer"

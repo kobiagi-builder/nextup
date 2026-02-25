@@ -1,31 +1,32 @@
-# Content Agent API Endpoints
+# API Endpoints
 
-**Version:** 3.0.0
-**Last Updated:** 2026-02-20
+**Version:** 4.0.0
+**Last Updated:** 2026-02-25
 **Base URL:** `http://localhost:3001` (development) | `https://api.yourapp.com` (production)
 
-> **⚠️ v3.0.0**: Added frontend logging bridge, auth data migration, and artifact deletion endpoints. Updated for 11-status workflow with 13 tools.
+> **⚠️ v4.0.0**: Content Agent refactored to Vercel AI SDK v6. Routes changed from `/api/content-agent/*` to `/api/ai/*`. `ContentAgent.ts` replaced by `AIService.ts`. Intent detection now handled implicitly by LLM tool-calling (no explicit `intentDetection.ts`).
 
 ## Overview
 
-The Content Agent API provides a conversational interface for creating, managing, and refining content artifacts. All endpoints require authentication and support real-time content generation through intent detection and tool orchestration.
+The API provides a conversational AI interface for creating, managing, and refining content artifacts. The AI backend uses **Vercel AI SDK v6** with `streamText`/`generateText` for multi-provider support (Anthropic Claude, OpenAI). All AI endpoints require authentication and support real-time content generation through LLM tool-calling orchestration.
 
 ### Key Features
 
-- **Conversational Interface**: Natural language requests for content operations
-- **Intent Detection**: Automatic understanding of user requests (research, skeleton, writing, etc.)
+- **Streaming Chat**: Real-time streaming responses via Vercel AI SDK v6 `streamText`
+- **LLM Tool-Calling**: Claude autonomously decides which tools to invoke based on user message and context
 - **Screen Context Integration**: Contextual awareness based on current page and artifact
-- **Session Management**: Maintains conversation history across requests
-- **Tool Orchestration**: Coordinates multiple AI tools (Claude, Gemini, Tavily)
-- **Writing Quality Enhancement (Phase 4)**: Writing characteristics analysis and approval gate
+- **Selection Context**: In-editor text/image selection context for content improvement
+- **Multi-Provider**: Anthropic Claude (default) and OpenAI GPT-4o support
+- **Pipeline Execution**: PipelineExecutor handles multi-step content creation workflows
+- **Writing Quality Enhancement**: Writing characteristics analysis and approval gate
 
 ### API Characteristics
 
 - **Format**: REST API with JSON payloads
 - **Authentication**: Bearer token via `Authorization` header
 - **Rate Limiting**: 10 requests/minute, 100 requests/hour per user
-- **Max Request Size**: 10,000 characters per message
-- **Session Timeout**: 30 minutes of inactivity
+- **Streaming**: SSE (Server-Sent Events) for `/api/ai/chat/stream`
+- **AI SDK**: Vercel AI SDK v6 message format (content or parts)
 
 ---
 
@@ -68,384 +69,147 @@ curl -X POST http://localhost:3001/api/auth/login \
 
 ## Endpoints
 
-### 1. Execute Content Agent Request
+### Route Summary
 
-Execute a content agent request with natural language message and optional screen context.
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET` | `/api/ai/health` | Yes | AI service health check |
+| `POST` | `/api/ai/chat` | Yes | Non-streaming AI chat (generateText) |
+| `POST` | `/api/ai/chat/stream` | Yes | Streaming AI chat with tools (streamText) |
+| `POST` | `/api/ai/generate` | Yes | Content generation |
+| `POST` | `/api/artifacts/:id/approve-foundations` | Yes | Resume pipeline after approval |
+| `GET` | `/api/artifacts/:id/writing-characteristics` | Yes | Get writing analysis |
+| `GET` | `/api/user/writing-examples` | Yes | List writing examples |
+| `GET` | `/api/user/writing-examples/:id` | Yes | Get single example |
+| `POST` | `/api/user/writing-examples` | Yes | Create example (paste) |
+| `PUT` | `/api/user/writing-examples/:id` | Yes | Update example |
+| `DELETE` | `/api/user/writing-examples/:id` | Yes | Delete example |
+| `POST` | `/api/user/writing-examples/upload` | Yes | Upload file |
+| `POST` | `/api/user/writing-examples/extract-url` | Yes | Extract from file URL |
+| `POST` | `/api/user/writing-examples/extract-publication` | Yes | Scrape publication URL |
+| `POST` | `/api/user/writing-examples/:id/retry` | Yes | Retry failed extraction |
+| `DELETE` | `/api/artifacts/:id` | Yes | Delete artifact + storage |
+| `POST` | `/api/log` | No | Frontend logging bridge |
+| `POST` | `/api/auth/migrate-data` | Yes | Auth data migration |
 
-**Endpoint**: `POST /api/content-agent/execute`
+> **Migration note (v4.0.0)**: All `/api/content-agent/*` endpoints were removed. The AI chat functionality moved to `/api/ai/*` using Vercel AI SDK v6 message format. Session management is now handled by the frontend via conversation message arrays (no server-side session state).
+
+---
+
+### 1. Streaming AI Chat (Primary Endpoint)
+
+Stream an AI response with tool execution. This is the primary chat endpoint used by the frontend.
+
+**Endpoint**: `POST /api/ai/chat/stream`
 
 **Authentication**: Required
 
+**Implementation**: Uses Vercel AI SDK v6 `streamText` with `anthropic('claude-sonnet-4-20250514')` and all registered tools.
+
 #### Request Body
+
+Uses Vercel AI SDK v6 message format:
 
 ```typescript
 {
-  message: string;              // User message (required, 1-10,000 chars)
-  screenContext?: {             // Optional page context
-    currentPage?: 'portfolio' | 'artifact' | 'dashboard' | 'chat';
-    artifactId?: string;        // UUID of current artifact
+  messages: Array<{
+    role: 'user' | 'assistant';
+    content?: string;              // Text content
+    parts?: Array<any>;            // AI SDK parts format (alternative to content)
+  }>;
+  model?: 'claude-sonnet' | 'claude-haiku' | 'gpt-4o' | 'gpt-4o-mini';  // Default: claude-sonnet
+  includeTools?: boolean;          // Default: true
+  screenContext?: {
+    currentPage: string;
+    artifactId?: string;
     artifactType?: 'blog' | 'social_post' | 'showcase';
-    artifactTitle?: string;     // Artifact title
-    artifactStatus?: 'draft' | 'interviewing' | 'research' | 'foundations' | 'skeleton' | 'foundations_approval' | 'writing' | 'humanity_checking' | 'creating_visuals' | 'ready' | 'published';  // 11 statuses
+    artifactTitle?: string;
+    artifactStatus?: string;
+  };
+  selectionContext?: {             // For in-editor content improvement
+    type: 'text' | 'image';
+    selectedText?: string | null;  // Max 5000 chars
+    startPos?: number | null;
+    endPos?: number | null;
+    surroundingContext?: {
+      before: string;              // Max 2000 chars
+      after: string;               // Max 2000 chars
+      sectionHeading: string | null;
+    } | null;
+    imageSrc?: string | null;
+    imageNodePos?: number | null;
+    artifactId?: string | null;
   };
 }
 ```
 
-#### Request Validation
-
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `message` | string | ✅ Yes | Non-empty, max 10,000 characters |
-| `screenContext` | object | ❌ No | Valid structure if provided |
-| `screenContext.currentPage` | string | ❌ No | One of: portfolio, artifact, dashboard, chat |
-| `screenContext.artifactId` | string | ❌ No | Valid UUID format |
-| `screenContext.artifactType` | string | ❌ No | One of: blog, social_post, showcase |
-| `screenContext.artifactStatus` | string | ❌ No | Valid artifact status value |
-
-#### Response Body (Success)
+#### Response
 
 **Status Code**: `200 OK`
+**Content-Type**: `text/event-stream` (SSE)
 
-```typescript
-{
-  text: string;                 // Agent's response text
-  toolCalls?: Array<{           // Tools that were executed (if any)
-    id: string;                 // Tool call UUID
-    name: string;               // Tool name (e.g., 'conductDeepResearch')
-    input: Record<string, unknown>;  // Tool input parameters
-  }>;
-  toolResults?: Array<{         // Results from tool executions
-    toolCallId: string;         // Corresponding tool call ID
-    result: Record<string, unknown>;  // Tool output
-  }>;
-  conversationId?: string;      // Session conversation ID
-}
-```
+Returns a Vercel AI SDK v6 streaming response with text deltas and tool call results.
 
-#### Example Request: Simple Message
+#### Example Request
 
 ```bash
-curl -X POST http://localhost:3001/api/content-agent/execute \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+curl -X POST http://localhost:3001/api/ai/chat/stream \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "message": "Research AI in healthcare"
-  }'
-```
-
-#### Example Response: Research Execution
-
-```json
-{
-  "text": "I'll conduct deep research on AI in healthcare using 5+ sources (Reddit, LinkedIn, Quora, Medium, Substack). This will gather 20+ relevant insights to inform the content skeleton.",
-  "toolCalls": [
-    {
-      "id": "call-abc-123",
-      "name": "conductDeepResearch",
-      "input": {
-        "artifactId": "artifact-xyz-789",
-        "topic": "AI in healthcare",
-        "artifactType": "blog"
-      }
-    }
-  ],
-  "toolResults": [
-    {
-      "toolCallId": "call-abc-123",
-      "result": {
-        "success": true,
-        "traceId": "ca-1700000000-abc123",
-        "duration": 32451,
-        "statusTransition": { "from": "draft", "to": "research" },
-        "data": {
-          "sourceCount": 18,
-          "uniqueSourcesCount": 5,
-          "sourcesBreakdown": {
-            "reddit": 4,
-            "linkedin": 5,
-            "medium": 4,
-            "quora": 3,
-            "substack": 2
-          }
-        }
-      }
-    }
-  ],
-  "conversationId": "session-1700000000-xyz789"
-}
-```
-
-#### Example Request: With Screen Context
-
-```bash
-curl -X POST http://localhost:3001/api/content-agent/execute \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": "write it",
+    "messages": [{ "role": "user", "content": "Research AI in healthcare" }],
     "screenContext": {
       "currentPage": "artifact",
-      "artifactId": "abc-123-def-456",
+      "artifactId": "abc-123",
       "artifactType": "blog",
-      "artifactTitle": "AI in Healthcare",
-      "artifactStatus": "skeleton"
+      "artifactStatus": "draft"
     }
   }'
 ```
 
-#### Example Response: Context-Enhanced
+---
 
-```json
+### 2. Non-Streaming AI Chat
+
+Same as streaming but returns complete response. Used for programmatic calls.
+
+**Endpoint**: `POST /api/ai/chat`
+
+**Authentication**: Required
+
+**Implementation**: Uses Vercel AI SDK v6 `generateText`.
+
+#### Request/Response
+
+Same request body as streaming endpoint. Returns complete JSON response:
+
+```typescript
 {
-  "text": "I'll write the full content for \"AI in Healthcare\" based on the skeleton. This will take approximately 60-90 seconds.",
-  "toolCalls": [
-    {
-      "id": "call-def-456",
-      "name": "writeFullContent",
-      "input": {
-        "artifactId": "abc-123-def-456",
-        "tone": "professional"
-      }
-    }
-  ],
-  "toolResults": [
-    {
-      "toolCallId": "call-def-456",
-      "result": {
-        "success": true,
-        "traceId": "ca-1700000100-def456",
-        "duration": 72340,
-        "statusTransition": { "from": "skeleton", "to": "creating_visuals" },
-        "data": {
-          "sectionsWritten": 5,
-          "wordCount": 2450,
-          "characterCount": 14892
-        }
-      }
-    }
-  ],
-  "conversationId": "session-1700000000-xyz789"
-}
-```
-
-#### Error Responses
-
-**400 Bad Request** - Invalid request parameters
-
-```json
-{
-  "error": "Invalid request",
-  "message": "message field is required and must be a string"
-}
-```
-
-```json
-{
-  "error": "Message too long",
-  "message": "message must be 10,000 characters or less"
-}
-```
-
-**401 Unauthorized** - Missing or invalid authentication
-
-```json
-{
-  "error": "Unauthorized",
-  "message": "No authentication token provided"
-}
-```
-
-**500 Internal Server Error** - Server error
-
-```json
-{
-  "error": "Internal server error",
-  "message": "Tool execution failed: conductDeepResearch timeout"
+  text: string;
+  toolCalls?: Array<{ id: string; name: string; input: Record<string, unknown> }>;
+  toolResults?: Array<{ toolCallId: string; result: Record<string, unknown> }>;
 }
 ```
 
 ---
 
-### 2. Clear Session
+### 3. Content Generation
 
-Clear the current content agent session state and conversation history.
+Generate content using AI without chat context.
 
-**Endpoint**: `POST /api/content-agent/clear-session`
+**Endpoint**: `POST /api/ai/generate`
 
 **Authentication**: Required
-
-#### Request Body
-
-No request body required.
-
-#### Response Body (Success)
-
-**Status Code**: `200 OK`
-
-```typescript
-{
-  success: boolean;             // Always true on success
-  message: string;              // Confirmation message
-}
-```
-
-#### Example Request
-
-```bash
-curl -X POST http://localhost:3001/api/content-agent/clear-session \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### Example Response
-
-```json
-{
-  "success": true,
-  "message": "Session cleared successfully"
-}
-```
-
-#### Use Cases
-
-- **Start Fresh**: Begin new conversation without previous context
-- **Context Switch**: Clear conversation when switching between artifacts
-- **Session Reset**: Reset after 30-minute timeout warning
-- **Testing**: Clear state between test scenarios
-
-#### Error Responses
-
-**401 Unauthorized** - Missing authentication
-
-```json
-{
-  "error": "Unauthorized",
-  "message": "No authentication token provided"
-}
-```
-
-**500 Internal Server Error** - Server error
-
-```json
-{
-  "error": "Internal server error",
-  "message": "Failed to clear session"
-}
-```
 
 ---
 
-### 3. Get Conversation History
+### 4. AI Health Check
 
-Retrieve the current conversation history for the session.
-
-**Endpoint**: `GET /api/content-agent/history`
+**Endpoint**: `GET /api/ai/health`
 
 **Authentication**: Required
 
-#### Query Parameters
-
-None.
-
-#### Response Body (Success)
-
-**Status Code**: `200 OK`
-
-```typescript
-{
-  history: Array<{
-    role: 'user' | 'assistant';   // Who sent the message
-    content: string;               // Message content
-    timestamp: number;             // Unix timestamp (ms since epoch)
-    toolCalls?: Array<{            // Tool calls in this turn (if assistant message)
-      name: string;
-      input: Record<string, unknown>;
-    }>;
-  }>;
-  count: number;                   // Total conversation turns
-}
-```
-
-#### Example Request
-
-```bash
-curl -X GET http://localhost:3001/api/content-agent/history \
-  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-```
-
-#### Example Response
-
-```json
-{
-  "history": [
-    {
-      "role": "user",
-      "content": "Research AI in healthcare",
-      "timestamp": 1700000000000
-    },
-    {
-      "role": "assistant",
-      "content": "I'll conduct deep research on AI in healthcare...",
-      "timestamp": 1700000001000,
-      "toolCalls": [
-        {
-          "name": "conductDeepResearch",
-          "input": { "artifactId": "abc-123", "topic": "AI in healthcare" }
-        }
-      ]
-    },
-    {
-      "role": "user",
-      "content": "Generate the skeleton",
-      "timestamp": 1700000040000
-    },
-    {
-      "role": "assistant",
-      "content": "I'll create a content skeleton based on the research...",
-      "timestamp": 1700000041000,
-      "toolCalls": [
-        {
-          "name": "generateContentSkeleton",
-          "input": { "artifactId": "abc-123", "tone": "professional" }
-        }
-      ]
-    }
-  ],
-  "count": 4
-}
-```
-
-#### Use Cases
-
-- **Review Conversation**: See what has been discussed in current session
-- **Debug Intent Detection**: Understand how agent interpreted previous messages
-- **Context Recovery**: Recover conversation after page refresh
-- **Audit Trail**: Log user interactions for analysis
-
-#### Conversation History Limits
-
-- **Max Turns Stored**: 10 conversation turns (older turns summarized)
-- **Session Timeout**: History cleared after 30 minutes of inactivity
-- **Per-Session**: Each user has independent conversation history
-
-#### Error Responses
-
-**401 Unauthorized** - Missing authentication
-
-```json
-{
-  "error": "Unauthorized",
-  "message": "No authentication token provided"
-}
-```
-
-**500 Internal Server Error** - Server error
-
-```json
-{
-  "error": "Internal server error",
-  "message": "Failed to retrieve conversation history"
-}
-```
+Returns AI service status and provider availability.
 
 ---
 
@@ -1228,15 +992,14 @@ async function executeWithRetry(request, maxRetries = 3) {
 ---
 
 **Version History:**
-- **3.0.0** (2026-02-20) - **Phase 5 Updates**:
-  - Added `POST /api/log` endpoint (frontend logging bridge, public)
-  - Added `POST /api/auth/migrate-data` endpoint (auth data migration)
-  - Added `DELETE /api/artifacts/:id` endpoint (artifact deletion with storage cleanup)
-  - Updated `artifactStatus` to 11 statuses (added `interviewing`, `humanity_checking`)
-  - Updated tool reference links to v3.0.0 (13 tools)
-- **2.0.0** (2026-01-29) - **Phase 4 Writing Quality Enhancement**:
-  - Added `POST /api/artifacts/:id/approve-foundations` endpoint
-  - Added `GET /api/artifacts/:id/writing-characteristics` endpoint
-  - Added Writing Examples CRUD endpoints (GET, POST, PUT, DELETE)
-  - Updated `artifactStatus` to include 9 statuses (added `foundations`, `foundations_approval`)
-- **1.0.0** (2026-01-26) - Initial API documentation with all 3 endpoints
+- **4.0.0** (2026-02-25) - **Content Agent Refactor to Vercel AI SDK v6**:
+  - All `/api/content-agent/*` routes removed (ContentAgent.ts deleted)
+  - New routes: `POST /api/ai/chat`, `POST /api/ai/chat/stream`, `POST /api/ai/generate`, `GET /api/ai/health`
+  - AI backend now uses `AIService.ts` with Vercel AI SDK v6 `streamText`/`generateText`
+  - Intent detection removed (LLM decides tools via tool-calling)
+  - Server-side session state removed (frontend manages conversation via message arrays)
+  - Request format changed to Vercel AI SDK v6 message format (content or parts)
+  - Added `selectionContext` support for in-editor content improvement
+- **3.0.0** (2026-02-20) - Phase 5: logging bridge, auth migration, artifact deletion
+- **2.0.0** (2026-01-29) - Phase 4: foundations approval, writing characteristics, writing examples CRUD
+- **1.0.0** (2026-01-26) - Initial API documentation

@@ -1,36 +1,66 @@
 # Core Tools Reference
 
-**Version:** 3.0.0
-**Last Updated:** 2026-02-20
-**Status:** Phase 5 (Interview, Social Post, Content Improvement)
+**Version:** 4.0.0
+**Last Updated:** 2026-02-25
+**Status:** Production (Vercel AI SDK v6)
 
 ---
 
 ## Introduction
 
-This document provides complete reference documentation for the **14 content creation tools** used by the Content Agent to orchestrate the 11-status workflow. Tools are organized into 4 categories: core pipeline tools, interview tools, social post tools, and content improvement tools.
+This document provides reference documentation for the **35+ tools** registered with the AI service (AIService.ts via Vercel AI SDK v6). Tools are organized into 7 categories across 19 tool files. The LLM (Claude) autonomously decides which tools to invoke based on user messages and context.
 
 **Core Pipeline Tools (8):**
 1. **conductDeepResearch** - Gather research from 5+ sources (draft → research)
 2. **analyzeWritingCharacteristics** - Analyze writing style from examples and context (research → foundations)
-3. **analyzeStorytellingStructure** - Select narrative framework, design story arc (foundations → foundations, no status change)
+3. **analyzeStorytellingStructure** - Select narrative framework, design story arc (foundations → foundations)
 4. **generateContentSkeleton** - Create structured outline (foundations → skeleton)
-5. **writeContentSection** - Write single section content (skeleton → skeleton)
+5. **writeContentSection** - Write single section content
 6. **writeFullContent** - Write all sections at once (foundations_approval → writing)
-7. **applyHumanityCheck** - Remove AI patterns (writing → humanity_checking → creating_visuals)
+7. **applyHumanityCheck** - Remove AI patterns (writing → humanity_checking)
 8. **generateContentVisuals** - Generate/detect visual placeholders (creating_visuals → ready)
 
 **Interview Tools (3):**
-8. **startShowcaseInterview** - Start/resume showcase interview (draft → interviewing)
-9. **saveInterviewAnswer** - Save incremental Q&A pair (no status change)
-10. **completeShowcaseInterview** - Store synthesized brief (no status change)
+9. **startShowcaseInterview** - Start/resume showcase interview (draft → interviewing)
+10. **saveInterviewAnswer** - Save incremental Q&A pair (no status change)
+11. **completeShowcaseInterview** - Store synthesized brief (no status change)
 
 **Social Post Tools (1):**
-11. **writeSocialPostContent** - Generate viral social post from source artifact (draft → ready)
+12. **writeSocialPostContent** - Generate viral social post from source artifact (draft → ready)
 
 **Content Improvement Tools (2):**
-12. **improveTextContent** - Surgically improve selected text in editor (no status change)
-13. **improveImageContent** - Regenerate image based on user feedback (no status change)
+13. **improveTextContent** - Surgically improve selected text in editor (no status change)
+14. **improveImageContent** - Regenerate image based on user feedback (no status change)
+
+**Content Management Tools (5):**
+15. **createArtifactDraft** - Create a new artifact draft
+16. **updateArtifactContent** - Update artifact content
+17. **getArtifactContent** - Fetch artifact content
+18. **listRecentArtifacts** - List recent artifacts
+19. **suggestArtifactIdeas** - Suggest content ideas
+
+**Image Generation Tools (4):**
+20. **identifyImageNeeds** - Analyze content for image placement
+21. **updateImageApproval** - Update approval status for image needs
+22. **generateFinalImages** - Generate high-quality final images
+23. **regenerateImage** - Regenerate a specific image
+
+**Profile & Context Tools (7):**
+24. **getUserContext** - Fetch user profile for personalization
+25. **getUserSkills** - Fetch user skills
+26. **suggestProfileUpdates** - Suggest profile improvements
+27. **fetchArtifact** - Get complete artifact details
+28. **fetchResearch** - Get research data for artifact
+29. **fetchArtifactTopics** - Get existing artifact titles
+30. **listDraftArtifacts** - List draft artifacts
+
+**Research & Topics Tools (3):**
+31. **topicsResearch** - Generate topic suggestions via multi-source analysis
+32. **researchTrendingTopics** - Discover trending topics via Tavily news + Hacker News
+33. **analyzeFollowUpTopics** - Suggest follow-up topics from published content
+
+**Response & UI Tools (1):**
+34. **structuredResponse** - Structure AI response for UI rendering with actionable cards
 
 **What this document covers:**
 - ToolOutput<T> interface specification

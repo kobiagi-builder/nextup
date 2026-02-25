@@ -1,12 +1,14 @@
 # Intent Detection Guide
 
-**Version:** 1.0.0
-**Last Updated:** 2026-01-26
-**Status:** Complete
+**Version:** 2.0.0
+**Last Updated:** 2026-02-25
+**Status:** DEPRECATED
 
-## Overview
+> **DEPRECATED (v2.0.0)**: The explicit `intentDetection.ts` utility was deleted as part of the Vercel AI SDK v6 refactor. Intent detection is now handled **implicitly by the LLM via tool-calling** — Claude autonomously decides which tools to invoke based on the user's message, screen context, and conversation history. The information below is retained for historical reference only.
 
-The Content Agent uses a **hybrid intent detection system** that combines fast regex pattern matching with AI-powered classification to accurately understand user requests. This approach balances speed, accuracy, and context awareness to provide immediate responses for clear intents while asking for clarification only when necessary.
+## Overview (Historical)
+
+The Content Agent previously used a **hybrid intent detection system** that combined fast regex pattern matching with AI-powered classification to accurately understand user requests. This approach has been superseded by LLM-native tool-calling, which is more flexible and requires no maintenance of regex patterns.
 
 ### Why Hybrid Approach?
 

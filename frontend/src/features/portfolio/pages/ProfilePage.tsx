@@ -14,7 +14,15 @@ import {
 } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { Briefcase, Check, Pencil, Star, Target, User } from "lucide-react";
+import {
+  Briefcase,
+  Check,
+  Pencil,
+  Sparkles,
+  Star,
+  Target,
+  User,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { UserContextForm } from "../components/forms";
 import { useUpdateUserContext, useUserContext } from "../hooks/useUserContext";
@@ -27,6 +35,16 @@ const SECTIONS = [
     icon: User,
     title: "About Me",
     fields: ["Bio", "Value Proposition"],
+    emptyState: {
+      heading: "Who are you? Let the world know",
+      description:
+        "Share your story, background, and what makes you unique. This helps our AI write content that sounds authentically you - not like a generic chatbot.",
+      hints: [
+        "Your professional background",
+        "What makes you different",
+        "Your value proposition",
+      ],
+    },
     getContent: (ctx: UserContext | null) => ({
       bio: ctx?.about_me?.bio,
       value_proposition: ctx?.about_me?.value_proposition,
@@ -39,6 +57,16 @@ const SECTIONS = [
     icon: Briefcase,
     title: "Profession",
     fields: ["Expertise", "Industries"],
+    emptyState: {
+      heading: "What do you do best?",
+      description:
+        "List your areas of expertise and the industries you work in. The AI uses this to weave in relevant domain knowledge and position you as the expert you are.",
+      hints: [
+        "Your core skills and specialties",
+        "Industries you serve",
+        "Methods or frameworks you use",
+      ],
+    },
     getContent: (ctx: UserContext | null) => ({
       expertise_areas: ctx?.profession?.expertise_areas,
       industries: ctx?.profession?.industries,
@@ -51,6 +79,16 @@ const SECTIONS = [
     icon: Target,
     title: "Customers",
     fields: ["Target Audience"],
+    emptyState: {
+      heading: "Who do you create content for?",
+      description:
+        "Describe your ideal clients and target audience. When the AI knows who you\u2019re talking to, it crafts content that truly resonates with them.",
+      hints: [
+        "Your ideal client profile",
+        "Their biggest challenges",
+        "What they care about",
+      ],
+    },
     getContent: (ctx: UserContext | null) => ({
       target_audience: ctx?.customers?.target_audience,
     }),
@@ -61,6 +99,16 @@ const SECTIONS = [
     icon: Star,
     title: "Goals",
     fields: ["Content Goals"],
+    emptyState: {
+      heading: "What are you aiming for?",
+      description:
+        "Define your content goals and priorities. This guides the AI to suggest topics and angles that actually move the needle for your business.",
+      hints: [
+        "Thought leadership or lead generation?",
+        "Topics you want to own",
+        "Outcomes you're driving toward",
+      ],
+    },
     getContent: (ctx: UserContext | null) => ({
       content_goals: ctx?.goals?.content_goals,
     }),
@@ -247,9 +295,37 @@ export function ProfilePage() {
                   {/* Section Content */}
                   <div className="p-4 space-y-3">
                     {isEmpty ? (
-                      <p className="text-sm text-center text-muted-foreground py-4">
-                        No information added yet. Click Edit to get started.
-                      </p>
+                      <div className="py-5 px-6">
+                        <div className="flex items-start gap-3 mb-3">
+                          <Sparkles className="h-4 w-4 text-brand-300 mt-0.5 shrink-0" />
+                          <div>
+                            <p className="text-sm font-medium text-foreground">
+                              {section.emptyState.heading}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {section.emptyState.description}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="ml-7 flex flex-wrap gap-2 mt-3">
+                          {section.emptyState.hints.map((hint) => (
+                            <span
+                              key={hint}
+                              className="px-2.5 py-1 text-xs rounded-full bg-secondary text-muted-foreground"
+                            >
+                              {hint}
+                            </span>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() =>
+                            setEditingSection(sectionIdToType[section.id])
+                          }
+                          className="ml-7 mt-4 text-sm text-brand-300 hover:text-brand-200 transition-colors font-medium"
+                        >
+                          Get started &rarr;
+                        </button>
+                      </div>
                     ) : (
                       Object.entries(content).map(([key, value]) => {
                         const renderedValue = renderFieldValue(value);
