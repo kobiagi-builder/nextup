@@ -39,6 +39,9 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | Research Pipeline | Multi-source research via Tavily API | Shipped |
 | User Profile & Skills | Professional context for AI personalization | Shipped |
 | Writing References | Per-artifact-type writing samples with 4 upload methods (paste, file, file URL, publication URL) | Shipped |
+| Customer Management | CRM-lite: customer lifecycle, agreements, invoicing, projects, artifact documents with rich text editor, team, events | Shipped (Phase 3) |
+| Customer AI Chat | Dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing, 9 tools, structured response cards | Shipped (Phase 4) |
+| Customer Search & Dashboard | Full-text search, enriched list cards with summary metrics, dashboard stats, cross-module artifact linking, health signals in AI context | Shipped (Phase 5) |
 | Dark/Light Theme | System-aware theme with manual override | Shipped |
 
 ## Tech Stack
@@ -49,7 +52,7 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | UI | Tailwind CSS 3, shadcn/ui (Radix) | 20+ UI components |
 | State | Zustand (client), TanStack Query (server) | 4 stores, cache management |
 | Backend | Node.js, Express 4, TypeScript | REST API on port 3001 |
-| Database | Supabase (PostgreSQL) | 11 tables, RLS enabled |
+| Database | Supabase (PostgreSQL) | 18 tables + 5 functions, RLS enabled |
 | AI | Anthropic Claude (Vercel AI SDK v6), DALL-E 3, Gemini | Multi-provider via Vercel AI SDK |
 | Research | Tavily API | Multi-source web research |
 | Auth | Supabase Auth | JWT tokens, session management |
@@ -103,10 +106,13 @@ draft -> [interviewing] -> research -> foundations -> skeleton
 
 ## Current State
 
-- **Phases 1-4:** Complete (Foundation, Research, Image Generation, Writing Quality)
-- **Phase 5:** Complete (Security, Observability, Error Handling)
-- **Phase 6:** Complete (Frontend Integration, Status Workflow, Writing References Redesign)
-- **Phase 7:** Complete (Content Agent refactor to Vercel AI SDK v6, chat markdown rendering, AI voice humanization)
+- **Content Phases 1-4:** Complete (Foundation, Research, Image Generation, Writing Quality)
+- **Content Phase 5:** Complete (Security, Observability, Error Handling)
+- **Content Phase 6:** Complete (Frontend Integration, Status Workflow, Writing References Redesign)
+- **Content Phase 7:** Complete (Content Agent refactor to Vercel AI SDK v6, chat markdown rendering, AI voice humanization)
+- **Customer Phases 1-3:** Complete (Core CRUD, Agreements/Receivables, Projects/Artifacts)
+- **Customer Phase 4:** Complete (AI Chat — Dual Agent with Auto-Routing)
+- **Customer Phase 5:** Complete (Search, Dashboard Stats, Enriched Cards, Health Signals, UX Polish, Cross-Module Linking)
 - All core features shipped. Platform is production-ready.
 
 ## Related Documentation

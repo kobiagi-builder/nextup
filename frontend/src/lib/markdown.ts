@@ -1,10 +1,21 @@
 /**
  * Markdown Utilities
  *
- * Converts markdown to HTML for Tiptap editor.
+ * Converts between markdown and HTML for Tiptap editor.
  */
 
 import { marked } from 'marked'
+import TurndownService from 'turndown'
+import { logger } from '@/lib/logger'
+
+// Configure marked at module level (not per-call)
+marked.use({ gfm: true, breaks: true })
+
+const turndownService = new TurndownService({
+  headingStyle: 'atx',
+  bulletListMarker: '-',
+  codeBlockStyle: 'fenced',
+})
 
 /**
  * Convert markdown to HTML
@@ -16,19 +27,11 @@ export function markdownToHTML(markdown: string): string {
   if (!markdown) return ''
 
   try {
-    // Configure marked options
-    marked.setOptions({
-      gfm: true, // GitHub Flavored Markdown
-      breaks: true, // Convert \n to <br>
-    })
-
-    // Convert markdown to HTML
-    const html = marked(markdown)
-
-    return html as string
+    return marked.parse(markdown, { async: false }) as string
   } catch (error) {
-    console.error('[markdownToHTML] Failed to convert markdown:', error)
-    // Fallback: return as-is if conversion fails
+    logger.error('[markdownToHTML] Failed to convert markdown', {
+      hasError: !!error,
+    })
     return markdown
   }
 }
@@ -56,4 +59,19 @@ export function isMarkdown(content: string): boolean {
   ]
 
   return markdownPatterns.some((pattern) => pattern.test(content))
+}
+
+/**
+ * Convert HTML to Markdown
+ *
+ * Used by customer artifact editor to convert TipTap HTML back to Markdown for storage.
+ */
+export function htmlToMarkdown(html: string): string {
+  if (!html) return ''
+
+  try {
+    return turndownService.turndown(html)
+  } catch {
+    return html
+  }
 }

@@ -46,6 +46,7 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/componen
 import { useChatLayoutStore, type ChatConfig } from '@/stores/chatLayoutStore'
 
 import { ChatPanel } from '@/features/portfolio/components'
+import { CustomerChatPanel } from '@/features/customers/components/chat'
 
 /**
  * Skip to main content link for accessibility.
@@ -75,6 +76,8 @@ function ChatPanelWrapper({
   config: ChatConfig
   configVersion: number
 }) {
+  const isCustomerChat = config.screenContext?.currentPage === 'customer'
+
   return (
     <div className="flex h-full flex-col border-r bg-background">
       {/* Chat header */}
@@ -84,18 +87,30 @@ function ChatPanelWrapper({
           <h2 className="text-sm font-semibold">{config.title || 'AI Assistant'}</h2>
         </div>
       </div>
-      {/* ChatPanel — keyed by configVersion to force re-mount on config change */}
+      {/* Chat body — keyed by configVersion to force re-mount on config change */}
       <div className="flex-1 overflow-hidden">
-        <ChatPanel
-          key={configVersion}
-          contextKey={config.contextKey}
-          title={config.title}
-          showHeader={false}
-          height="100%"
-          initialMessage={config.initialMessage}
-          screenContext={config.screenContext}
-          onContentImproved={config.onContentImproved}
-        />
+        {isCustomerChat ? (
+          <CustomerChatPanel
+            key={configVersion}
+            contextKey={config.contextKey}
+            customerId={config.screenContext?.currentPage === 'customer' ? config.screenContext.customerId : ''}
+            screenContext={config.screenContext}
+            endpoint={config.endpoint}
+            suggestions={config.suggestions}
+            height="100%"
+          />
+        ) : (
+          <ChatPanel
+            key={configVersion}
+            contextKey={config.contextKey}
+            title={config.title}
+            showHeader={false}
+            height="100%"
+            initialMessage={config.initialMessage}
+            screenContext={config.screenContext}
+            onContentImproved={config.onContentImproved}
+          />
+        )}
       </div>
     </div>
   )

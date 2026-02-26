@@ -1,0 +1,1 @@
+export { NewCustomerDialog } from './NewCustomerDialog'

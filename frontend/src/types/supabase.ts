@@ -984,6 +984,10 @@ export type TablesUpdate<
       : never
     : never
 
+// Aliases for backward compatibility
+export type TableInsert<T extends keyof DefaultSchema["Tables"]> = TablesInsert<T>
+export type TableUpdate<T extends keyof DefaultSchema["Tables"]> = TablesUpdate<T>
+
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]

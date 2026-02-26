@@ -44,7 +44,7 @@ export interface ChatMessageType {
 }
 
 export interface UseAIChatOptions {
-  /** Context key for grouping messages (e.g., "artifact:123" or "topic:456") */
+  /** Context key for grouping messages (e.g., "artifact:123" or "customer:456") */
   contextKey: ChatContextKey
   /** Callback when a tool result is received */
   onToolResult?: (toolName: string, result: unknown, messageId?: string) => void
@@ -57,7 +57,12 @@ export interface UseAIChatOptions {
     artifactType?: string
     artifactTitle?: string
     artifactStatus?: string
+    [key: string]: string | undefined
   }
+  /** Override API endpoint (default: /api/ai/chat/stream) */
+  endpoint?: string
+  /** Additional body fields to include in every request */
+  extraBody?: Record<string, unknown>
 }
 
 export interface UseAIChatReturn {
@@ -87,26 +92,28 @@ export interface UseAIChatReturn {
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-// Module-level mutable map for screenContext, keyed by contextKey.
+// Module-level mutable maps for transport closures, keyed by contextKey.
 // Avoids stale closures in DefaultChatTransport (AI SDK v6 creates the Chat
 // instance once via useRef and never recreates it, so the transport closure
-// captures values from the first render only). This map is updated on every
+// captures values from the first render only). These maps are updated on every
 // render and read at send-time inside prepareSendMessagesRequest.
 const _screenContextMap = new Map<string, UseAIChatOptions['screenContext']>()
+const _extraBodyMap = new Map<string, Record<string, unknown> | undefined>()
 
 // =============================================================================
 // Hook
 // =============================================================================
 
 export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
-  const { contextKey, onToolResult, onError, screenContext } = options
+  const { contextKey, onToolResult, onError, screenContext, endpoint, extraBody } = options
 
   // Local input state (AI SDK v6 doesn't manage this)
   const [input, setInput] = useState('')
 
-  // CRITICAL: Update module-level map so the transport closure (captured on
+  // CRITICAL: Update module-level maps so the transport closure (captured on
   // first render only by AI SDK v6's useChat) always reads the latest value.
   _screenContextMap.set(contextKey, screenContext)
+  _extraBodyMap.set(contextKey, extraBody)
 
   // Chat store selectors
   const storeMessages = useChatStore(selectMessages(contextKey))
@@ -124,7 +131,13 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
     clearError,
   } = useChatStore()
 
+  // Resolve API endpoint — use override if provided, otherwise default Content Agent endpoint
+  const apiEndpoint = endpoint || `${API_URL}/api/ai/chat/stream`
+
   // Vercel AI SDK v6 useChat with DefaultChatTransport for custom API
+  // NOTE: AI SDK v6 creates the Chat instance once via useRef, so the transport
+  // closure captures the endpoint from first render. For customer chat we create
+  // a new hook instance with the correct endpoint, so this is fine.
   const {
     messages: aiMessages,
     status,
@@ -134,7 +147,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
     setMessages: setAiMessages,
   } = useChat({
     transport: new DefaultChatTransport({
-      api: `${API_URL}/api/ai/chat/stream`,
+      api: apiEndpoint,
       headers: async (): Promise<Record<string, string>> => {
         const { data: { session } } = await supabase.auth.getSession()
         console.log('[useAIChat] headers() called:', {
@@ -152,6 +165,8 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
         const selectionContext = getSelectionContext()
         // Read screenContext from module-level map (not closure) to get latest value
         const currentScreenContext = _screenContextMap.get(contextKey)
+        // Read extraBody from module-level map (e.g., customerId for customer chat)
+        const currentExtraBody = _extraBodyMap.get(contextKey)
 
         console.log('[useAIChat] prepareSendMessagesRequest:', {
           messageCount: messages.length,
@@ -159,6 +174,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
           hasScreenContext: !!currentScreenContext,
           hasSelectionContext: !!selectionContext,
           selectionType: selectionContext?.type,
+          hasExtraBody: !!currentExtraBody,
         })
 
         return {
@@ -168,6 +184,8 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
             ...(currentScreenContext && { screenContext: currentScreenContext }),
             // Pass selectionContext for content improvement (will be ignored if null)
             ...(selectionContext && { selectionContext }),
+            // Pass extra body fields (e.g., customerId for customer chat)
+            ...(currentExtraBody || {}),
           },
         }
       },

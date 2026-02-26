@@ -78,6 +78,10 @@ interface StreamChatOptions extends ChatOptions {
     artifactStatus?: string
   }
   selectionContext?: SelectionContext
+  // Customer AI Chat overrides — when provided, bypass default AVAILABLE_TOOLS
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  tools?: Record<string, any>
+  maxSteps?: number
 }
 
 // =============================================================================
@@ -200,6 +204,8 @@ export class AIService {
       onFinish,
       screenContext,
       selectionContext,
+      tools: toolsOverride,
+      maxSteps,
     } = options
 
     // =========================================================================
@@ -360,7 +366,7 @@ export class AIService {
 
     const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext, selectionContext, interviewContext)
 
-    const toolsToUse = includeTools ? AVAILABLE_TOOLS : undefined
+    const toolsToUse = includeTools ? (toolsOverride || AVAILABLE_TOOLS) : undefined
 
     // =========================================================================
     // LOGGING: Request details (to file for debugging)
@@ -426,7 +432,7 @@ export class AIService {
       tools: toolsToUse,
       toolChoice: includeTools ? 'auto' : undefined,
       // AI SDK v6: Use stopWhen for multi-step tool execution
-      stopWhen: stepCountIs(10), // Allow up to 10 steps for complex multi-tool workflows
+      stopWhen: stepCountIs(maxSteps ?? 10), // Allow up to 10 steps (override via maxSteps)
 
       // Log each step in the chain of thought (to file)
       onStepFinish: (stepResult) => {

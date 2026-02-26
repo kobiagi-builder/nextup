@@ -1,13 +1,13 @@
 # Database Schema Reference
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-20
-**Version:** 2.0.0
+**Last Updated:** 2026-02-25
+**Version:** 4.0.0
 **Status:** Complete
 
 ## Overview
 
-Product Consultant Helper uses Supabase (PostgreSQL) with 11 tables in the `public` schema. All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
+Product Consultant Helper uses Supabase (PostgreSQL) with 18 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
 
 **Supabase Project ID:** `ohwubfmipnpguunryopl`
 
@@ -28,6 +28,13 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 11 tables in the `publ
 | 9 | `user_preferences` | Theme and interaction mode | One-to-one per user | Yes |
 | 10 | `user_writing_examples` | Writing examples for style analysis | Many-to-one per user | Yes |
 | 11 | `artifact_storytelling` | Storytelling guidance per artifact | One-to-one → artifacts | Yes |
+| 12 | `customers` | Customer records with lifecycle status | Root table (CRM) | Yes |
+| 13 | `customer_agreements` | Service agreements per customer | Many-to-one → customers | Yes |
+| 14 | `customer_receivables` | Invoices and payments per customer | Many-to-one → customers | Yes |
+| 15 | `customer_projects` | Projects per customer/agreement | Many-to-one → customers | Yes |
+| 16 | `customer_artifacts` | Deliverables per project | Many-to-one → customer_projects | Yes |
+| 17 | `customer_events` | Timeline events per customer | Many-to-one → customers | Yes |
+| 18 | `customer_chat_messages` | AI chat messages per customer | Many-to-one → customers | Yes |
 
 ---
 
@@ -47,6 +54,14 @@ erDiagram
     users ||--o{ style_examples : "has many"
     users ||--o| user_preferences : "has one"
     users ||--o{ user_writing_examples : "has many"
+
+    users ||--o{ customers : "owns many"
+    customers ||--o{ customer_agreements : "has many"
+    customers ||--o{ customer_receivables : "has many"
+    customers ||--o{ customer_projects : "has many"
+    customer_projects ||--o{ customer_artifacts : "has many"
+    customers ||--o{ customer_events : "has many"
+    customers ||--o{ customer_chat_messages : "has many"
 ```
 
 ---
@@ -641,6 +656,182 @@ AI-generated storytelling guidance per artifact. One-to-one relationship with ar
 
 ---
 
+## Database Functions
+
+### `get_receivables_summary(cid UUID)`
+
+**Purpose:** Compute the financial summary for a customer — total invoiced, total paid, and outstanding balance — entirely in PostgreSQL using NUMERIC arithmetic to avoid JavaScript floating-point rounding errors.
+
+**Location:** `backend/src/db/migrations/` (customer schema migration)
+
+**Used by:** `ReceivableService.getSummary(customerId)` via `supabase.rpc('get_receivables_summary', { cid: customerId })`
+
+**Signature:**
+```sql
+CREATE OR REPLACE FUNCTION get_receivables_summary(cid UUID)
+RETURNS TABLE(
+  total_invoiced TEXT,
+  total_paid     TEXT,
+  balance        TEXT
+)
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+```
+
+**Return type:** `TABLE(total_invoiced TEXT, total_paid TEXT, balance TEXT)`
+
+All monetary values are cast to `TEXT` before returning. This preserves NUMERIC precision across the API boundary — JavaScript `number` cannot represent all PostgreSQL NUMERIC values without loss, so amounts travel as strings end-to-end.
+
+**Calculation logic:**
+- `total_invoiced`: SUM of `amount` for all `customer_receivables` rows where `type = 'invoice'` and `customer_id = cid`
+- `total_paid`: SUM of `amount` for all `customer_receivables` rows where `type = 'payment'` and `customer_id = cid`
+- `balance`: `total_invoiced - total_paid` (positive = customer owes money, negative = credit held, zero = fully settled)
+
+**Security:** `SECURITY DEFINER` — the function executes with the privileges of the function owner, not the calling user. RLS on `customer_receivables` is bypassed inside the function body. The caller's identity (authenticated user) is validated by the backend `requireAuth` middleware before the RPC is invoked.
+
+**Stability:** `STABLE` — no side effects, safe for query optimizer caching within a single transaction.
+
+**Example response (via `ReceivableService.getSummary`):**
+```typescript
+{
+  total_invoiced: "15000.00",
+  total_paid: "10000.00",
+  balance: "5000.00"
+}
+```
+
+### `merge_customer_info(cid UUID, new_info JSONB)`
+
+**Purpose:** Atomic JSONB merge into a customer's `info` column without read-modify-write race conditions. Used by the Customer Management AI Agent's `updateCustomerInfo` tool.
+
+**Location:** `backend/src/db/migrations/011_merge_customer_info_function.sql`
+
+**Used by:** `customerMgmtTools.updateCustomerInfo` via `supabase.rpc('merge_customer_info', { cid, new_info })`
+
+**Signature:**
+```sql
+CREATE OR REPLACE FUNCTION merge_customer_info(cid UUID, new_info JSONB)
+RETURNS INT
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+```
+
+**Return type:** `INT` — number of rows affected (0 if customer not found or not owned by caller)
+
+**Merge logic:**
+```sql
+UPDATE public.customers
+SET info = COALESCE(info, '{}'::jsonb) || new_info,
+    updated_at = NOW()
+WHERE id = cid
+  AND user_id = auth.uid();
+```
+
+- `COALESCE(info, '{}'::jsonb)` handles NULL `info` columns
+- `|| new_info` performs shallow JSONB merge (new keys added, existing keys overwritten)
+- `user_id = auth.uid()` enforces ownership (the authenticated user must own the customer)
+
+**Security:**
+- `SECURITY DEFINER` — executes with function owner privileges
+- `SET search_path = ''` — prevents search path injection
+- `auth.uid()` check ensures user owns the customer record
+
+**Example:**
+```typescript
+// Merge new info fields into customer
+const { data } = await supabase.rpc('merge_customer_info', {
+  cid: '550e8400-e29b-41d4-a716-446655440000',
+  new_info: { industry: 'SaaS', company_size: '50-200' }
+})
+// data = 1 (one row updated)
+```
+
+### `get_customer_list_summary(p_status TEXT, p_search TEXT, p_sort TEXT)`
+
+**Purpose:** Returns all customer columns plus aggregated summary data (active agreements count, outstanding balance, active projects count, last activity) in a single query with full-text search and dynamic sort.
+
+**Location:** `backend/src/db/migrations/012_customer_search_and_summary.sql`
+
+**Used by:** `useCustomers()` hook via `supabase.rpc('get_customer_list_summary', { p_status, p_search, p_sort })`
+
+**Signature:**
+```sql
+CREATE OR REPLACE FUNCTION get_customer_list_summary(
+  p_status TEXT DEFAULT NULL,
+  p_search TEXT DEFAULT NULL,
+  p_sort TEXT DEFAULT 'updated_at'
+)
+RETURNS TABLE (
+  id UUID, user_id UUID, name TEXT, status TEXT, info JSONB,
+  deleted_at TIMESTAMPTZ, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
+  active_agreements_count BIGINT, outstanding_balance NUMERIC(12,2),
+  active_projects_count BIGINT, last_activity TIMESTAMPTZ
+)
+LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
+```
+
+**Summary columns:**
+- `active_agreements_count`: COUNT of agreements where `override_status IS NULL` and `end_date >= today OR end_date IS NULL`
+- `outstanding_balance`: SUM(invoices where status != 'cancelled') - SUM(payments). Note: paid invoices remain in the sum to avoid double-counting when payments are recorded separately
+- `active_projects_count`: COUNT of projects where `status IN ('planning', 'active')`
+- `last_activity`: MAX(event_date) from `customer_events`
+
+**Search:** `search_vector @@ websearch_to_tsquery('english', p_search)` — TSVECTOR generated column indexes `name`, `vertical`, `about`, `persona`
+
+**Sort options:** `name`, `status`, `created_at`, `updated_at` (default), `last_activity`, `outstanding_balance`. Sort parameter is validated against allowlist to prevent injection.
+
+**Security:** Uses `auth.uid()` for user isolation. Dynamic SQL via `EXECUTE format()` with `USING` parameters for safe value binding.
+
+---
+
+### `get_customer_dashboard_stats()`
+
+**Purpose:** Returns aggregate counters for the customer dashboard.
+
+**Location:** `backend/src/db/migrations/012_customer_search_and_summary.sql`
+
+**Used by:** `useDashboardStats()` hook via `supabase.rpc('get_customer_dashboard_stats')`
+
+**Signature:**
+```sql
+CREATE OR REPLACE FUNCTION get_customer_dashboard_stats()
+RETURNS TABLE (
+  total_customers BIGINT, active_customers BIGINT,
+  total_outstanding NUMERIC(12,2), expiring_agreements BIGINT
+)
+LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
+```
+
+**Return columns:**
+- `total_customers`: All non-deleted customers
+- `active_customers`: Customers with `status = 'live'`
+- `total_outstanding`: Sum of outstanding balances across all customers
+- `expiring_agreements`: Agreements expiring within 30 days (no override_status)
+
+---
+
+### Generated Columns
+
+**`customers.search_vector`** (TSVECTOR, GENERATED ALWAYS STORED):
+```sql
+to_tsvector('english',
+  coalesce(name, '') || ' ' ||
+  coalesce(info->>'vertical', '') || ' ' ||
+  coalesce(info->>'about', '') || ' ' ||
+  coalesce(info->>'persona', ''))
+```
+
+Indexed with GIN: `idx_customers_search ON customers USING GIN (search_vector)`
+
+### Additional Indexes (Phase 5)
+
+- `idx_customers_search` — GIN index on `customers.search_vector` for full-text search
+- `idx_artifacts_linked_customer_artifacts` — GIN index on `artifacts.metadata->'linkedCustomerArtifacts'` with `jsonb_path_ops` for cross-module reverse lookup (portfolio artifacts linking to customer artifacts)
+
+---
+
 ## RLS Policy Patterns
 
 All tables use consistent RLS patterns:
@@ -709,5 +900,8 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **3.2.0** (2026-02-25) - Added `merge_customer_info(cid, new_info)` function for Customer AI Agent atomic JSONB merge
+- **3.1.0** (2026-02-25) - Added Database Functions section documenting `get_receivables_summary(cid UUID)`
+- **3.0.0** (2026-02-25) - Full schema reference for all 18 tables (11 content + 7 customer)
 - **2.0.0** (2026-02-20) - Added `artifact_storytelling` table (#11), updated table count, ER diagram, RLS patterns
 - **1.0.0** (2026-02-19) - Initial comprehensive schema reference covering all 10 tables

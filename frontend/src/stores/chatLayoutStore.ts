@@ -1,14 +1,10 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
-/** Screen context passed to ChatPanel for Content Agent */
-interface ScreenContext {
-  currentPage: string
-  artifactId?: string
-  artifactType?: string
-  artifactTitle?: string
-  artifactStatus?: string
-}
+/** Screen context — discriminated union for portfolio vs customer pages */
+export type ScreenContext =
+  | { currentPage: 'portfolio' | 'artifact' | 'dashboard' | 'profile' | 'settings'; artifactId?: string; artifactType?: string; artifactTitle?: string; artifactStatus?: string }
+  | { currentPage: 'customer'; customerId: string; customerName?: string; customerStatus?: string; activeTab?: string }
 
 /** Configuration for opening the chat panel */
 export interface ChatConfig {
@@ -17,6 +13,10 @@ export interface ChatConfig {
   screenContext?: ScreenContext
   initialMessage?: string
   onContentImproved?: (toolName: string, result: unknown) => void
+  /** Override API endpoint (default: /api/ai/chat/stream) */
+  endpoint?: string
+  /** Context-specific chat suggestions */
+  suggestions?: Array<{ text: string }>
 }
 
 /** Panel size constraints — must match ResizablePanel props in AppShell */

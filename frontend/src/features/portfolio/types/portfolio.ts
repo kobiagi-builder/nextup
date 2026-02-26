@@ -122,6 +122,14 @@ export interface ShowcaseMetric {
   improvement?: string // e.g., "+40%"
 }
 
+/** Linked customer artifact reference (stored in portfolio artifact metadata) */
+export interface LinkedCustomerArtifactRef {
+  id: string
+  title: string
+  type: string
+  customerName: string
+}
+
 /** Create artifact input */
 export interface CreateArtifactInput {
   type: ArtifactType
@@ -471,6 +479,7 @@ export interface ChatMessage {
   // Structured response data (for persistence)
   structuredResponse?: unknown // Will be typed as StructuredResponse in chat.ts
   artifactSuggestions?: unknown[] // Will be typed as ArtifactSuggestion[] in chat.ts
+  customerToolResults?: unknown[] // Customer agent tool results
 }
 
 /** AI conversation */
