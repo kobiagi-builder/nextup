@@ -40,6 +40,9 @@ import { PortfolioPage } from '@/features/portfolio/pages/PortfolioPage'
 import { ArtifactPage } from '@/features/portfolio/pages/ArtifactPage'
 import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
 import { SettingsPage } from '@/features/portfolio/pages/SettingsPage'
+import { CustomerListPage } from '@/features/customers/pages/CustomerListPage'
+import { CustomerDetailPage } from '@/features/customers/pages/CustomerDetailPage'
+import { FeatureGate } from '@/components/auth/FeatureGate'
 
 // Create React Query client with default options
 const queryClient = new QueryClient({
@@ -93,6 +96,8 @@ function App() {
                   <Route path="/profile" element={<ProfilePage />} />
                   <Route path="/settings" element={<SettingsPage />} />
                   <Route path="/settings/style" element={<Navigate to="/settings" replace />} />
+                  <Route path="/customers" element={<FeatureGate feature="customer_management"><CustomerListPage /></FeatureGate>} />
+                  <Route path="/customers/:id" element={<FeatureGate feature="customer_management"><CustomerDetailPage /></FeatureGate>} />
                 </Route>
               </Routes>
             </BrowserRouter>

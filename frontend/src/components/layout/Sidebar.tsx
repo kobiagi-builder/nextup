@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   FileText,
+  Users,
   User,
   Settings,
   Moon,
@@ -24,6 +25,7 @@ import {
 import { cn } from '@/lib/utils'
 import { useTheme } from '@/providers/ThemeProvider'
 import { useAuth } from '@/providers/AuthProvider'
+import { useFeatureFlag } from '@/hooks/use-feature-flag'
 
 // Navigation item type
 interface NavItem {
@@ -33,10 +35,13 @@ interface NavItem {
   badge?: number
 }
 
-// Main navigation items
-const mainNavItems: NavItem[] = [
+// Base navigation items (always visible)
+const baseNavItems: NavItem[] = [
   { icon: FileText, label: 'Portfolio', href: '/portfolio' },
 ]
+
+// Feature-gated navigation items
+const customerNavItem: NavItem = { icon: Users, label: 'Customers', href: '/customers' }
 
 // Footer navigation items
 const footerNavItems: NavItem[] = [
@@ -132,6 +137,12 @@ export function Sidebar() {
   const [isHovered, setIsHovered] = useState(false)
   const isCollapsed = !isHovered
   const { signOut } = useAuth()
+  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management')
+
+  const mainNavItems: NavItem[] = [
+    ...baseNavItems,
+    ...(hasCustomers ? [customerNavItem] : []),
+  ]
 
   return (
     <aside

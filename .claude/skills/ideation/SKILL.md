@@ -92,6 +92,25 @@ When confidence < 95%, **MUST use `AskUserQuestion` tool** to ask clarifying que
 - Keep question headers short (max 12 chars)
 - Include descriptions that explain implications of each choice
 
+### 2.5 Feature Rollout Question (MANDATORY)
+
+Before generating the contract, **MUST ask** whether the new feature requires a rollout flag using `AskUserQuestion`:
+
+```
+Question: "Does this feature require a rollout flag?"
+Options:
+- "Yes - Gradual rollout" - Feature is gated behind a feature flag. Only enabled accounts can access it. Requires creating a flag in feature_flags table and enabling per-account via customer_features.
+- "No - Available to all" - Feature is available to all authenticated users immediately. No flag needed.
+```
+
+**If yes**: Add a "Feature Rollout" section to the contract and PRD specifying:
+- Flag name (snake_case, e.g., `customer_management`)
+- Flag description
+- Default state (`false` for gradual rollout, `true` for opt-out)
+- Initial accounts to enable (UIDs)
+
+**If no**: Feature ships without gating. No rollout section needed.
+
 **Question strategy**:
 
 - Target the lowest-scoring dimension first
@@ -128,7 +147,7 @@ When confidence < 95%, **MUST use `AskUserQuestion` tool** to ask clarifying que
 - "These requirements seem to conflict. Can you clarify?"
 - "How should we handle [edge case]?"
 
-### 2.5 Generate Contract
+### 2.6 Generate Contract
 
 When confidence ≥ 95%, generate the contract document.
 

@@ -14,7 +14,7 @@
 import { createPortal } from 'react-dom'
 import { NavLink } from 'react-router-dom'
 import {
-  Home,
+  Users,
   FileText,
   User,
   Settings,
@@ -24,6 +24,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useAuth } from '@/providers/AuthProvider'
+import { useFeatureFlag } from '@/hooks/use-feature-flag'
 
 // Navigation item type
 interface NavItem {
@@ -32,18 +33,16 @@ interface NavItem {
   href: string
 }
 
-// Bottom navigation items (max 5)
-const bottomNavItems: NavItem[] = [
-  { icon: Home, label: 'Home', href: '/' },
+// Base navigation items (always visible)
+const baseNavItems: NavItem[] = [
   { icon: FileText, label: 'Portfolio', href: '/portfolio' },
-  { icon: User, label: 'Profile', href: '/profile' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
 ]
 
-// Full navigation items for drawer
-const drawerNavItems: NavItem[] = [
-  { icon: Home, label: 'Home', href: '/' },
-  { icon: FileText, label: 'Portfolio', href: '/portfolio' },
+// Feature-gated items
+const customerNavItem: NavItem = { icon: Users, label: 'Customers', href: '/customers' }
+
+// Footer navigation items (always visible)
+const footerItems: NavItem[] = [
   { icon: User, label: 'Profile', href: '/profile' },
   { icon: Settings, label: 'Settings', href: '/settings' },
 ]
@@ -64,6 +63,13 @@ interface MobileNavDrawerProps {
  */
 export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
   const { signOut } = useAuth()
+  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management')
+
+  const drawerNavItems: NavItem[] = [
+    ...baseNavItems,
+    ...(hasCustomers ? [customerNavItem] : []),
+    ...footerItems,
+  ]
 
   // Render nothing on server or when closed
   if (typeof window === 'undefined') return null
@@ -186,6 +192,14 @@ export function MobileNavDrawer({ isOpen, onClose }: MobileNavDrawerProps) {
  * Includes safe area padding for iOS devices.
  */
 export function BottomNav() {
+  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management')
+
+  const bottomNavItems: NavItem[] = [
+    ...baseNavItems,
+    ...(hasCustomers ? [customerNavItem] : []),
+    ...footerItems,
+  ]
+
   return (
     <nav
       className={cn(

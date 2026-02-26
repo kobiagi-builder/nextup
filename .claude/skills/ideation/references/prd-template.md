@@ -79,6 +79,25 @@ Use this template when generating `prd-phase-{n}.md` for each implementation pha
 - [ ] Integration tests passing
 - [ ] No critical bugs open
 
+## Feature Rollout
+
+{Include this section ONLY if the feature requires a rollout flag. Remove entirely if the feature is available to all accounts.}
+
+| Property | Value |
+|----------|-------|
+| Flag Name | `{flag_name}` |
+| Description | {Brief description of what this flag controls} |
+| Default State | `false` (gradual rollout) / `true` (opt-out) |
+| Initial Accounts | {List of UIDs to enable, or "all" if default_state = true} |
+
+**Rollout Requirements:**
+- **RR-{N}.1**: Create feature flag `{flag_name}` in `feature_flags` table with `default_state = {true/false}`
+- **RR-{N}.2**: Enable flag for initial accounts in `customer_features` table
+- **RR-{N}.3**: Backend must check `is_feature_active(uid, '{flag_name}')` before serving feature endpoints
+- **RR-{N}.4**: Frontend must check feature flag status and conditionally render feature UI
+
+**Activation logic**: Feature is active for an account if `default_state = true` OR (`default_state = false` AND `flag_state = true` in `customer_features`).
+
 ## Open Questions
 
 {Unresolved items that need answers during implementation. Remove section if none.}
