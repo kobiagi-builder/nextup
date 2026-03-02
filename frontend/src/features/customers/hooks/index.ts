@@ -9,3 +9,4 @@ export { useCustomerStructuredChat, type CustomerToolResult, type CustomerParsed
 export { useCustomerArtifactSearch } from './useCustomerArtifactSearch'
 export { useReferencedByArtifacts } from './useReferencedByArtifacts'
 export { actionItemKeys, useActionItems, useCreateActionItem, useUpdateActionItem, useDeleteActionItem } from './useActionItems'
+export { icpSettingsKeys, useIcpSettings, useUpsertIcpSettings } from './useIcpSettings'

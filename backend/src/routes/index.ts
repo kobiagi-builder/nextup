@@ -5,6 +5,7 @@ import { customerAiRouter } from './customer-ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
 import writingExamplesRouter from './writingExamples.routes.js'
 import customersRouter from './customers.js'
+import icpSettingsRouter from './icp-settings.js'
 import { authRouter } from './auth.routes.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireFeature } from '../middleware/requireFeature.js'
@@ -27,3 +28,4 @@ router.use('/ai/customer/chat', requireAuth, requireFeature('customer_management
 router.use('/artifacts', requireAuth, artifactResearchRouter)
 router.use('/user/writing-examples', requireAuth, writingExamplesRouter)
 router.use('/customers', requireAuth, requireFeature('customer_management'), customersRouter)
+router.use('/icp-settings', requireAuth, requireFeature('customer_management'), icpSettingsRouter)

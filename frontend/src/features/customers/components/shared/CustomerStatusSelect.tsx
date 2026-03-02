@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { CustomerStatus } from '../../types'
-import { CUSTOMER_STATUSES, CUSTOMER_STATUS_LABELS, CUSTOMER_STATUS_COLORS } from '../../types'
+import { CUSTOMER_STATUSES, CUSTOMER_STATUS_LABELS, CUSTOMER_STATUS_DOT_COLORS } from '../../types'
 
 interface CustomerStatusSelectProps {
   value: CustomerStatus
@@ -40,7 +40,7 @@ export function CustomerStatusSelect({
         {CUSTOMER_STATUSES.map((status) => (
           <SelectItem key={status} value={status}>
             <div className="flex items-center gap-2">
-              <span className={`inline-block h-2 w-2 rounded-full ${CUSTOMER_STATUS_COLORS[status].split(' ')[0]}`} />
+              <span className={`inline-block h-2 w-2 rounded-full ${CUSTOMER_STATUS_DOT_COLORS[status]}`} />
               {CUSTOMER_STATUS_LABELS[status]}
             </div>
           </SelectItem>

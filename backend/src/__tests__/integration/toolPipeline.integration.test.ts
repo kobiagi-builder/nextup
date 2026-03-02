@@ -5,11 +5,11 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { conductDeepResearch } from '../../services/ai/tools/researchTools.js';
-import { generateContentSkeleton } from '../../services/ai/tools/skeletonTools.js';
-import { writeFullContent } from '../../services/ai/tools/contentWritingTools.js';
-import { generateContentVisuals } from '../../services/ai/tools/visualsCreatorTool.js';
-import { applyHumanityCheck } from '../../services/ai/tools/humanityCheckTools.js';
+import { conductDeepResearch } from '../../services/ai/agents/portfolio/tools/researchTools.js';
+import { generateContentSkeleton } from '../../services/ai/agents/portfolio/tools/skeletonTools.js';
+import { writeFullContent } from '../../services/ai/agents/portfolio/tools/contentWritingTools.js';
+import { generateContentVisuals } from '../../services/ai/agents/portfolio/tools/visualsCreatorTool.js';
+import { applyHumanityCheck } from '../../services/ai/agents/portfolio/tools/humanityCheckTools.js';
 import { mockService } from '../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../fixtures/artifacts.js';
 import { callTool, assertToolOutputSuccess } from '../utils/testHelpers.js';

@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { generateContentSkeleton } from '../../../../../services/ai/tools/skeletonTools.js';
+import { generateContentSkeleton } from '../../../../../services/ai/agents/portfolio/tools/skeletonTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { callTool, assertToolOutputSuccess, assertToolOutputError, createMockSkeleton } from '../../../../utils/testHelpers.js';

@@ -190,8 +190,8 @@ The endpoint uses LLM-driven tool-based handoff. Each agent has a `handoff` tool
 | Controller | `backend/src/controllers/customer-ai.controller.ts` |
 | Route | `backend/src/routes/customer-ai.ts` |
 | Route mount | `backend/src/routes/index.ts` |
-| Handoff Tools | `backend/src/services/ai/tools/handoffTools.ts` |
-| Customer Context Builder | `backend/src/services/ai/prompts/customerContextBuilder.ts` |
+| Handoff Tools | `backend/src/services/ai/agents/shared/handoffTools.ts` |
+| Customer Context Builder | `backend/src/services/ai/agents/shared/customerContextBuilder.ts` |
 
 ## Related Documentation
 

@@ -46,9 +46,10 @@ export function useCustomers(filters: CustomerFilters = {}) {
     queryKey: customerKeys.list(filters),
     queryFn: async () => {
       const { data, error } = await supabase.rpc('get_customer_list_summary', {
-        p_status: filters.status || undefined,
+        p_status: filters.status?.length ? filters.status.join(',') : undefined,
         p_search: filters.search || undefined,
         p_sort: filters.sort || 'updated_at',
+        p_icp: filters.icp?.length ? filters.icp.join(',') : undefined,
       })
 
       if (error) throw error

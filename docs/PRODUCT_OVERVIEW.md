@@ -1,7 +1,7 @@
 # NextUp
 
 **Created:** 2026-01-15
-**Last Updated:** 2026-02-25
+**Last Updated:** 2026-02-28
 **Version:** 2.0.0
 **Status:** Active
 
@@ -42,6 +42,7 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | Customer Management | CRM-lite: customer lifecycle, agreements, invoicing, projects, artifact documents with rich text editor, team, events | Shipped (Phase 3) |
 | Customer AI Chat | Dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing, 9 tools, structured response cards | Shipped (Phase 4) |
 | Customer Search & Dashboard | Full-text search, enriched list cards with summary metrics, dashboard stats, cross-module artifact linking, health signals in AI context | Shipped (Phase 5) |
+| LinkedIn Import & ICP | CSV import of LinkedIn connections, auto-create/match customers and team members, ICP score badges, ICP filter, "Not Relevant" status | Shipped (Phase 6) |
 | Dark/Light Theme | System-aware theme with manual override | Shipped |
 
 ## Tech Stack
@@ -113,6 +114,7 @@ draft -> [interviewing] -> research -> foundations -> skeleton
 - **Customer Phases 1-3:** Complete (Core CRUD, Agreements/Receivables, Projects/Artifacts)
 - **Customer Phase 4:** Complete (AI Chat — Dual Agent with Auto-Routing)
 - **Customer Phase 5:** Complete (Search, Dashboard Stats, Enriched Cards, Health Signals, UX Polish, Cross-Module Linking)
+- **Customer Phase 6:** Complete (LinkedIn CSV Import, ICP Score Badges & Filter, "Not Relevant" Status, Team Member LinkedIn URLs)
 - All core features shipped. Platform is production-ready.
 
 ## Related Documentation

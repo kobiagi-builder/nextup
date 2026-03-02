@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { suggestArtifactIdeas } from '../../../../../services/ai/tools/contentTools.js';
+import { suggestArtifactIdeas } from '../../../../../services/ai/agents/portfolio/tools/contentTools.js';
 import { callTool } from '../../../../utils/testHelpers.js';
 
 // Mock dependencies

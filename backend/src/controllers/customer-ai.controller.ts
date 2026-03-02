@@ -16,19 +16,35 @@ import type { Request, Response } from 'express'
 import { z } from 'zod'
 import { createUIMessageStream, pipeUIMessageStreamToResponse, streamText, stepCountIs } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
-import { buildCustomerContext } from '../services/ai/prompts/customerContextBuilder.js'
-import { getCustomerMgmtSystemPrompt } from '../services/ai/prompts/customerAgentPrompts.js'
-import { getProductMgmtSystemPrompt } from '../services/ai/prompts/productAgentPrompts.js'
-import { createCustomerMgmtTools } from '../services/ai/tools/customerMgmtTools.js'
-import { createActionItemTools } from '../services/ai/tools/actionItemTools.js'
-import { createProductMgmtTools } from '../services/ai/tools/productMgmtTools.js'
+import { buildCustomerContext } from '../services/ai/agents/shared/customerContextBuilder.js'
+import { getCustomerMgmtSystemPrompt } from '../services/ai/agents/customer-mgmt/prompt/customerAgentPrompts.js'
+import { getProductMgmtSystemPrompt } from '../services/ai/agents/product-mgmt/prompt/productAgentPrompts.js'
+import { createCustomerMgmtTools } from '../services/ai/agents/customer-mgmt/tools/customerMgmtTools.js'
+import { createActionItemTools } from '../services/ai/agents/customer-mgmt/tools/actionItemTools.js'
+import { createProductMgmtTools } from '../services/ai/agents/product-mgmt/tools/productMgmtTools.js'
+import { createProductStrategyTool } from '../services/ai/agents/product-mgmt/tools/createProductStrategyTool.js'
+import { evaluateBuildStrategyTool } from '../services/ai/agents/product-mgmt/tools/evaluateBuildStrategyTool.js'
+import { applyDecisionFrameworkTool } from '../services/ai/agents/product-mgmt/tools/applyDecisionFrameworkTool.js'
+import { assessShipReadinessTool } from '../services/ai/agents/product-mgmt/tools/assessShipReadinessTool.js'
+import { analyzeCompetitionTool } from '../services/ai/agents/product-mgmt/tools/analyzeCompetitionTool.js'
+import { scopeMvpTool } from '../services/ai/agents/product-mgmt/tools/scopeMvpTool.js'
+import { buildPersonaIcpTool } from '../services/ai/agents/product-mgmt/tools/buildPersonaIcpTool.js'
+import { planUserResearchTool } from '../services/ai/agents/product-mgmt/tools/planUserResearchTool.js'
+import { analyzeProductDataTool } from '../services/ai/agents/product-mgmt/tools/analyzeProductDataTool.js'
+import { designUserFlowTool } from '../services/ai/agents/product-mgmt/tools/designUserFlowTool.js'
+import { designUxUiTool } from '../services/ai/agents/product-mgmt/tools/designUxUiTool.js'
+import { designAiFeatureTool } from '../services/ai/agents/product-mgmt/tools/designAiFeatureTool.js'
+import { createGrowthStrategyTool } from '../services/ai/agents/product-mgmt/tools/createGrowthStrategyTool.js'
+import { createLaunchPlanTool } from '../services/ai/agents/product-mgmt/tools/createLaunchPlanTool.js'
+import { createNarrativeTool } from '../services/ai/agents/product-mgmt/tools/createNarrativeTool.js'
+import { prioritizeItemsTool } from '../services/ai/agents/product-mgmt/tools/prioritizeItemsTool.js'
 import {
   createHandoffTool,
   isHandoffResult,
   type AgentType,
   type HandoffResult,
-} from '../services/ai/tools/handoffTools.js'
-import { getSupabase } from '../lib/requestContext.js'
+} from '../services/ai/agents/shared/handoffTools.js'
+import { getSupabase, getUserId } from '../lib/requestContext.js'
 import { logger, logToFile } from '../lib/logger.js'
 
 // =============================================================================
@@ -110,7 +126,25 @@ function buildAgentTools(
   previousAgent?: AgentType,
 ) {
   const domainTools = agentType === 'product_mgmt'
-    ? createProductMgmtTools(supabase, customerId)
+    ? {
+        ...createProductMgmtTools(supabase, customerId),
+        ...createProductStrategyTool(supabase, customerId),
+        ...evaluateBuildStrategyTool(supabase, customerId),
+        ...applyDecisionFrameworkTool(supabase, customerId),
+        ...assessShipReadinessTool(supabase, customerId),
+        ...analyzeCompetitionTool(supabase, customerId),
+        ...scopeMvpTool(supabase, customerId),
+        ...buildPersonaIcpTool(supabase, customerId),
+        ...planUserResearchTool(supabase, customerId),
+        ...analyzeProductDataTool(supabase, customerId),
+        ...designUserFlowTool(supabase, customerId),
+        ...designUxUiTool(supabase, customerId),
+        ...designAiFeatureTool(supabase, customerId),
+        ...createGrowthStrategyTool(supabase, customerId),
+        ...createLaunchPlanTool(supabase, customerId),
+        ...createNarrativeTool(supabase, customerId),
+        ...prioritizeItemsTool(supabase, customerId),
+      }
     : { ...createCustomerMgmtTools(supabase, customerId), ...createActionItemTools(supabase, customerId) }
 
   if (!includeHandoff) return domainTools
@@ -205,6 +239,7 @@ export async function streamCustomerChat(req: Request, res: Response) {
         let currentAgent: AgentType = initialAgent
         let previousAgent: AgentType | undefined = undefined
         let pendingHandoff: HandoffResult | null = null
+        const allToolCallNames: string[] = []
 
         do {
           const isLastIteration = handoffCount >= MAX_HANDOFFS
@@ -235,13 +270,16 @@ export async function streamCustomerChat(req: Request, res: Response) {
             messages: aiMessages,
             tools,
             toolChoice: 'auto',
+            maxTokens: 16384,
             stopWhen: stepCountIs(10),
             abortSignal: abortController.signal,
             onStepFinish: (stepResult) => {
+              const stepToolNames = stepResult.toolCalls?.map((tc: any) => tc.toolName) || []
+              allToolCallNames.push(...stepToolNames)
               logToFile(`[${currentAgent}] Step finished`, {
                 finishReason: stepResult.finishReason,
                 hasText: !!stepResult.text,
-                toolCalls: stepResult.toolCalls?.map((tc: any) => tc.toolName) || [],
+                toolCalls: stepToolNames,
               })
             },
             onFinish: (finishResult) => {
@@ -289,6 +327,29 @@ export async function streamCustomerChat(req: Request, res: Response) {
           }
 
         } while (pendingHandoff && handoffCount <= MAX_HANDOFFS)
+
+        // Gap detection: log when the product_mgmt agent completed without
+        // any write/capability tool calls (only had read-only or no tool calls).
+        // Excludes handoff and CRUD listing tools from the "used" check.
+        const readOnlyTools = ['listProjects', 'listArtifacts', 'handoff']
+        const capabilityToolsUsed = allToolCallNames.filter(n => !readOnlyTools.includes(n))
+        if (currentAgent === 'product_mgmt' && capabilityToolsUsed.length === 0) {
+          try {
+            const userId = getUserId()
+            const lastUserMsg = simpleMessages.filter(m => m.role === 'user').pop()?.content || ''
+            if (lastUserMsg.length > 20) {
+              await supabase.from('unmatched_action_requests').insert({
+                customer_id: customerId,
+                user_id: userId,
+                agent_type: 'product_mgmt',
+                request_description: lastUserMsg.slice(0, 500),
+                tool_calls_made: allToolCallNames.length > 0 ? allToolCallNames : null,
+              }).catch(() => {})
+            }
+          } catch {
+            // Gap detection is non-critical — never fail the response
+          }
+        }
       },
     })
 

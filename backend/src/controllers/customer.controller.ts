@@ -10,14 +10,17 @@ import { z } from 'zod'
 import { getSupabase } from '../lib/requestContext.js'
 import { logger } from '../lib/logger.js'
 import { CustomerService } from '../services/CustomerService.js'
+import { EnrichmentService } from '../services/EnrichmentService.js'
+import { IcpScoringService } from '../services/IcpScoringService.js'
 import { VALID_CUSTOMER_STATUSES } from '../types/customer.js'
+import type { Customer, IcpSettings } from '../types/customer.js'
 
 // =============================================================================
 // Validation Schemas
 // =============================================================================
 
 const customerStatusSchema = z.enum([
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
 ])
 
 const teamMemberSchema = z.object({
@@ -25,6 +28,7 @@ const teamMemberSchema = z.object({
   role: z.string().optional(),
   email: z.string().email().optional(),
   notes: z.string().optional(),
+  linkedin_url: z.string().url().optional(),
 })
 
 const customerInfoSchema = z.object({
@@ -74,6 +78,127 @@ function getService(req: Request): CustomerService {
   return new CustomerService(getSupabase())
 }
 
+/**
+ * Auto-rescore ICP when customer info changes (fire-and-forget).
+ * Runs only if both enrichment data and ICP settings exist.
+ */
+async function rescoreIcpIfNeeded(customer: Customer): Promise<void> {
+  try {
+    const enrichment = customer.info?.enrichment
+    if (!enrichment?.employee_count && !enrichment?.industry) return
+
+    const supabase = getSupabase()
+    const { data: icpSettings } = await supabase
+      .from('icp_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+
+    if (!icpSettings) return
+
+    const scorer = new IcpScoringService()
+    const newScore = await scorer.scoreCustomer({
+      enrichment: {
+        employee_count: enrichment.employee_count || '',
+        about: enrichment.about || '',
+        industry: enrichment.industry || '',
+        specialties: enrichment.specialties || [],
+      },
+      icpSettings,
+      companyName: customer.name,
+    })
+
+    const currentScore = customer.info?.icp_score
+    if (newScore !== currentScore) {
+      const service = new CustomerService(supabase)
+      await service.updateIcpScore(customer.id, newScore)
+      logger.info('[CustomerController] ICP auto-rescored after info update', {
+        previousScore: currentScore ?? 'none',
+        newScore,
+      })
+    }
+  } catch (error) {
+    logger.error('[CustomerController] ICP auto-rescore failed', {
+      sourceCode: 'rescoreIcpIfNeeded',
+      error: error instanceof Error ? error : new Error(String(error)),
+    })
+  }
+}
+
+/**
+ * Enrich and ICP-score a newly created customer (fire-and-forget).
+ * Calls EnrichmentService for company data, then IcpScoringService.
+ */
+async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
+  try {
+    if (!customer.name) return
+
+    logger.info('[CustomerController] Post-create enrichment started', {
+      companyName: customer.name,
+      hasLinkedinUrl: !!customer.info?.linkedin_company_url,
+      hasIndustryHint: !!(customer.info?.vertical || customer.info?.product?.category),
+    })
+
+    // --- Enrichment ---
+    const enrichmentService = new EnrichmentService()
+    const linkedinUrl = customer.info?.linkedin_company_url
+    const industryHint = customer.info?.vertical || customer.info?.product?.category || undefined
+    const enrichResult = await enrichmentService.enrichCompany(customer.name, linkedinUrl, industryHint)
+
+    if (!enrichResult) {
+      logger.info('[CustomerController] Post-create enrichment returned no data', {
+        companyName: customer.name,
+      })
+      return
+    }
+
+    const supabase = getSupabase()
+    const service = new CustomerService(supabase)
+    await service.updateEnrichment(customer.id, enrichResult.data, enrichResult.source)
+
+    logger.info('[CustomerController] Post-create enrichment saved', {
+      companyName: customer.name,
+      source: enrichResult.source,
+      hasIndustry: !!enrichResult.data.industry,
+    })
+
+    // --- ICP Scoring ---
+    if (!enrichResult.data.industry) return
+
+    const { data: icpSettings } = await supabase
+      .from('icp_settings')
+      .select('*')
+      .limit(1)
+      .maybeSingle()
+
+    if (!icpSettings) return
+
+    const scorer = new IcpScoringService()
+    const score = await scorer.scoreCustomer({
+      enrichment: {
+        employee_count: enrichResult.data.employee_count || '',
+        about: enrichResult.data.about || '',
+        industry: enrichResult.data.industry || '',
+        specialties: enrichResult.data.specialties || [],
+      },
+      icpSettings: icpSettings as IcpSettings,
+      companyName: customer.name,
+    })
+
+    await service.updateIcpScore(customer.id, score)
+
+    logger.info('[CustomerController] Post-create ICP scoring complete', {
+      companyName: customer.name,
+      score,
+    })
+  } catch (error) {
+    logger.error('[CustomerController] Post-create enrichment+scoring failed', {
+      sourceCode: 'enrichAndScoreNewCustomer',
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 // =============================================================================
 // Handlers
 // =============================================================================
@@ -93,6 +218,7 @@ export const listCustomers = async (req: Request, res: Response): Promise<void> 
     const status = req.query.status as string | undefined
     const search = req.query.search as string | undefined
     const sort = req.query.sort as string | undefined
+    const icp = req.query.icp as string | undefined
 
     // Validate status if provided
     if (status && !VALID_CUSTOMER_STATUSES.includes(status as any)) {
@@ -107,7 +233,7 @@ export const listCustomers = async (req: Request, res: Response): Promise<void> 
     const summary = req.query.summary === 'true'
 
     if (summary) {
-      const customers = await service.listWithSummary({ status: status as any, search, sort })
+      const customers = await service.listWithSummary({ status: status as any, search, sort, icp })
       res.status(200).json({ customers, count: customers.length })
     } else {
       const customers = await service.list({ status: status as any, search, sort })
@@ -194,6 +320,9 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
     const service = getService(req)
     const customer = await service.create(userId, parsed.data)
 
+    // Fire-and-forget: enrich company data + ICP score in background
+    enrichAndScoreNewCustomer(customer).catch(() => {})
+
     res.status(201).json(customer)
   } catch (error) {
     logger.error('[CustomerController] Error in createCustomer', {
@@ -246,6 +375,11 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
 
     const service = getService(req)
     const customer = await service.update(id, parsed.data)
+
+    // Auto-rescore ICP if info was updated (fire-and-forget, non-blocking)
+    if (parsed.data.info) {
+      rescoreIcpIfNeeded(customer).catch(() => {})
+    }
 
     res.status(200).json(customer)
   } catch (error) {

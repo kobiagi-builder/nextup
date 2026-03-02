@@ -1,18 +1,18 @@
 # Customer API Endpoints
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-25
-**Version:** 4.0.0
-**Status:** Complete (Phase 5)
+**Last Updated:** 2026-02-28
+**Version:** 6.0.0
+**Status:** Complete (Phase 7 — Enrichment + ICP Scoring)
 
 ## Overview
 
 RESTful CRUD API for customer management. All endpoints require Bearer token authentication via the `requireAuth` middleware.
 
 **Base path:** `/api/customers`
-**Controllers:** `customer.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `project.controller.ts`, `customer-artifact.controller.ts`
-**Services:** `CustomerService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `ProjectService.ts`, `CustomerArtifactService.ts`
-**Routes:** `customers.ts`, `agreements.ts`, `receivables.ts`, `projects.ts`, `customer-artifacts.ts`
+**Controllers:** `customer.controller.ts`, `linkedinImport.controller.ts`, `icpSettings.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `project.controller.ts`, `customer-artifact.controller.ts`
+**Services:** `CustomerService.ts`, `LinkedInImportService.ts`, `EnrichmentService.ts`, `IcpScoringService.ts`, `IcpSettingsService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `ProjectService.ts`, `CustomerArtifactService.ts`
+**Routes:** `customers.ts`, `icp-settings.ts`, `agreements.ts`, `receivables.ts`, `projects.ts`, `customer-artifacts.ts`
 
 Agreement and receivable sub-routes are mounted with `mergeParams: true`, giving handlers access to the parent `:id` (customer ID) parameter.
 
@@ -31,6 +31,7 @@ List all customers for the authenticated user. When `summary=true`, uses `get_cu
 | `status` | CustomerStatus | No | all | Filter by status |
 | `search` | string | No | - | Full-text search (name, vertical, about, persona via TSVECTOR) |
 | `sort` | string | No | `updated_at` | Sort field: `name`, `status`, `created_at`, `updated_at`, `last_activity`, `outstanding_balance` |
+| `icp` | string | No | - | Filter by ICP score: `low`, `medium`, `high`, `very_high`, `not_scored` (requires `summary=true`) |
 | `summary` | boolean | No | false | When true, returns enriched `CustomerWithSummary` data |
 
 **Response 200:**
@@ -53,6 +54,44 @@ List all customers for the authenticated user. When `summary=true`, uses `get_cu
 ```
 
 **Errors:** 400 (invalid status), 401 (unauthorized), 500 (server error)
+
+---
+
+### POST /api/customers/import/linkedin
+
+Upload a LinkedIn connections CSV to auto-create/match customers and upsert team members.
+
+**Feature flag required:** `linkedin_import` (checked via `requireFeature` middleware)
+
+**Request:**
+- Content-Type: `multipart/form-data`
+- Body field: `file` (CSV file, max 5MB)
+
+**Expected CSV columns:** First Name, Last Name, URL, Email Address, Company, Position
+
+**Response 200:**
+```json
+{
+  "total": 150,
+  "companies": { "created": 12, "matched": 45 },
+  "teamMembers": { "created": 57, "updated": 8 },
+  "skipped": [
+    { "row": 5, "company": "Israel", "reason": "Non-company name detected" },
+    { "row": 12, "company": "Stealth", "reason": "Enclosed company - grouped under 'Enclosed company'" }
+  ],
+  "errors": [],
+  "enrichment": { "enriched": 10, "skippedFresh": 2, "failed": 0 },
+  "icpScores": { "low": 3, "medium": 4, "high": 2, "very_high": 1, "not_scored": 2 }
+}
+```
+
+**Edge case handling:**
+- Empty company → skipped
+- Non-company names (freelance, self-employed, country, number) → skipped
+- Personal names (two capitalized words without company suffixes) → skipped
+- Enclosed companies (stealth, confidential, etc.) → grouped under "Enclosed company"
+
+**Errors:** 400 (no file, invalid CSV format, missing columns), 401 (unauthorized), 403 (feature disabled), 500 (server error)
 
 ---
 
@@ -712,6 +751,73 @@ Hard delete an artifact.
   "message": "Artifact deleted successfully"
 }
 ```
+
+---
+
+## ICP Settings Endpoints
+
+ICP settings endpoints are mounted at `/api/icp-settings`. Requires `customer_management` feature flag.
+
+**Controller:** `backend/src/controllers/icpSettings.controller.ts`
+**Service:** `backend/src/services/IcpSettingsService.ts`
+**Router:** `backend/src/routes/icp-settings.ts`
+
+---
+
+### GET /api/icp-settings
+
+Get the authenticated user's ICP settings.
+
+**Response 200:**
+```json
+{
+  "id": "uuid",
+  "user_id": "uuid",
+  "target_employee_min": 50,
+  "target_employee_max": 500,
+  "target_industries": ["SaaS", "Fintech"],
+  "target_specialties": ["AI", "B2B", "Enterprise"],
+  "description": "Mid-size B2B SaaS companies in the AI space...",
+  "weight_quantitative": 60,
+  "created_at": "2026-02-28T10:00:00Z",
+  "updated_at": "2026-02-28T12:00:00Z"
+}
+```
+
+Returns `null` (200) if no settings configured yet.
+
+**Errors:** 401 (unauthorized), 403 (feature disabled), 500 (server error)
+
+---
+
+### PUT /api/icp-settings
+
+Create or update ICP settings (upsert via `ON CONFLICT user_id`).
+
+**Body (Zod validated):**
+```json
+{
+  "target_employee_min": 50,
+  "target_employee_max": 500,
+  "target_industries": ["SaaS", "Fintech"],
+  "target_specialties": ["AI", "B2B", "Enterprise"],
+  "description": "Mid-size B2B SaaS companies in the AI space...",
+  "weight_quantitative": 60
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `target_employee_min` | number or null | No | Integer, min 0 |
+| `target_employee_max` | number or null | No | Integer, min 0 |
+| `target_industries` | string[] | No | Max 20 items, each max 100 chars |
+| `target_specialties` | string[] | No | Max 50 items, each max 100 chars |
+| `description` | string | No | Max 2000 chars |
+| `weight_quantitative` | number | No | Integer 0-100 (default 60). Qualitative weight = 100 - this value |
+
+**Response 200:** Updated ICP settings object
+
+**Errors:** 400 (validation error), 401 (unauthorized), 403 (feature disabled), 500 (server error)
 
 ---
 

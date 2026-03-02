@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { writeContentSection, writeFullContent } from '../../../../../services/ai/tools/contentWritingTools.js';
+import { writeContentSection, writeFullContent } from '../../../../../services/ai/agents/portfolio/tools/contentWritingTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { researchFixtures } from '../../../../fixtures/research.js';

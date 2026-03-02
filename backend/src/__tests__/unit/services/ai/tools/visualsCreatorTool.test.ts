@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { generateContentVisuals } from '../../../../../services/ai/tools/visualsCreatorTool.js';
+import { generateContentVisuals } from '../../../../../services/ai/agents/portfolio/tools/visualsCreatorTool.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { callTool, assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';

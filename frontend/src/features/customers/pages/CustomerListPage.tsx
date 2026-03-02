@@ -1,7 +1,7 @@
 /**
  * Customer List Page
  *
- * Displays customer cards with status filter pills, search, and sort.
+ * Displays customer cards with status/ICP dropdown filters, search, and sort.
  * Filter state lives in URL params (useSearchParams).
  */
 
@@ -9,9 +9,15 @@ import { useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Plus, Search } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
-import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,10 +31,16 @@ import {
 import { useCustomers, useUpdateCustomerStatus, useDeleteCustomer } from '../hooks'
 import { CustomerCard } from '../components/shared/CustomerCard'
 import { CustomerCardSkeleton } from '../components/shared/CustomerCardSkeleton'
+import { MultiSelectFilter } from '../components/shared/MultiSelectFilter'
 import { EmptyCustomers, EmptyCustomerSearch } from '../components/shared/EmptyState'
 import { NewCustomerDialog } from '../components/forms/NewCustomerDialog'
-import type { CustomerStatus, CustomerFilters } from '../types'
-import { CUSTOMER_STATUSES, CUSTOMER_STATUS_LABELS } from '../types'
+import { ImportLinkedInButton } from '../components/import/ImportLinkedInButton'
+import { LinkedInImportDialog } from '../components/import/LinkedInImportDialog'
+import type { CustomerStatus, CustomerFilters, IcpScore } from '../types'
+import {
+  CUSTOMER_STATUSES, CUSTOMER_STATUS_LABELS, CUSTOMER_STATUS_DOT_COLORS,
+  ICP_SCORES, ICP_SCORE_LABELS, ICP_SCORE_DOT_COLORS,
+} from '../types'
 
 const SORT_OPTIONS = [
   { value: 'updated_at', label: 'Last Updated' },
@@ -42,17 +54,26 @@ const SORT_OPTIONS = [
 export function CustomerListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
   const [customerToArchive, setCustomerToArchive] = useState<string | null>(null)
 
-  // Read filters from URL
-  const statusFilter = (searchParams.get('status') as CustomerStatus | null) || null
+  // Read filters from URL (comma-separated for multi-select)
+  const statusParam = searchParams.get('status') || ''
+  const statusFilter: CustomerStatus[] = statusParam
+    ? statusParam.split(',').filter(Boolean) as CustomerStatus[]
+    : []
   const searchQuery = searchParams.get('q') || ''
   const sortBy = searchParams.get('sort') || 'updated_at'
+  const icpParam = searchParams.get('icp') || ''
+  const icpFilter: (IcpScore | 'not_scored')[] = icpParam
+    ? icpParam.split(',').filter(Boolean) as (IcpScore | 'not_scored')[]
+    : []
 
   const filters: CustomerFilters = {
-    status: statusFilter,
+    status: statusFilter.length > 0 ? statusFilter : null,
     search: searchQuery || undefined,
     sort: sortBy,
+    icp: icpFilter.length > 0 ? icpFilter : null,
   }
 
   const { data: customers = [], isLoading } = useCustomers(filters)
@@ -60,9 +81,9 @@ export function CustomerListPage() {
   const deleteCustomer = useDeleteCustomer()
 
   // URL param setters
-  const setStatusFilter = (status: CustomerStatus | null) => {
+  const setStatusFilterValues = (values: string[]) => {
     setSearchParams((prev) => {
-      if (status) prev.set('status', status)
+      if (values.length > 0) prev.set('status', values.join(','))
       else prev.delete('status')
       return prev
     })
@@ -80,6 +101,14 @@ export function CustomerListPage() {
     setSearchParams((prev) => {
       if (sort && sort !== 'updated_at') prev.set('sort', sort)
       else prev.delete('sort')
+      return prev
+    })
+  }
+
+  const setIcpFilterValues = (values: string[]) => {
+    setSearchParams((prev) => {
+      if (values.length > 0) prev.set('icp', values.join(','))
+      else prev.delete('icp')
       return prev
     })
   }
@@ -109,7 +138,7 @@ export function CustomerListPage() {
     }
   }
 
-  const hasFilters = !!statusFilter || !!searchQuery
+  const hasFilters = statusFilter.length > 0 || !!searchQuery || icpFilter.length > 0
   const showEmptyState = !isLoading && customers.length === 0 && !hasFilters
   const showNoResults = !isLoading && customers.length === 0 && hasFilters
 
@@ -118,64 +147,69 @@ export function CustomerListPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
         <h1 className="text-xl font-bold text-foreground">Customers</h1>
-        <Button onClick={() => setIsNewDialogOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New Customer
-        </Button>
+        <div className="flex items-center gap-2">
+          <ImportLinkedInButton onClick={() => setIsImportDialogOpen(true)} />
+          <Button onClick={() => setIsNewDialogOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New Customer
+          </Button>
+        </div>
       </div>
 
       {/* Filters bar */}
-      <div className="px-6 py-3 border-b border-border/50 space-y-3">
-        {/* Status pills */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <button
-            onClick={() => setStatusFilter(null)}
-            className={cn(
-              'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-              !statusFilter
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-muted text-muted-foreground hover:bg-muted/80'
-            )}
-          >
-            All
-          </button>
-          {CUSTOMER_STATUSES.map((status) => (
-            <button
-              key={status}
-              onClick={() => setStatusFilter(statusFilter === status ? null : status)}
-              className={cn(
-                'px-3 py-1 rounded-full text-xs font-medium transition-colors',
-                statusFilter === status
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
-              )}
-            >
-              {CUSTOMER_STATUS_LABELS[status]}
-            </button>
-          ))}
+      <div className="flex items-center gap-3 px-6 py-3 border-b border-border/50">
+        {/* Status filter (multi-select) */}
+        <MultiSelectFilter
+          label="Status"
+          selected={statusFilter}
+          onChange={setStatusFilterValues}
+          options={CUSTOMER_STATUSES.map((s) => ({
+            value: s,
+            label: CUSTOMER_STATUS_LABELS[s],
+            dotColor: CUSTOMER_STATUS_DOT_COLORS[s],
+          }))}
+        />
+
+        {/* ICP filter (multi-select) */}
+        <MultiSelectFilter
+          label="ICP Score"
+          selected={icpFilter}
+          onChange={setIcpFilterValues}
+          options={[
+            ...ICP_SCORES.map((s) => ({
+              value: s,
+              label: ICP_SCORE_LABELS[s],
+              dotColor: ICP_SCORE_DOT_COLORS[s],
+            })),
+            { value: 'not_scored', label: 'Not Scored', dotColor: 'bg-slate-400' },
+          ]}
+        />
+
+        {/* Search */}
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search customers..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 h-8"
+          />
         </div>
 
-        {/* Search + Sort */}
-        <div className="flex items-center gap-3">
-          <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search customers..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-8"
-            />
-          </div>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="h-8 rounded-md border border-input bg-transparent px-2 text-xs text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
+        {/* Sort */}
+        <Select
+          value={sortBy}
+          onValueChange={(val) => setSortBy(val)}
+        >
+          <SelectTrigger className="h-8 w-[160px] text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent data-portal-ignore-click-outside>
             {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
             ))}
-          </select>
-        </div>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Content */}
@@ -206,6 +240,7 @@ export function CustomerListPage() {
       </div>
 
       <NewCustomerDialog open={isNewDialogOpen} onOpenChange={setIsNewDialogOpen} />
+      <LinkedInImportDialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen} />
 
       <AlertDialog open={!!customerToArchive} onOpenChange={(open) => !open && setCustomerToArchive(null)}>
         <AlertDialogContent data-portal-ignore-click-outside>

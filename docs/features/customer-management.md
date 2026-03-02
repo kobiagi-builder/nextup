@@ -1,20 +1,21 @@
 # Customer Management
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-25
-**Version:** 4.0.0
-**Status:** Active (Phase 5)
+**Last Updated:** 2026-03-01
+**Version:** 7.0.0
+**Status:** Active (Phase 8 — 4-Layer Company Classification Pipeline)
 
 ## Overview
 
-Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, projects, and deliverable artifacts. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Projects tab with full project and artifact CRUD, including a TipTap rich text editor with auto-save for artifact content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts.
+Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, projects, and deliverable artifacts. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Projects tab with full project and artifact CRUD, including a TipTap rich text editor with auto-save for artifact content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts. Phase 6 adds LinkedIn Connections CSV Import — upload a LinkedIn-exported CSV to auto-create/match customers and upsert team members with edge case handling, ICP score badges, ICP filter pills, and a "Not Relevant" status. Phase 7 adds post-import intelligence: LLM-powered company enrichment (employee count, industry, specialties, about) and hybrid ICP scoring (quantitative formula + qualitative LLM), with ICP settings configuration in the Settings page and auto-status assignment for low-ICP new customers. Phase 8 replaces the inline deterministic-only company classification with a 4-layer pipeline (deterministic → Tavily LinkedIn lookup → LLM batch → fail-open), deduplicates company names before classification, stores LinkedIn company URLs, and guards low-confidence companies from auto-status upgrades.
 
 ## User Perspective
 
 ### What It Does
 
-- **Customer List** -- Browse, full-text search, filter by status, sort by 6 fields (name, status, created, updated, last activity, outstanding balance)
-- **Status Pipeline** -- Move customers through `lead > prospect > negotiation > live > on_hold > archive`
+- **Customer List** -- Browse, full-text search, filter by status, filter by ICP score, sort by 6 fields (name, status, created, updated, last activity, outstanding balance)
+- **Status Pipeline** -- Move customers through `lead > prospect > negotiation > live > on_hold > archive > not_relevant`
+- **LinkedIn Import** -- Upload LinkedIn connections CSV to auto-create/match customers and upsert team members. Feature-flagged (`linkedin_import`). Multi-step dialog: CSV upload → import progress → results summary with counts, skipped rows, and errors
 - **Customer Detail** -- View and edit name, status, info fields, team members, and event timeline
 - **Enriched Cards** -- List cards show active agreements count, outstanding balance, active projects count, and last activity date
 - **Dashboard Stats** -- Total customers, active customers, total outstanding, expiring agreements (within 30 days)
@@ -41,8 +42,78 @@ Customer Management allows advisors and consultants to track their client relati
 | `prospect` | Prospect | Purple | Qualified, in discussion |
 | `negotiation` | Negotiation | Yellow | Active negotiation on terms |
 | `live` | Live | Green | Active engagement |
-| `on_hold` | On Hold | Gray | Paused engagement |
-| `archive` | Archive | Red | Completed or ended |
+| `on_hold` | On Hold | Orange | Paused engagement |
+| `archive` | Archive | Slate | Completed or ended |
+| `not_relevant` | Not Relevant | Rose | Dismissed, not a fit for ICP |
+
+### ICP Scores
+
+| Score | Label | Color | Description |
+|-------|-------|-------|-------------|
+| `low` | Low | Rose | Poor fit for ideal customer profile |
+| `medium` | Medium | Amber | Partial fit |
+| `high` | High | Emerald | Good fit |
+| `very_high` | Very High | Blue | Excellent fit |
+
+ICP Score is stored in `customers.info.icp_score` (JSONB). Displayed as badges on customer cards and detail page header. Filterable on the list page (All, Low, Medium, High, Very High, Not Scored).
+
+### LinkedIn Import
+
+**Feature flag:** `linkedin_import` (must be enabled per-account via `customer_features` table)
+
+**CSV Columns:** First Name, Last Name, URL, Email Address, Company, Position
+
+**Three-phase import flow:**
+
+#### Phase 0 — Company Name Classification (4-Layer Pipeline)
+
+Before processing any rows, all unique company names are classified via `CompanyClassificationService.classifyBatch()`. This classify-first approach enables deduplication and batching.
+
+**Layer 0 — Deterministic (free, <1ms per name):**
+Check order (first match wins):
+1. Empty / single character / numbers-only → SKIP
+2. `NON_COMPANY_PATTERNS` exact match (none, freelance, self-employed, retired, student, etc.) → SKIP
+3. `COUNTRY_NAMES` exact match (israel, united states, etc.) → SKIP
+4. Self-name match (company field === connection's own first+last name) → SKIP
+5. `ENCLOSED_PATTERNS` **exact match** (stealth, confidential, building, etc.) → ENCLOSED
+6. Has company suffix as last word (inc, ltd, llc, etc.) → COMPANY (fast-track, skip layers 1-2)
+7. None → pass to Layer 1
+
+**Layer 1 — Tavily LinkedIn Lookup (~$0.60/1000, 200-500ms per name):**
+Search `"<companyName>" company` on `linkedin.com` via existing `tavilyClient` singleton.
+- `/company/` URL found with title similarity ≥ 0.6 → COMPANY (stores `linkedinCompanyUrl`)
+- Only `/in/` URLs found → SKIP (personal name)
+- No results or low similarity → pass to Layer 2
+- On Tavily error → gracefully fall through to Layer 2
+
+Title similarity: Jaccard word overlap after stripping "| LinkedIn" suffix.
+
+**Layer 2 — LLM Batch Classification (~$0.15/1000, 1-3s per batch):**
+Batches of 15 names sent to `claude-haiku-4-5-20251001` via `generateText`. Returns JSON array `[{ index, type, confidence }]`. Types: company, personal_name, enclosed, non_company. Confidence ≥ 0.7 → use classification. Below threshold → pass to Layer 3.
+
+**Layer 3 — Fail Open:**
+Any remaining unclassified name defaults to `{ type: 'company', lowConfidence: true }`. Low-confidence companies are tracked separately and excluded from auto-status upgrades.
+
+#### Phase 1 — Process Rows (using cached classifications)
+
+For each CSV row, look up the pre-computed classification:
+1. `skip` → add to skipped list with reason
+2. `enclosed` → route to "Enclosed company" container customer
+3. `company` → match/create customer + upsert team member
+4. If classification has `linkedinCompanyUrl` → store in `customer.info` via `merge_customer_info` RPC
+5. If classification has `lowConfidence` → track in `lowConfidenceCustomerIds` set
+
+Customer matching: case-insensitive `ILIKE` on name. New customers created with `status: 'not_relevant'`.
+Team member matching: by email (exact) then by name (case-insensitive). Update LinkedIn URL and role if changed, or create new member.
+
+#### Phase 2 — Enrichment + ICP Scoring
+
+Runs automatically after Phase 1. For each unique company:
+- **Enrichment**: If no data or >30 days stale, call `EnrichmentService.enrichCompany(name)` (claude-haiku). Extracts `{ employee_count, about, industry, specialties }`. Rate-limited ~2 req/sec.
+- **ICP Scoring**: If ICP settings exist AND enrichment has industry data, call `IcpScoringService.scoreCustomer()`. Hybrid: quantitative formula + qualitative LLM. Maps to Low/Medium/High/Very High.
+- **Auto-status upgrade**: New customers with medium+ ICP score are upgraded to `lead` status — **except** low-confidence customers (Layer 3) which stay `not_relevant`.
+
+**Results returned:** total rows, classification stats (layer0/layer1/layer2/layer3/total), companies created/matched, team members created/updated, skipped rows with reasons, errors, enrichment stats (enriched/skippedFresh/failed), ICP score distribution (low/medium/high/very_high/not_scored)
 
 ### Agreement Types
 
@@ -142,6 +213,14 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Service | `backend/src/services/CustomerService.ts` | Customer CRUD + events + counts |
 | Service | `backend/src/services/AgreementService.ts` | Agreement CRUD: list, create, update, delete |
 | Service | `backend/src/services/ReceivableService.ts` | Receivable CRUD + getSummary via RPC |
+| Service | `backend/src/services/CompanyClassificationService.ts` | 4-layer company name classification pipeline (deterministic → Tavily → LLM → fail-open) |
+| Service | `backend/src/services/LinkedInImportService.ts` | CSV parsing, classify-first flow, company matching, team upsert, post-import enrichment + ICP scoring |
+| Service | `backend/src/services/EnrichmentService.ts` | LLM-powered company enrichment (claude-haiku): employee count, about, industry, specialties |
+| Service | `backend/src/services/IcpScoringService.ts` | Hybrid ICP scoring: quantitative formula + qualitative LLM |
+| Service | `backend/src/services/IcpSettingsService.ts` | ICP settings CRUD (upsert with `ON CONFLICT user_id`) |
+| Controller | `backend/src/controllers/linkedinImport.controller.ts` | Multer CSV upload + import handler |
+| Controller | `backend/src/controllers/icpSettings.controller.ts` | ICP settings GET/PUT with Zod validation |
+| Routes | `backend/src/routes/icp-settings.ts` | GET / PUT for ICP settings (requires `customer_management` feature flag) |
 | Controller | `backend/src/controllers/customer.controller.ts` | Customer Zod validation + handlers |
 | Controller | `backend/src/controllers/agreement.controller.ts` | Agreement Zod validation + handlers (list, create, update, delete) |
 | Controller | `backend/src/controllers/receivable.controller.ts` | Receivable Zod validation + handlers (list, getSummary, create, update, delete) |
@@ -163,6 +242,8 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Hooks | `frontend/src/features/customers/hooks/useReceivables.ts` | TanStack Query receivable hooks + receivableKeys factory + useReceivableSummary |
 | Hooks | `frontend/src/features/customers/hooks/useProjects.ts` | TanStack Query project hooks + projectKeys factory |
 | Hooks | `frontend/src/features/customers/hooks/useCustomerArtifacts.ts` | TanStack Query artifact hooks + customerArtifactKeys factory |
+| ICP Settings UI | `frontend/src/features/customers/components/settings/IcpSettingsSection.tsx` | ICP settings form (employee range, industries, specialties, description, weights) |
+| ICP Hooks | `frontend/src/features/customers/hooks/useIcpSettings.ts` | TanStack Query GET/PUT for ICP settings |
 | Skeleton | `frontend/src/features/customers/components/shared/CustomerCardSkeleton.tsx` | Structured loading skeleton matching card layout |
 | References | `frontend/src/features/portfolio/components/editor/ArtifactReferences.tsx` | Collapsible cross-module references section in portfolio editor |
 | List Page | `frontend/src/features/customers/pages/CustomerListPage.tsx` | List with filters, enriched cards, AlertDialog, responsive grid |
@@ -194,6 +275,15 @@ interface CustomerInfo {
     url?: string
   }
   team?: TeamMember[]
+  icp_score?: IcpScore | null  // 'low' | 'medium' | 'high' | 'very_high'
+  enrichment?: {
+    employee_count?: string
+    about?: string
+    industry?: string
+    specialties?: string[]
+    source?: 'linkedin_scrape' | 'llm_enrichment'
+    updated_at?: string
+  }
 }
 ```
 
@@ -204,6 +294,7 @@ interface TeamMember {
   role?: string
   email?: string
   notes?: string
+  linkedin_url?: string
 }
 ```
 
@@ -301,6 +392,7 @@ Filter state lives in URL search params (not Zustand):
 | `status` | `CustomerStatus` | none (all) | Filter by status |
 | `q` | string | empty | Full-text search via TSVECTOR (name, vertical, about, persona) |
 | `sort` | string | `updated_at` | Sort field: `name`, `status`, `created_at`, `updated_at`, `last_activity`, `outstanding_balance` |
+| `icp` | `IcpScore \| 'not_scored'` | none (all) | Filter by ICP score level |
 
 ### Query Key Factory
 
@@ -331,6 +423,11 @@ projectKeys = {
   all: (customerId) => [...customerKeys.detail(customerId), 'projects'],
   list: (customerId) => [...projectKeys.all(customerId), 'list'],
   detail: (customerId, projectId) => [...projectKeys.all(customerId), 'detail', projectId],
+}
+
+icpSettingsKeys = {
+  all: ['icp-settings'],
+  mine: () => ['icp-settings', 'mine'],
 }
 
 customerArtifactKeys = {
@@ -364,7 +461,9 @@ PAYMENT_METHOD_LABELS: Record<string, string>
 ## Known Limitations
 
 - **No bulk actions** (multi-select, bulk status change)
-- **No CSV import/export**
+- **Enrichment** uses LLM (claude-haiku) for company data — accuracy depends on public knowledge of the company. Unknown/small companies may return empty results
+- **ICP Scoring** qualitative component only runs if both ICP description and company about text exist; otherwise 100% quantitative
+- **Rate limiting** between enrichment calls is 500ms delay — large imports (~200+ companies) may take several minutes
 - **Auto-save** uses 1.5s debounce; very fast close may trigger a delayed save
 - **Cross-module linking** requires portfolio editor to pass link/unlink handlers (parent must provide mutation)
 

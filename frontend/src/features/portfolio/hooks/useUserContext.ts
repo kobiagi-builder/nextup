@@ -65,8 +65,7 @@ export function useProfileCompletion() {
     !!context.profession?.industries ||
     !!context.profession?.methodologies ||
     !!context.profession?.certifications,
-    // Customers
-    !!context.customers?.target_audience ||
+    // Customers (ICP settings checked separately in ProfilePage)
     !!context.customers?.ideal_client,
     // Goals
     !!context.goals?.content_goals ||

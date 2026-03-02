@@ -1,13 +1,13 @@
 # Database Schema Reference
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-25
-**Version:** 4.0.0
+**Last Updated:** 2026-02-28
+**Version:** 5.0.0
 **Status:** Complete
 
 ## Overview
 
-Product Consultant Helper uses Supabase (PostgreSQL) with 18 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
+Product Consultant Helper uses Supabase (PostgreSQL) with 19 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
 
 **Supabase Project ID:** `ohwubfmipnpguunryopl`
 
@@ -35,6 +35,7 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 18 tables in the `publ
 | 16 | `customer_artifacts` | Deliverables per project | Many-to-one → customer_projects | Yes |
 | 17 | `customer_events` | Timeline events per customer | Many-to-one → customers | Yes |
 | 18 | `customer_chat_messages` | AI chat messages per customer | Many-to-one → customers | Yes |
+| 19 | `icp_settings` | ICP criteria for automated scoring | One-to-one per user | Yes |
 
 ---
 
@@ -55,6 +56,7 @@ erDiagram
     users ||--o| user_preferences : "has one"
     users ||--o{ user_writing_examples : "has many"
 
+    users ||--o| icp_settings : "has one"
     users ||--o{ customers : "owns many"
     customers ||--o{ customer_agreements : "has many"
     customers ||--o{ customer_receivables : "has many"
@@ -656,6 +658,51 @@ AI-generated storytelling guidance per artifact. One-to-one relationship with ar
 
 ---
 
+## 19. icp_settings
+
+User-defined Ideal Customer Profile criteria for automated ICP scoring during LinkedIn import. One row per user.
+
+### Schema
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | NO | `gen_random_uuid()` | Primary key |
+| `user_id` | UUID | NO | - | FK → auth.users(id) CASCADE, UNIQUE |
+| `target_employee_min` | INTEGER | YES | NULL | Minimum employee count |
+| `target_employee_max` | INTEGER | YES | NULL | Maximum employee count |
+| `target_industries` | TEXT[] | YES | `'{}'` | Target industry names |
+| `target_specialties` | TEXT[] | YES | `'{}'` | Target specialty keywords |
+| `description` | TEXT | YES | `''` | Free-text ICP description (used for qualitative LLM scoring) |
+| `weight_quantitative` | INTEGER | NO | `60` | Quantitative weight 0-100 (qualitative = 100 - this) |
+| `created_at` | TIMESTAMPTZ | YES | `now()` | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | YES | `now()` | Last update (auto-trigger) |
+
+### CHECK Constraints
+
+```sql
+CHECK (weight_quantitative BETWEEN 0 AND 100)
+```
+
+### Indexes
+
+| Index | Column(s) | Purpose |
+|-------|-----------|---------|
+| `icp_settings_pkey` | `id` | Primary key |
+| `icp_settings_user_id_key` | `user_id` UNIQUE | One per user, enables upsert with ON CONFLICT |
+| `idx_icp_settings_user_id` | `user_id` | Lookup by user |
+
+### RLS Policies
+
+| Policy | Command | Condition |
+|--------|---------|-----------|
+| Users manage own ICP settings | ALL | `user_id = auth.uid()` |
+
+### Triggers
+
+- `icp_settings_updated_at` — BEFORE UPDATE, calls `update_updated_at()` to auto-set `updated_at`
+
+---
+
 ## Database Functions
 
 ### `get_receivables_summary(cid UUID)`
@@ -900,6 +947,7 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **5.0.0** (2026-02-28) - Added `icp_settings` table (#19) for ICP scoring criteria. Updated table count to 19, ER diagram, table summary
 - **3.2.0** (2026-02-25) - Added `merge_customer_info(cid, new_info)` function for Customer AI Agent atomic JSONB merge
 - **3.1.0** (2026-02-25) - Added Database Functions section documenting `get_receivables_summary(cid UUID)`
 - **3.0.0** (2026-02-25) - Full schema reference for all 18 tables (11 content + 7 customer)

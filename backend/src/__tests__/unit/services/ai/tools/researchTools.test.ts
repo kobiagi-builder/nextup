@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { conductDeepResearch } from '../../../../../services/ai/tools/researchTools.js';
+import { conductDeepResearch } from '../../../../../services/ai/agents/portfolio/tools/researchTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 import { callTool, assertToolOutputSuccess, assertToolOutputError } from '../../../../utils/testHelpers.js';

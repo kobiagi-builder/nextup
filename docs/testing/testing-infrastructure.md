@@ -123,13 +123,13 @@ NextUp uses a three-tier testing strategy across two framework types: **Vitest**
 
 | File | Scope |
 |------|-------|
-| `services/ai/tools/contentTools.test.ts` | Content management tool logic |
-| `services/ai/tools/contentWritingTools.test.ts` | writeFullContent, writeContentSection |
-| `services/ai/tools/humanityCheckTools.test.ts` | applyHumanityCheck |
-| `services/ai/tools/researchTools.test.ts` | conductDeepResearch |
-| `services/ai/tools/skeletonTools.test.ts` | generateContentSkeleton |
-| `services/ai/tools/storytellingTools.test.ts` | analyzeStorytellingStructure |
-| `services/ai/tools/visualsCreatorTool.test.ts` | generateContentVisuals |
+| `services/ai/agents/portfolio/tools/contentTools.test.ts` | Content management tool logic |
+| `services/ai/agents/portfolio/tools/contentWritingTools.test.ts` | writeFullContent, writeContentSection |
+| `services/ai/agents/portfolio/tools/humanityCheckTools.test.ts` | applyHumanityCheck |
+| `services/ai/agents/portfolio/tools/researchTools.test.ts` | conductDeepResearch |
+| `services/ai/agents/portfolio/tools/skeletonTools.test.ts` | generateContentSkeleton |
+| `services/ai/agents/portfolio/tools/storytellingTools.test.ts` | analyzeStorytellingStructure |
+| `services/ai/agents/portfolio/tools/visualsCreatorTool.test.ts` | generateContentVisuals |
 
 ### Backend Integration Tests (`backend/src/__tests__/integration/`)
 

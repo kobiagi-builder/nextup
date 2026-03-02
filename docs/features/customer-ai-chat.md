@@ -15,7 +15,7 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 
 **Purpose:** Engagement strategy, negotiation guidance, status management, communication drafting, account health assessment, stakeholder mapping.
 
-**System prompt:** `backend/src/services/ai/prompts/customerAgentPrompts.ts`
+**System prompt:** `backend/src/services/ai/agents/customer-mgmt/prompt/customerAgentPrompts.ts`
 
 **Tools (4):**
 
@@ -30,9 +30,9 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 
 **Purpose:** Strategy creation, roadmap development, user research synthesis, competitive analysis, product specs, prioritization (RICE), success measurement (KPIs), ideation, launch planning.
 
-**System prompt:** `backend/src/services/ai/prompts/productAgentPrompts.ts`
+**System prompt:** `backend/src/services/ai/agents/product-mgmt/prompt/productAgentPrompts.ts`
 
-**Tools (5):**
+**Tools (25):**
 
 | Tool | Description | Side Effects |
 |------|-------------|--------------|
@@ -44,7 +44,7 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 
 ## Agent Handoff
 
-**File:** `backend/src/services/ai/tools/handoffTools.ts`
+**File:** `backend/src/services/ai/agents/shared/handoffTools.ts`
 
 Each agent has a `handoff` tool. When the LLM determines the user's request requires the other agent's tools, it calls `handoff({ reason, summary, pendingRequest })`. The controller detects this in the stream and switches agents.
 
@@ -62,7 +62,7 @@ Each agent has a `handoff` tool. When the LLM determines the user's request requ
 
 ## Customer Context Builder
 
-**File:** `backend/src/services/ai/prompts/customerContextBuilder.ts`
+**File:** `backend/src/services/ai/agents/shared/customerContextBuilder.ts`
 
 Builds a structured text block injected into the system prompt. Fetches in parallel:
 - Customer record (name, status, company, role, info JSONB)
@@ -166,12 +166,12 @@ User types message in CustomerChatPanel
 
 | Component | File |
 |-----------|------|
-| Context Builder | `backend/src/services/ai/prompts/customerContextBuilder.ts` |
-| Customer Agent Prompt | `backend/src/services/ai/prompts/customerAgentPrompts.ts` |
-| Product Agent Prompt | `backend/src/services/ai/prompts/productAgentPrompts.ts` |
-| Handoff Tools | `backend/src/services/ai/tools/handoffTools.ts` |
-| Customer Mgmt Tools | `backend/src/services/ai/tools/customerMgmtTools.ts` |
-| Product Mgmt Tools | `backend/src/services/ai/tools/productMgmtTools.ts` |
+| Context Builder | `backend/src/services/ai/agents/shared/customerContextBuilder.ts` |
+| Customer Agent Prompt | `backend/src/services/ai/agents/customer-mgmt/prompt/customerAgentPrompts.ts` |
+| Product Agent Prompt | `backend/src/services/ai/agents/product-mgmt/prompt/productAgentPrompts.ts` |
+| Handoff Tools | `backend/src/services/ai/agents/shared/handoffTools.ts` |
+| Customer Mgmt Tools | `backend/src/services/ai/agents/customer-mgmt/tools/customerMgmtTools.ts` |
+| Product Mgmt Tools | `backend/src/services/ai/agents/product-mgmt/tools/productMgmtTools.ts` |
 | Controller | `backend/src/controllers/customer-ai.controller.ts` |
 | Route | `backend/src/routes/customer-ai.ts` |
 | CustomerChatPanel | `frontend/src/features/customers/components/chat/CustomerChatPanel.tsx` |

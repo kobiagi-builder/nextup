@@ -8,10 +8,10 @@
 // Customer Status
 // =============================================================================
 
-export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive'
+export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant'
 
 export const CUSTOMER_STATUSES: CustomerStatus[] = [
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
 ]
 
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
@@ -21,16 +21,81 @@ export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
   live: 'Live',
   on_hold: 'On Hold',
   archive: 'Archive',
+  not_relevant: 'Not Relevant',
 }
 
 export const CUSTOMER_STATUS_COLORS: Record<CustomerStatus, string> = {
-  lead: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
-  prospect: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300',
-  negotiation: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',
-  live: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
-  on_hold: 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-  archive: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-300',
+  lead: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
+  prospect: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  negotiation: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  live: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  on_hold: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  archive: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  not_relevant: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
 }
+
+/** Solid dot colors for dropdown indicators (Tailwind JIT needs literal classes) */
+export const CUSTOMER_STATUS_DOT_COLORS: Record<CustomerStatus, string> = {
+  lead: 'bg-sky-400',
+  prospect: 'bg-violet-400',
+  negotiation: 'bg-amber-400',
+  live: 'bg-emerald-400',
+  on_hold: 'bg-orange-400',
+  archive: 'bg-slate-400',
+  not_relevant: 'bg-rose-400',
+}
+
+// =============================================================================
+// ICP Score
+// =============================================================================
+
+export type IcpScore = 'low' | 'medium' | 'high' | 'very_high'
+
+export const ICP_SCORES: IcpScore[] = ['low', 'medium', 'high', 'very_high']
+
+export const ICP_SCORE_LABELS: Record<IcpScore, string> = {
+  low: 'Low',
+  medium: 'Medium',
+  high: 'High',
+  very_high: 'Very High',
+}
+
+export const ICP_SCORE_COLORS: Record<IcpScore, string> = {
+  low: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
+  high: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
+  very_high: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+}
+
+/** Solid dot colors for ICP dropdown indicators (Tailwind JIT needs literal classes) */
+export const ICP_SCORE_DOT_COLORS: Record<IcpScore, string> = {
+  low: 'bg-rose-400',
+  medium: 'bg-amber-400',
+  high: 'bg-emerald-400',
+  very_high: 'bg-blue-400',
+}
+
+// =============================================================================
+// ICP Settings (User-Level)
+// =============================================================================
+
+export interface IcpSettings {
+  id: string
+  user_id: string
+  target_employee_min: number | null
+  target_employee_max: number | null
+  target_industries: string[]
+  target_specialties: string[]
+  description: string
+  weight_quantitative: number
+  created_at: string
+  updated_at: string
+}
+
+export type IcpSettingsInput = Partial<Pick<IcpSettings,
+  'target_employee_min' | 'target_employee_max' | 'target_industries' |
+  'target_specialties' | 'description' | 'weight_quantitative'
+>>
 
 // =============================================================================
 // Customer Info (JSONB)
@@ -41,6 +106,7 @@ export interface TeamMember {
   role?: string
   email?: string
   notes?: string
+  linkedin_url?: string
 }
 
 export interface CustomerInfo {
@@ -56,6 +122,16 @@ export interface CustomerInfo {
     url?: string
   }
   team?: TeamMember[]
+  icp_score?: IcpScore | null
+  enrichment?: {
+    employee_count?: string
+    about?: string
+    industry?: string
+    specialties?: string[]
+    source?: 'linkedin_scrape' | 'llm_enrichment' | 'tavily_grounded'
+    updated_at?: string
+  }
+  linkedin_company_url?: string
   [key: string]: unknown
 }
 
@@ -85,6 +161,7 @@ export interface CustomerWithSummary extends Customer {
   active_agreements_count: number
   outstanding_balance: number
   active_projects_count: number
+  action_items_count: number
   last_activity: string | null
 }
 
@@ -147,13 +224,34 @@ export interface CreateEventInput {
 }
 
 // =============================================================================
+// LinkedIn Import
+// =============================================================================
+
+export interface ImportResult {
+  total: number
+  companies: { created: number; matched: number }
+  teamMembers: { created: number; updated: number }
+  skipped: Array<{ row: number; company: string; reason: string }>
+  errors: Array<{ row: number; message: string }>
+  classification?: { layer0: number; layer1: number; layer2: number; layer3: number; total: number }
+  enrichment?: { enriched: number; skippedFresh: number; failed: number }
+  icpScores?: { low: number; medium: number; high: number; very_high: number; not_scored: number; skipped_unchanged: number }
+}
+
+export type ImportProgressEvent =
+  | { phase: 'classifying'; current: number; total: number }
+  | { phase: 'importing'; current: number; total: number }
+  | { phase: 'enriching'; current: number; total: number; company: string }
+
+// =============================================================================
 // Filters
 // =============================================================================
 
 export interface CustomerFilters {
-  status?: CustomerStatus | null
+  status?: CustomerStatus[] | null
   search?: string
   sort?: string
+  icp?: (IcpScore | 'not_scored')[] | null
 }
 
 // =============================================================================

@@ -12,6 +12,8 @@ import type {
   CustomerWithCounts,
   CustomerWithSummary,
   CustomerStatus,
+  IcpScore,
+  EnrichmentSource,
   DashboardStats,
   CustomerArtifactSearchResult,
   CreateCustomerInput,
@@ -19,6 +21,7 @@ import type {
   CustomerEvent,
   CreateEventInput,
 } from '../types/customer.js'
+import type { CompanyEnrichmentData } from './EnrichmentService.js'
 
 export class CustomerService {
   constructor(private supabase: SupabaseClient) {}
@@ -273,11 +276,13 @@ export class CustomerService {
     status?: CustomerStatus
     search?: string
     sort?: string
+    icp?: string
   }): Promise<CustomerWithSummary[]> {
     const { data, error } = await this.supabase.rpc('get_customer_list_summary', {
       p_status: params.status || null,
       p_search: params.search || null,
       p_sort: params.sort || 'updated_at',
+      p_icp: params.icp || null,
     })
 
     if (error) {
@@ -366,5 +371,59 @@ export class CustomerService {
       customer_id: row.customer_id,
       customer_name: row.customers?.name ?? 'Unknown',
     })) as CustomerArtifactSearchResult[]
+  }
+
+  // ===========================================================================
+  // Enrichment & ICP Score Updates (Phase 2 - LinkedIn Import)
+  // ===========================================================================
+
+  /**
+   * Merge enrichment data into customer info via atomic JSONB merge.
+   */
+  async updateEnrichment(
+    customerId: string,
+    enrichmentData: CompanyEnrichmentData,
+    source: EnrichmentSource = 'llm_enrichment',
+  ): Promise<void> {
+    const { error } = await this.supabase.rpc('merge_customer_info', {
+      cid: customerId,
+      new_info: {
+        // Store full enrichment payload for reference
+        enrichment: {
+          ...enrichmentData,
+          source,
+          updated_at: new Date().toISOString(),
+        },
+        // Sync to top-level fields the UI reads from (only if non-empty)
+        ...(enrichmentData.about ? { about: enrichmentData.about } : {}),
+        ...(enrichmentData.industry ? { vertical: enrichmentData.industry } : {}),
+      },
+    })
+
+    if (error) {
+      logger.error('[CustomerService] Error updating enrichment', {
+        sourceCode: 'CustomerService.updateEnrichment',
+        hasError: true,
+      })
+      throw error
+    }
+  }
+
+  /**
+   * Merge ICP score into customer info via atomic JSONB merge.
+   */
+  async updateIcpScore(customerId: string, icpScore: IcpScore): Promise<void> {
+    const { error } = await this.supabase.rpc('merge_customer_info', {
+      cid: customerId,
+      new_info: { icp_score: icpScore },
+    })
+
+    if (error) {
+      logger.error('[CustomerService] Error updating ICP score', {
+        sourceCode: 'CustomerService.updateIcpScore',
+        hasError: true,
+      })
+      throw error
+    }
   }
 }

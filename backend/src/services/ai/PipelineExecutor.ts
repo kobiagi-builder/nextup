@@ -7,13 +7,13 @@
 
 import { logger } from '../../lib/logger.js';
 import { getSupabase } from '../../lib/requestContext.js';
-import { conductDeepResearch } from './tools/researchTools.js';
-import { analyzeWritingCharacteristics } from './tools/writingCharacteristicsTools.js';
-import { analyzeStorytellingStructure } from './tools/storytellingTools.js';
-import { generateContentSkeleton } from './tools/skeletonTools.js';
-import { writeFullContent } from './tools/contentWritingTools.js';
+import { conductDeepResearch } from './agents/portfolio/tools/researchTools.js';
+import { analyzeWritingCharacteristics } from './agents/portfolio/tools/writingCharacteristicsTools.js';
+import { analyzeStorytellingStructure } from './agents/portfolio/tools/storytellingTools.js';
+import { generateContentSkeleton } from './agents/portfolio/tools/skeletonTools.js';
+import { writeFullContent } from './agents/portfolio/tools/contentWritingTools.js';
 // applyHumanityCheck is now integrated per-section inside writeFullContent
-import { identifyImageNeeds } from './tools/imageNeedsTools.js';
+import { identifyImageNeeds } from './agents/portfolio/tools/imageNeedsTools.js';
 import { generateTraceId, withTracing } from './observability/tracing.js';
 import { metricsCollector } from './observability/metrics.js';
 import { withExponentialBackoff, BackoffOptions } from './utils/backoff.js';

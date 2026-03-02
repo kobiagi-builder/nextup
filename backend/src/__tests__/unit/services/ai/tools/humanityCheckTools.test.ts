@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { applyHumanityCheck, checkContentHumanity } from '../../../../../services/ai/tools/humanityCheckTools.js';
+import { applyHumanityCheck, checkContentHumanity } from '../../../../../services/ai/agents/portfolio/tools/humanityCheckTools.js';
 import { mockService } from '../../../../../services/ai/mocks/index.js';
 import { artifactFixtures } from '../../../../fixtures/artifacts.js';
 

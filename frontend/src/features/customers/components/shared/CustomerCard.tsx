@@ -2,10 +2,14 @@
  * Customer Card
  *
  * Landscape card for customer list page.
+ * Layout:
+ *   Row 1: Company name | STATUS: <pill> | kebab menu
+ *   Row 2: VERTICAL: <pill> | ICP RANK: <badge>
+ *   Row 3: metrics icons (agreements, balance, projects, action items) | timestamp
  */
 
 import { useNavigate } from 'react-router-dom'
-import { MoreVertical, Clock, FileText, DollarSign, FolderOpen } from 'lucide-react'
+import { MoreVertical, Clock, FileText, DollarSign, FolderOpen, ListChecks } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,9 +19,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import type { CustomerStatus, CustomerWithSummary } from '../../types'
-import { CustomerStatusBadge } from './CustomerStatusBadge'
-import { CustomerStatusSelect } from './CustomerStatusSelect'
+import type { CustomerStatus, CustomerWithSummary, IcpScore } from '../../types'
+import { CustomerStatusPill } from './CustomerStatusPill'
+import { IcpScoreBadge } from './IcpScoreBadge'
 import { formatEventDate, formatCurrency } from '../../utils'
 
 interface CustomerCardProps {
@@ -52,32 +56,17 @@ export function CustomerCard({
       onClick={handleClick}
       data-testid="customer-card"
     >
-      {/* Header row */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-foreground truncate">{customer.name}</h3>
-          {vertical && (
-            <span className="mt-1 inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
-              {vertical}
-            </span>
-          )}
-        </div>
+      {/* Row 1: Company name | STATUS: pill | kebab */}
+      <div className="flex items-center justify-between gap-3">
+        <h3 className="font-semibold text-foreground truncate min-w-0">{customer.name}</h3>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <CustomerStatusBadge status={customer.status} />
-
-          {/* Status quick-change (visible on hover) */}
-          <div
-            className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {onStatusChange && (
-              <CustomerStatusSelect
-                value={customer.status}
-                onValueChange={(status) => onStatusChange(customer.id, status)}
-                className="h-7 w-[130px] text-xs"
-              />
-            )}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Status:</span>
+            <CustomerStatusPill
+              status={customer.status}
+              onStatusChange={onStatusChange ? (s) => onStatusChange(customer.id, s) : undefined}
+            />
           </div>
 
           {/* Actions menu */}
@@ -86,7 +75,7 @@ export function CustomerCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
+                className="h-6 w-6 shrink-0 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>
@@ -111,14 +100,23 @@ export function CustomerCard({
         </div>
       </div>
 
-      {/* About preview */}
-      {customer.info?.about && (
-        <p className="mt-2 text-sm text-muted-foreground line-clamp-1">
-          {customer.info.about}
-        </p>
-      )}
+      {/* Row 2: VERTICAL + ICP RANK */}
+      <div className="mt-2 flex items-center gap-4">
+        {vertical && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vertical:</span>
+            <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground">
+              {vertical}
+            </span>
+          </div>
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">ICP Rank:</span>
+          <IcpScoreBadge score={(customer.info?.icp_score as IcpScore) ?? null} />
+        </div>
+      </div>
 
-      {/* Metrics row */}
+      {/* Row 3: Metrics + timestamp */}
       <div className="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1" title="Active agreements">
           <FileText className="h-3 w-3" />
@@ -139,6 +137,10 @@ export function CustomerCard({
         <span className="flex items-center gap-1" title="Active projects">
           <FolderOpen className="h-3 w-3" />
           {customer.active_projects_count || '\u2014'}
+        </span>
+        <span className="flex items-center gap-1" title="Action items">
+          <ListChecks className="h-3 w-3" />
+          {customer.action_items_count || '\u2014'}
         </span>
         <span className="flex items-center gap-1 ml-auto" title="Last activity">
           <Clock className="h-3 w-3" />

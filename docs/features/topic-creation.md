@@ -14,7 +14,7 @@ Topic creation is the process by which the AI content agent generates personaliz
 
 | Implementation | File | Status | Notes |
 |---|---|---|---|
-| `suggestArtifactIdeas` | `contentTools.ts` | **Active** | Registered in AIService tool registry |
+| `suggestArtifactIdeas` | `agents/portfolio/tools/contentTools.ts` | **Active** | Registered in AIService tool registry |
 | `createTopic`, `listTopics`, etc. | `topicTools.ts` | **Unused** | 5 tools defined but never registered |
 
 This document covers the **active** implementation.
@@ -63,7 +63,7 @@ When an artifact is in `draft` status, clicking "Create Content" sends `Create c
 
 ## System Prompt Instructions
 
-**File:** `backend/src/services/ai/prompts/systemPrompts.ts`
+**File:** `backend/src/services/ai/agents/portfolio/prompt/systemPrompts.ts`
 
 ### Request Classification
 
@@ -110,7 +110,7 @@ When the message matches `Create content: "<title>"`:
 
 ### Active Tools (registered in AIService)
 
-#### `suggestArtifactIdeas` (contentTools.ts)
+#### `suggestArtifactIdeas` (agents/portfolio/tools/contentTools.ts)
 
 The primary topic suggestion tool. Acts as a **pass-through formatter** — the AI agent generates the actual suggestions, this tool structures them with temporary IDs.
 
@@ -149,7 +149,7 @@ The primary topic suggestion tool. Acts as a **pass-through formatter** — the 
 - Assigns temporary IDs for frontend rendering
 - Returns suggestions for the UI to display as cards
 
-#### `getUserContext` (profileTools.ts)
+#### `getUserContext` (agents/portfolio/tools/profileTools.ts)
 
 Fetches user profile data from the `user_context` table.
 
@@ -159,7 +159,7 @@ Fetches user profile data from the `user_context` table.
 
 **Used for:** Personalizing topic suggestions based on user's professional profile.
 
-#### `getUserSkills` (profileTools.ts)
+#### `getUserSkills` (agents/portfolio/tools/profileTools.ts)
 
 Fetches user skills grouped by category from the `user_skills` table.
 
@@ -169,7 +169,7 @@ Fetches user skills grouped by category from the `user_skills` table.
 
 **Used for:** Ensuring suggestions align with user's skill areas.
 
-#### `listRecentArtifacts` (contentTools.ts)
+#### `listRecentArtifacts` (agents/portfolio/tools/contentTools.ts)
 
 Lists existing artifacts to prevent topic duplication.
 
@@ -357,10 +357,10 @@ User clicks "Create" on a suggestion card
 
 | File | Purpose |
 |---|---|
-| `backend/src/services/ai/tools/contentTools.ts` | `suggestArtifactIdeas` (active tool), `listRecentArtifacts`, `getArtifactContent` |
+| `backend/src/services/ai/agents/portfolio/tools/contentTools.ts` | `suggestArtifactIdeas` (active tool), `listRecentArtifacts`, `getArtifactContent` |
 | `backend/src/services/ai/tools/topicTools.ts` | Legacy unused topic tools (5 tools, never registered) |
-| `backend/src/services/ai/tools/contextTools.ts` | `fetchArtifactTopics` (reads existing titles for dedup) |
-| `backend/src/services/ai/prompts/systemPrompts.ts` | Request classification, topic suggestion workflow instructions |
+| `backend/src/services/ai/agents/portfolio/tools/contextTools.ts` | `fetchArtifactTopics` (reads existing titles for dedup) |
+| `backend/src/services/ai/agents/portfolio/prompt/systemPrompts.ts` | Request classification, topic suggestion workflow instructions |
 | `backend/src/services/ai/AIService.ts` | Tool registry (lines 104-143), Claude model config, streaming |
 | `backend/src/controllers/ai.controller.ts` | `streamChat` endpoint handler |
 | `frontend/src/features/portfolio/pages/PortfolioPage.tsx` | Primary topic research entry point |

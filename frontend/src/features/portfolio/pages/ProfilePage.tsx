@@ -26,6 +26,8 @@ import {
 import { useMemo, useState } from "react";
 import { UserContextForm } from "../components/forms";
 import { useUpdateUserContext, useUserContext } from "../hooks/useUserContext";
+import { useIcpSettings } from "@/features/customers/hooks/useIcpSettings";
+import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import type { UpdateUserContextInput, UserContext } from "../types/portfolio";
 
 /** Profile section configuration */
@@ -78,21 +80,19 @@ const SECTIONS = [
     id: "customers" as const,
     icon: Target,
     title: "Customers",
-    fields: ["Target Audience"],
+    fields: ["ICP Profile"],
     emptyState: {
       heading: "Who do you create content for?",
       description:
-        "Describe your ideal clients and target audience. When the AI knows who you\u2019re talking to, it crafts content that truly resonates with them.",
+        "Define your ideal customer profile. When the AI knows who you\u2019re talking to, it crafts content that truly resonates with them.",
       hints: [
         "Your ideal client profile",
         "Their biggest challenges",
         "What they care about",
       ],
     },
-    getContent: (ctx: UserContext | null) => ({
-      target_audience: ctx?.customers?.target_audience,
-    }),
-    isEmpty: (ctx: UserContext | null) => !ctx?.customers?.target_audience,
+    getContent: () => ({}),
+    isEmpty: () => false, // Emptiness checked inline via icpSettings
   },
   {
     id: "goals" as const,
@@ -127,16 +127,19 @@ export function ProfilePage() {
   // Data hooks
   const { data: userContext, isLoading } = useUserContext();
   const updateUserContext = useUpdateUserContext();
+  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management');
+  const { data: icpSettings } = useIcpSettings();
 
   // Calculate completion percentage
   const completion = useMemo(() => {
     if (!userContext) return 0;
     const totalSections = SECTIONS.length;
-    const completedSections = SECTIONS.filter(
-      (section) => !section.isEmpty(userContext),
-    ).length;
+    const completedSections = SECTIONS.filter((section) => {
+      if (section.id === 'customers') return !!icpSettings;
+      return !section.isEmpty(userContext);
+    }).length;
     return Math.round((completedSections / totalSections) * 100);
-  }, [userContext]);
+  }, [userContext, icpSettings]);
 
   // Handle save
   const handleSave = async (data: UpdateUserContextInput) => {
@@ -243,7 +246,9 @@ export function ProfilePage() {
         <div className="space-y-4">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
-            const isEmpty = section.isEmpty(userContext ?? null);
+            const isEmpty = section.id === 'customers'
+              ? !(hasCustomers && icpSettings)
+              : section.isEmpty(userContext ?? null);
             const content = section.getContent(userContext ?? null);
 
             return (
@@ -344,9 +349,64 @@ export function ProfilePage() {
                       })
                     )}
                   </div>
-                </div>
 
-                {/* Skills section hidden - not yet consumed by content agent */}
+                  {/* ICP Profile — inside Customers card */}
+                  {section.id === 'customers' && hasCustomers && icpSettings && (
+                    <div className="border-t border-border p-4 space-y-3">
+                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                        ICP Profile
+                      </h4>
+                      {(icpSettings.target_employee_min != null || icpSettings.target_employee_max != null) && (
+                        <div>
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Target Employees
+                          </h4>
+                          <p className="text-sm text-muted-foreground">
+                            {icpSettings.target_employee_min ?? '0'} – {icpSettings.target_employee_max ?? '∞'}
+                          </p>
+                        </div>
+                      )}
+                      {icpSettings.target_industries.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Target Industries
+                          </h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {icpSettings.target_industries.map((ind) => (
+                              <span key={ind} className="px-2 py-0.5 bg-secondary rounded text-sm text-muted-foreground">
+                                {ind}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {icpSettings.target_specialties.length > 0 && (
+                        <div>
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            Target Specialties
+                          </h4>
+                          <div className="flex flex-wrap gap-1.5">
+                            {icpSettings.target_specialties.map((spec) => (
+                              <span key={spec} className="px-2 py-0.5 bg-secondary rounded text-sm text-muted-foreground">
+                                {spec}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {icpSettings.description && (
+                        <div>
+                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                            ICP Description
+                          </h4>
+                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                            {icpSettings.description}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -376,6 +436,7 @@ export function ProfilePage() {
               onSubmit={handleSave}
               onCancel={() => setEditingSection(null)}
               isLoading={updateUserContext.isPending}
+              showIcp={hasCustomers}
             />
           )}
         </DialogContent>

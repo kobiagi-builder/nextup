@@ -8,6 +8,8 @@
 import { Router } from 'express'
 import * as customerController from '../controllers/customer.controller.js'
 import * as customerArtifactController from '../controllers/customer-artifact.controller.js'
+import { requireFeature } from '../middleware/requireFeature.js'
+import { uploadMiddleware, importLinkedInConnections } from '../controllers/linkedinImport.controller.js'
 import { agreementsRouter } from './agreements.js'
 import { receivablesRouter } from './receivables.js'
 import { projectsRouter } from './projects.js'
@@ -19,6 +21,9 @@ const router = Router()
 router.get('/search', customerController.searchCustomers)
 router.get('/stats', customerController.getDashboardStats)
 router.get('/artifacts/search', customerController.searchArtifacts)
+
+// LinkedIn import (must come BEFORE /:id to avoid route collision)
+router.post('/import/linkedin', requireFeature('linkedin_import'), uploadMiddleware, importLinkedInConnections)
 
 // Customer CRUD
 router.get('/', customerController.listCustomers)

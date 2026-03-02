@@ -2099,7 +2099,7 @@ class CircuitBreaker {
 |----------|-------|
 | **Status Transition** | `draft` → `interviewing` |
 | **AI Provider** | None (data orchestration only) |
-| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/interviewTools.ts` |
 | **Purpose** | Start or resume a showcase interview session |
 
 ### Description
@@ -2198,7 +2198,7 @@ if (result.success && result.isResume) {
 |----------|-------|
 | **Status Transition** | None (stays in `interviewing`) |
 | **AI Provider** | None (data persistence only) |
-| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/interviewTools.ts` |
 | **Purpose** | Incrementally save a single Q&A pair during interview |
 
 ### Description
@@ -2287,7 +2287,7 @@ if (result.readyToComplete) {
 |----------|-------|
 | **Status Transition** | None (stays in `interviewing` — `conductDeepResearch` transitions next) |
 | **AI Provider** | None (data persistence only) |
-| **Source File** | `backend/src/services/ai/tools/interviewTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/interviewTools.ts` |
 | **Purpose** | Finalize interview data and store synthesized brief |
 
 ### Description
@@ -2373,7 +2373,7 @@ const result = await completeShowcaseInterview.execute({
 |----------|-------|
 | **Status Transition** | `draft` → `ready` (direct, no intermediate statuses) |
 | **AI Provider** | Claude Sonnet (generation + humanization) |
-| **Source File** | `backend/src/services/ai/tools/socialPostTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/socialPostTools.ts` |
 | **Purpose** | Generate a viral social media post promoting a source article |
 
 ### Description
@@ -2460,7 +2460,7 @@ const result = await writeSocialPostContent.execute({
 |----------|-------|
 | **Status Transition** | None (on-demand editor action) |
 | **AI Provider** | Claude Sonnet (temperature 0.6) |
-| **Source File** | `backend/src/services/ai/tools/contentImprovementTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/contentImprovementTools.ts` |
 | **Purpose** | Surgically improve selected text based on user feedback |
 
 ### Description
@@ -2541,7 +2541,7 @@ const result = await improveTextContent.execute({
 |----------|-------|
 | **Status Transition** | None (on-demand editor action) |
 | **AI Provider** | OpenAI (image-to-image editing) + Claude Haiku (prompt refinement fallback) + DALL-E 3 / Gemini Imagen 4 (text-to-image fallback) |
-| **Source File** | `backend/src/services/ai/tools/contentImprovementTools.ts` |
+| **Source File** | `backend/src/services/ai/agents/portfolio/tools/contentImprovementTools.ts` |
 | **Purpose** | Regenerate an image in the editor based on user feedback |
 
 ### Description

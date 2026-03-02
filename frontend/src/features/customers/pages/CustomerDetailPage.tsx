@@ -16,7 +16,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useChatLayoutStore } from '@/stores/chatLayoutStore'
 import { useCustomer, useUpdateCustomer, useUpdateCustomerStatus, useCustomerChat } from '../hooks'
 import { useCustomerStore } from '../stores'
-import { CustomerStatusSelect } from '../components/shared/CustomerStatusSelect'
+import { CustomerStatusPill } from '../components/shared/CustomerStatusPill'
+import { IcpScoreBadge } from '../components/shared/IcpScoreBadge'
+import type { IcpScore } from '../types'
 import { ProjectsTab } from '../components/projects'
 import { OverviewTab } from '../components/overview/OverviewTab'
 import { AgreementsTab } from '../components/agreements/AgreementsTab'
@@ -183,11 +185,12 @@ export function CustomerDetailPage() {
             </h1>
           )}
 
-          <CustomerStatusSelect
-            value={customer.status}
-            onValueChange={handleStatusChange}
-            className="h-8 w-[140px]"
+          <CustomerStatusPill
+            status={customer.status}
+            onStatusChange={handleStatusChange}
+            size="md"
           />
+          <IcpScoreBadge score={(customer.info?.icp_score as IcpScore) ?? null} />
 
         </div>
       </div>

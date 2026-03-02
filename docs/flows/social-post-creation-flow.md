@@ -119,7 +119,7 @@ The social post appears in the editor for final review:
 
 ## Backend Tool
 
-**Tool:** `writeSocialPostContent` in `backend/src/services/ai/tools/socialPostTools.ts`
+**Tool:** `writeSocialPostContent` in `backend/src/services/ai/agents/portfolio/tools/socialPostTools.ts`
 
 **AI Provider:** Claude Sonnet 4
 **Humanity Check:** Applied via `postProcessHumanization()` (em dash cleanup + AI pattern removal)

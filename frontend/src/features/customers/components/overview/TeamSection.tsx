@@ -5,7 +5,7 @@
  */
 
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, ExternalLink } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -22,9 +22,10 @@ interface TeamMemberFormState {
   role: string
   email: string
   notes: string
+  linkedin_url: string
 }
 
-const emptyMember: TeamMemberFormState = { name: '', role: '', email: '', notes: '' }
+const emptyMember: TeamMemberFormState = { name: '', role: '', email: '', notes: '', linkedin_url: '' }
 
 function TeamMemberRow({
   member,
@@ -38,7 +39,21 @@ function TeamMemberRow({
   return (
     <div className="flex items-center gap-3 py-2 px-3 rounded-md hover:bg-muted/50 group">
       <div className="min-w-0 shrink-0">
-        <p className="text-sm font-medium text-foreground">{member.name}</p>
+        <div className="flex items-center gap-1.5">
+          <p className="text-sm font-medium text-foreground">{member.name}</p>
+          {member.linkedin_url && (
+            <a
+              href={member.linkedin_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="text-[#0A66C2] hover:text-[#004182] transition-colors"
+              title="View LinkedIn profile"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+        </div>
         {member.role && <p className="text-xs text-muted-foreground">{member.role}</p>}
         {member.email && <p className="text-xs text-muted-foreground">{member.email}</p>}
       </div>
@@ -107,15 +122,28 @@ function TeamMemberForm({
           />
         </div>
       </div>
-      <div>
-        <Label htmlFor="tm-notes" className="text-xs">Notes</Label>
-        <Input
-          id="tm-notes"
-          value={form.notes}
-          onChange={(e) => setForm({ ...form, notes: e.target.value })}
-          className="mt-0.5 h-8 text-sm"
-          placeholder="Optional notes..."
-        />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div>
+          <Label htmlFor="tm-linkedin" className="text-xs">LinkedIn URL</Label>
+          <Input
+            id="tm-linkedin"
+            type="url"
+            value={form.linkedin_url}
+            onChange={(e) => setForm({ ...form, linkedin_url: e.target.value })}
+            className="mt-0.5 h-8 text-sm"
+            placeholder="https://linkedin.com/in/..."
+          />
+        </div>
+        <div>
+          <Label htmlFor="tm-notes" className="text-xs">Notes</Label>
+          <Input
+            id="tm-notes"
+            value={form.notes}
+            onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            className="mt-0.5 h-8 text-sm"
+            placeholder="Optional notes..."
+          />
+        </div>
       </div>
       <div className="flex items-center justify-end gap-1 pt-1">
         <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
@@ -140,6 +168,7 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
       role: member.role.trim() || undefined,
       email: member.email.trim() || undefined,
       notes: member.notes.trim() || undefined,
+      linkedin_url: member.linkedin_url.trim() || undefined,
     }]
     onSave(newTeam)
     setIsAdding(false)
@@ -152,6 +181,7 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
       role: member.role.trim() || undefined,
       email: member.email.trim() || undefined,
       notes: member.notes.trim() || undefined,
+      linkedin_url: member.linkedin_url.trim() || undefined,
     }
     onSave(newTeam)
     setEditingIndex(null)
@@ -192,6 +222,7 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
                 role: member.role || '',
                 email: member.email || '',
                 notes: member.notes || '',
+                linkedin_url: member.linkedin_url || '',
               }}
               onSave={(m) => handleEditMember(index, m)}
               onCancel={() => setEditingIndex(null)}

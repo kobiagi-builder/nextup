@@ -575,8 +575,8 @@ const NON_PROCESSING_STATES = ['draft', 'skeleton', 'foundations_approval', 'rea
 - **PipelineExecutor:** `/backend/src/services/ai/PipelineExecutor.ts`
 - **AI Controller:** `/backend/src/controllers/ai.controller.ts`
 - **AI Routes:** `/backend/src/routes/ai.ts`
-- **System Prompts:** `/backend/src/services/ai/prompts/systemPrompts.ts`
-- **Tools Directory:** `/backend/src/services/ai/tools/` (19 tool files)
+- **System Prompts:** `/backend/src/services/ai/agents/portfolio/prompt/systemPrompts.ts`
+- **Tools Directory:** `/backend/src/services/ai/agents/portfolio/tools/` (19 tool files)
 - **Types:** `/backend/src/services/ai/types/contentAgent.ts`
 
 ---

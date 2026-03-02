@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-02-26
-**Version:** 12.0.0
+**Last Updated:** 2026-03-01
+**Version:** 16.0.0
 **Total Documentation Files:** 65+
-**Status:** Complete (Customer AI Handoff Architecture)
+**Status:** Complete (LinkedIn Import Phase 3 — 4-Layer Company Classification Pipeline)
 
 ## Overview
 
@@ -12,7 +12,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 **Current state:**
 - **11 artifact statuses**: draft, interviewing, research, foundations, skeleton, foundations_approval, writing, humanity_checking, creating_visuals, ready, published (+ archived in DB)
-- **35+ AI tools** across 7 categories (core pipeline, interview, social post, content improvement, content management, image generation, profile/context, research/topics, response)
+- **60+ AI tools** across 7 categories (core pipeline, interview, social post, content improvement, content management, image generation, profile/context, research/topics, response)
 - **3 pipeline paths**: blog/showcase full pipeline, showcase interview pipeline, social post pipeline
 - **3 artifact types**: blog, showcase, social_post
 - **AI backend**: Vercel AI SDK v6 with `streamText`/`generateText` (AIService.ts)
@@ -97,8 +97,8 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [storytelling-analysis.md](./features/storytelling-analysis.md) | Storytelling framework selection, narrative arc design, emotional journey |
 | [topic-creation.md](./features/topic-creation.md) | Topic suggestion flow, entry points, tools, data model, known limitations |
 | [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing references system + characteristics extraction (per artifact type) |
-| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 5) |
-| [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 9 tools, structured response cards (Phase 4) |
+| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 8) |
+| [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 25 tools, structured response cards (Phase 4) |
 
 ---
 
@@ -112,7 +112,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend AI architecture: AIService.ts, Vercel AI SDK v6, tool orchestration (v3.0.0) |
 | [backend/security-architecture.md](./Architecture/backend/security-architecture.md) | Multi-layered security (prompt injection, PII, rate limiting) |
 | [backend/observability-architecture.md](./Architecture/backend/observability-architecture.md) | Distributed tracing, metrics, circuit breaker |
-| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 18 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v4.0.0) |
+| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 19 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v5.0.0) |
 | [database/artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) | Table relationships and data flow diagrams |
 | [database/artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) | Artifacts table schema with status workflow |
 | [frontend/screen-context-integration.md](./Architecture/frontend/screen-context-integration.md) | useScreenContext hook, React Query caching |
@@ -130,7 +130,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
 | [MOCK_CONFIGURATION_GUIDE.md](./api/MOCK_CONFIGURATION_GUIDE.md) | Mock toggle configuration for development/testing |
-| [customer-endpoints.md](./api/customer-endpoints.md) | 31 endpoints (8 customer + 3 new search/stats + 4 agreement + 5 receivable + 5 project + 6 artifact): full CRUD + search + dashboard (v4.0.0) |
+| [customer-endpoints.md](./api/customer-endpoints.md) | 34 endpoints (8 customer + 1 LinkedIn import + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 project + 6 artifact): full CRUD + search + dashboard + import + ICP config (v6.0.0) |
 | [customer-ai-endpoints.md](./api/customer-ai-endpoints.md) | Customer AI chat streaming endpoint (POST /api/ai/customer/chat/stream) with LLM-driven agent handoff (v2.0.0) |
 
 ---
@@ -147,14 +147,14 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [pipeline-execution-flow.md](./ai-agents-and-prompts/pipeline-execution-flow.md) | **3 pipeline paths**: full, interview, social post |
 | [intent-detection-guide.md](./ai-agents-and-prompts/intent-detection-guide.md) | **DEPRECATED** — intent detection removed; LLM handles via tool-calling |
 | [system-prompt-specification.md](./ai-agents-and-prompts/system-prompt-specification.md) | Complete system prompt with structured response format |
-| [customer-agents-reference.md](./ai-agents-and-prompts/customer-agents-reference.md) | Customer AI agents (Customer Mgmt + Product Mgmt): LLM-driven handoff, 9 tools, context builder with health signals and deliverables (v3.0.0) |
+| [customer-agents-reference.md](./ai-agents-and-prompts/customer-agents-reference.md) | Customer AI agents (Customer Mgmt + Product Mgmt): LLM-driven handoff, 25 tools, context builder with health signals and deliverables (v4.0.0) |
 
 ---
 
 ## Layer 9: Database Schema
 
 Covered by Layer 6 Architecture files:
-- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (18 tables, 5 functions)
+- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (19 tables, 5 functions)
 - [artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) — Relationships and data flow
 - [artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) — Artifacts table detail
 
@@ -247,18 +247,19 @@ Social Post:    draft → ready
 | **Research & Topics** | 3 | topicsResearch, researchTrendingTopics, analyzeFollowUpTopics |
 | **Response** | 1 | structuredResponse |
 | **Customer Mgmt** | 4 | updateCustomerStatus, updateCustomerInfo, createEventLogEntry, getCustomerSummary |
-| **Product Mgmt** | 5 | createProject, createArtifact, updateArtifact, listProjects, listArtifacts |
+| **Product Mgmt CRUD** | 5 | createProject, createArtifact, updateArtifact, listProjects, listArtifacts |
+| **Product Mgmt Capabilities** | 16 | createProductStrategy, evaluateBuildStrategy, applyDecisionFramework, assessShipReadiness, analyzeCompetition, scopeMvp, buildPersonaIcp, planUserResearch, analyzeProductData, designUserFlow, designUxUi, designAiFeature, createGrowthStrategy, createLaunchPlan, createNarrative, prioritizeItems |
 
 ### Key Counts
 
 | What | Count |
 |------|-------|
 | Artifact statuses | 11 (+ archived in DB) |
-| AI tools | 44+ across 21 tool files (35 content + 9 customer) |
+| AI tools | 60+ across 37 tool files (35 content + 25 customer) |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 50 (18 AI/content + 31 customer + 1 customer AI) |
-| Database tables | 18 (11 content + 7 customer) + 5 functions |
+| API endpoints | 53 (18 AI/content + 34 customer + 1 customer AI) |
+| Database tables | 19 (11 content + 7 customer + 1 ICP settings) + 5 functions |
 | Error categories | 13 |
 | Documentation files | 65+ |
 
@@ -270,8 +271,12 @@ Social Post:    draft → ready
 | Pipeline Executor | `backend/src/services/ai/PipelineExecutor.ts` |
 | AI Controller | `backend/src/controllers/ai.controller.ts` |
 | AI Routes | `backend/src/routes/ai.ts` |
-| System Prompts | `backend/src/services/ai/prompts/systemPrompts.ts` |
-| Tool Definitions | `backend/src/services/ai/tools/` (19 files) |
+| System Prompts | `backend/src/services/ai/agents/portfolio/prompt/systemPrompts.ts` |
+| Tool Definitions | `backend/src/services/ai/agents/` (3 agent folders + shared/) |
+| Company Classification | `backend/src/services/CompanyClassificationService.ts` |
+| Enrichment Service | `backend/src/services/EnrichmentService.ts` |
+| ICP Scoring Service | `backend/src/services/IcpScoringService.ts` |
+| ICP Settings Service | `backend/src/services/IcpSettingsService.ts` |
 | Customer Service | `backend/src/services/CustomerService.ts` |
 | Project Service | `backend/src/services/ProjectService.ts` |
 | Artifact Service | `backend/src/services/CustomerArtifactService.ts` |
@@ -279,15 +284,20 @@ Social Post:    draft → ready
 | Customer Routes | `backend/src/routes/customers.ts` |
 | Customer AI Controller | `backend/src/controllers/customer-ai.controller.ts` |
 | Customer AI Route | `backend/src/routes/customer-ai.ts` |
-| Handoff Tools | `backend/src/services/ai/tools/handoffTools.ts` |
-| Customer Context Builder | `backend/src/services/ai/prompts/customerContextBuilder.ts` |
-| Customer Mgmt Tools | `backend/src/services/ai/tools/customerMgmtTools.ts` |
-| Product Mgmt Tools | `backend/src/services/ai/tools/productMgmtTools.ts` |
+| Handoff Tools | `backend/src/services/ai/agents/shared/handoffTools.ts` |
+| Customer Context Builder | `backend/src/services/ai/agents/shared/customerContextBuilder.ts` |
+| Customer Mgmt Tools | `backend/src/services/ai/agents/customer-mgmt/tools/customerMgmtTools.ts` |
+| Product Mgmt Tools | `backend/src/services/ai/agents/product-mgmt/tools/productMgmtTools.ts` |
+| Product Mgmt Capability Tools | `backend/src/services/ai/agents/product-mgmt/tools/` (16 capability tool files) |
 | CustomerChatPanel | `frontend/src/features/customers/components/chat/CustomerChatPanel.tsx` |
 
 ---
 
 **Version History:**
+- **16.0.0** (2026-03-01) — LinkedIn Import Phase 3 (4-Layer Company Classification Pipeline): updated customer-management.md (v7.0.0, CompanyClassificationService with 4-layer pipeline: deterministic → Tavily LinkedIn lookup → LLM batch → fail-open, classify-first architecture, low-confidence tracking, LinkedIn company URL storage). Updated DOCUMENTATION_INDEX key files table. 0 new doc files, 2 updated.
+- **15.0.0** (2026-02-28) — LinkedIn Import Phase 2 (Enrichment + ICP Scoring): updated customer-management.md (v6.0.0, LLM enrichment via EnrichmentService, hybrid ICP scoring via IcpScoringService, ICP settings configuration, auto-status for low-ICP new customers), customer-endpoints.md (v6.0.0, +2 endpoints: GET/PUT /api/icp-settings, enrichment/ICP fields in LinkedIn import response), database-schema-reference.md (v5.0.0, +1 table: icp_settings). 0 new doc files, 4 updated.
+- **14.0.0** (2026-02-28) — LinkedIn Import Phase 1 + ICP Scores: updated customer-management.md (v5.0.0, LinkedIn CSV import, ICP score badges/filter, "Not Relevant" status, team member LinkedIn URLs), customer-endpoints.md (v5.0.0, +1 endpoint: POST /api/customers/import/linkedin, icp query parameter), PRODUCT_OVERVIEW.md (Phase 6 status, LinkedIn Import feature row). 0 new doc files, 4 updated.
+- **13.0.0** (2026-02-28) — AI Agent Folder Reorganization: moved 46 files from flat services/ai/tools/ and services/ai/prompts/ into agent-specific folders (agents/customer-mgmt/, agents/product-mgmt/, agents/portfolio/, agents/shared/). Added 16 product management capability tools. Updated all file path references across 9 documentation files. Updated tool count from 44+ to 60+.
 - **12.0.0** (2026-02-26) — Customer AI Handoff Architecture: replaced keyword-based routing with LLM-driven tool-based agent handoff. Updated customer-ai-endpoints.md (v2.0.0, handoff flow, composed streaming, validation schemas), customer-ai-chat.md (v2.0.0, handoff architecture), customer-agents-reference.md (v3.0.0, handoff mechanism, loop prevention). Removed deleted CustomerAgentRouter.ts from key files, added handoffTools.ts. 0 new files, 4 updated.
 - **11.0.0** (2026-02-26) — Customer Phase 5 (Search, Dashboard, Cross-Linking): updated customer-management.md (v4.0.0, full-text search, enriched cards, dashboard stats, cross-module linking, health signals), customer-pages.md (v5.0.0, CustomerCardSkeleton, AlertDialog, responsive grid, event type filter, "Referenced by"), customer-endpoints.md (v4.0.0, +3 endpoints: search, stats, artifact search), customer-agents-reference.md (v2.0.0, health signals, deliverables, action suggestions), database-schema-reference.md (v4.0.0, 2 new functions + TSVECTOR + 2 GIN indexes), PRODUCT_OVERVIEW (Phase 5 status, 50 endpoints, 5 functions). 0 new files, 7 updated.
 - **10.0.0** (2026-02-25) — Customer AI Chat Phase 4: added customer-ai-chat.md (feature), customer-ai-endpoints.md (API), customer-agents-reference.md (agents/tools), updated database-schema-reference.md (v3.2.0, merge_customer_info function), updated customer-pages.md (v4.0.0, Chat button), updated PRODUCT_OVERVIEW.md (Phase 4 status, 47 endpoints, 3 functions). 3 new files, 4 updated.

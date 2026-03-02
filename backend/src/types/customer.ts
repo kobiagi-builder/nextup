@@ -8,11 +8,45 @@
 // Customer Status
 // =============================================================================
 
-export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive'
+export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant'
 
 export const VALID_CUSTOMER_STATUSES: CustomerStatus[] = [
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
 ]
+
+// =============================================================================
+// ICP Score
+// =============================================================================
+
+export type IcpScore = 'low' | 'medium' | 'high' | 'very_high'
+
+// =============================================================================
+// ICP Settings (User-Level)
+// =============================================================================
+
+export interface IcpSettings {
+  id: string
+  user_id: string
+  target_employee_min: number | null
+  target_employee_max: number | null
+  target_industries: string[]
+  target_specialties: string[]
+  description: string
+  weight_quantitative: number
+  created_at: string
+  updated_at: string
+}
+
+export type IcpSettingsInput = Partial<Pick<IcpSettings,
+  'target_employee_min' | 'target_employee_max' | 'target_industries' |
+  'target_specialties' | 'description' | 'weight_quantitative'
+>>
+
+// =============================================================================
+// Enrichment Source (single source of truth)
+// =============================================================================
+
+export type EnrichmentSource = 'linkedin_scrape' | 'llm_enrichment' | 'tavily_grounded'
 
 // =============================================================================
 // Customer Info (JSONB)
@@ -23,6 +57,7 @@ export interface TeamMember {
   role?: string
   email?: string
   notes?: string
+  linkedin_url?: string
 }
 
 export interface CustomerInfo {
@@ -38,7 +73,41 @@ export interface CustomerInfo {
     url?: string
   }
   team?: TeamMember[]
+  icp_score?: IcpScore | null
+  enrichment?: {
+    employee_count?: string
+    about?: string
+    industry?: string
+    specialties?: string[]
+    source?: EnrichmentSource
+    updated_at?: string
+  }
+  linkedin_company_url?: string
   [key: string]: unknown // Extensible
+}
+
+// =============================================================================
+// LinkedIn Import
+// =============================================================================
+
+export interface LinkedInConnection {
+  firstName: string
+  lastName: string
+  url: string
+  emailAddress: string
+  company: string
+  position: string
+}
+
+export interface ImportResult {
+  total: number
+  companies: { created: number; matched: number }
+  teamMembers: { created: number; updated: number }
+  skipped: Array<{ row: number; company: string; reason: string }>
+  errors: Array<{ row: number; message: string }>
+  classification?: { layer0: number; layer1: number; layer2: number; layer3: number; total: number }
+  enrichment?: { enriched: number; skippedFresh: number; failed: number }
+  icpScores?: { low: number; medium: number; high: number; very_high: number; not_scored: number; skipped_unchanged: number }
 }
 
 // =============================================================================

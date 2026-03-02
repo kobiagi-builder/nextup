@@ -13,23 +13,23 @@ import { anthropic } from '@ai-sdk/anthropic'
 import { openai } from '@ai-sdk/openai'
 import { getSupabase, requestContextStorage } from '../../lib/requestContext.js'
 import { logger, logToFile } from '../../lib/logger.js'
-import { getBaseSystemPrompt } from './prompts/systemPrompts.js'
+import { getBaseSystemPrompt } from './agents/portfolio/prompt/systemPrompts.js'
 import { mockService, type AIServiceResponse } from './mocks/index.js'
-import * as contentTools from './tools/contentTools.js'
-import * as profileTools from './tools/profileTools.js'
-import * as responseTools from './tools/responseTools.js'
-import * as researchTools from './tools/researchTools.js'
-import * as skeletonTools from './tools/skeletonTools.js'
-import * as contentWritingTools from './tools/contentWritingTools.js'
-import * as humanityCheckTools from './tools/humanityCheckTools.js'
-import * as visualsCreatorTool from './tools/visualsCreatorTool.js'
-import * as imageNeedsTools from './tools/imageNeedsTools.js'
-import * as contentImprovementTools from './tools/contentImprovementTools.js'
-import * as socialPostTools from './tools/socialPostTools.js'
-import * as interviewTools from './tools/interviewTools.js'
-import * as storytellingTools from './tools/storytellingTools.js'
-import * as trendingTopicsTools from './tools/trendingTopicsTools.js'
-import * as followUpTopicsTools from './tools/followUpTopicsTools.js'
+import * as contentTools from './agents/portfolio/tools/contentTools.js'
+import * as profileTools from './agents/portfolio/tools/profileTools.js'
+import * as responseTools from './agents/portfolio/tools/responseTools.js'
+import * as researchTools from './agents/portfolio/tools/researchTools.js'
+import * as skeletonTools from './agents/portfolio/tools/skeletonTools.js'
+import * as contentWritingTools from './agents/portfolio/tools/contentWritingTools.js'
+import * as humanityCheckTools from './agents/portfolio/tools/humanityCheckTools.js'
+import * as visualsCreatorTool from './agents/portfolio/tools/visualsCreatorTool.js'
+import * as imageNeedsTools from './agents/portfolio/tools/imageNeedsTools.js'
+import * as contentImprovementTools from './agents/portfolio/tools/contentImprovementTools.js'
+import * as socialPostTools from './agents/portfolio/tools/socialPostTools.js'
+import * as interviewTools from './agents/portfolio/tools/interviewTools.js'
+import * as storytellingTools from './agents/portfolio/tools/storytellingTools.js'
+import * as trendingTopicsTools from './agents/portfolio/tools/trendingTopicsTools.js'
+import * as followUpTopicsTools from './agents/portfolio/tools/followUpTopicsTools.js'
 import { pipelineExecutor } from './PipelineExecutor.js'
 import type { UserContext } from '../../types/portfolio.js'
 
@@ -90,7 +90,7 @@ interface StreamChatOptions extends ChatOptions {
 
 const MODEL_CONFIG: Record<AIModel, { provider: AIProvider; modelId: string }> = {
   'claude-sonnet': { provider: 'anthropic', modelId: 'claude-sonnet-4-20250514' },
-  'claude-haiku': { provider: 'anthropic', modelId: 'claude-haiku-4-20250514' },
+  'claude-haiku': { provider: 'anthropic', modelId: 'claude-haiku-4-5-20251001' },
   'gpt-4o': { provider: 'openai', modelId: 'gpt-4o' },
   'gpt-4o-mini': { provider: 'openai', modelId: 'gpt-4o-mini' },
 }
@@ -346,6 +346,19 @@ export class AIService {
     // Fetch user context for personalization
     const userContext = await fetchUserContext()
 
+    // Fetch ICP description from icp_settings for prompt personalization
+    let icpDescription: string | null = null
+    try {
+      const { data: icpRow } = await getSupabase()
+        .from('icp_settings')
+        .select('description')
+        .limit(1)
+        .single()
+      icpDescription = icpRow?.description ?? null
+    } catch {
+      // No ICP settings configured — that's fine
+    }
+
     // Fetch interview context for resume scenarios (showcase interview Phase 2)
     let interviewContext: { pairs: Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>; lastCoverageScores: Record<string, number>; questionCount: number } | null = null;
     if (screenContext?.artifactStatus === 'interviewing' && screenContext?.artifactId) {
@@ -364,7 +377,7 @@ export class AIService {
       }
     }
 
-    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext, selectionContext, interviewContext)
+    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, screenContext, selectionContext, interviewContext, icpDescription)
 
     const toolsToUse = includeTools ? (toolsOverride || AVAILABLE_TOOLS) : undefined
 
@@ -566,7 +579,21 @@ export class AIService {
     }
 
     const userContext = await fetchUserContext()
-    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext)
+
+    // Fetch ICP description for prompt personalization
+    let icpDescription: string | null = null
+    try {
+      const { data: icpRow } = await getSupabase()
+        .from('icp_settings')
+        .select('description')
+        .limit(1)
+        .single()
+      icpDescription = icpRow?.description ?? null
+    } catch {
+      // No ICP settings configured
+    }
+
+    const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, undefined, undefined, undefined, icpDescription)
 
     // =========================================================================
     // LOGGING: Non-streaming request details (to file)

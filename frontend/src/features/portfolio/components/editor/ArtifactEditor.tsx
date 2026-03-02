@@ -18,11 +18,12 @@ import { ChatPanel } from '../chat/ChatPanel'
 import { ImageApprovalPanel } from '../artifact/ImageApprovalPanel'
 import { ImageRegenerationModal } from '../artifact/ImageRegenerationModal'
 import { TagsInput } from '../artifact/TagsInput'
+import { ArtifactReferences } from './ArtifactReferences'
 import { Label } from '@/components/ui/label'
 import { artifactContextKey } from '../../stores/chatStore'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import { useImageGeneration } from '../../hooks/useImageGeneration'
-import type { ToneOption, VisualsMetadata, FinalImage, ImageNeed, ArtifactStatus } from '../../types/portfolio'
+import type { ToneOption, VisualsMetadata, FinalImage, ImageNeed, ArtifactStatus, LinkedCustomerArtifactRef } from '../../types/portfolio'
 
 // =============================================================================
 // Types
@@ -65,6 +66,12 @@ export interface ArtifactEditorProps {
   tags?: string[]
   /** Tags change handler */
   onTagsChange?: (tags: string[]) => void
+  /** Linked customer artifacts (cross-module references) */
+  linkedCustomerArtifacts?: LinkedCustomerArtifactRef[]
+  /** Handler to link a customer artifact */
+  onLinkCustomerArtifact?: (ref: LinkedCustomerArtifactRef) => void
+  /** Handler to unlink a customer artifact */
+  onUnlinkCustomerArtifact?: (id: string) => void
   /** Test ID for E2E testing */
   'data-testid'?: string
 }
@@ -91,6 +98,9 @@ export function ArtifactEditor({
   onImageAIClick,
   tags = [],
   onTagsChange,
+  linkedCustomerArtifacts = [],
+  onLinkCustomerArtifact,
+  onUnlinkCustomerArtifact,
   editable = true,
   'data-testid': testId,
 }: ArtifactEditorProps) {
@@ -306,6 +316,16 @@ export function ArtifactEditor({
             className="flex-1"
           />
         </div>
+      )}
+
+      {/* Cross-module references */}
+      {onLinkCustomerArtifact && onUnlinkCustomerArtifact && (
+        <ArtifactReferences
+          linkedArtifacts={linkedCustomerArtifacts}
+          onLink={onLinkCustomerArtifact}
+          onUnlink={onUnlinkCustomerArtifact}
+          disabled={!editable}
+        />
       )}
 
       {/* Phase 3: Content Complete Banner */}

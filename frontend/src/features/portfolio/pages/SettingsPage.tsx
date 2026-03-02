@@ -83,6 +83,7 @@ export function SettingsPage() {
         </div>
         <WritingReferencesManager />
       </section>
+
     </div>
   )
 }
