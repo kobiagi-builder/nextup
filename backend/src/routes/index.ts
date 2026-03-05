@@ -6,6 +6,8 @@ import artifactResearchRouter from './artifactResearch.routes.js'
 import writingExamplesRouter from './writingExamples.routes.js'
 import customersRouter from './customers.js'
 import icpSettingsRouter from './icp-settings.js'
+import onboardingRouter from './onboarding.js'
+import { attachmentRouter } from './attachments.js'
 import { authRouter } from './auth.routes.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireFeature } from '../middleware/requireFeature.js'
@@ -29,3 +31,5 @@ router.use('/artifacts', requireAuth, artifactResearchRouter)
 router.use('/user/writing-examples', requireAuth, writingExamplesRouter)
 router.use('/customers', requireAuth, requireFeature('customer_management'), customersRouter)
 router.use('/icp-settings', requireAuth, requireFeature('customer_management'), icpSettingsRouter)
+router.use('/onboarding', requireAuth, onboardingRouter)
+router.use('/ai/attachments', requireAuth, attachmentRouter)

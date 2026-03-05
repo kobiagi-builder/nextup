@@ -18,6 +18,26 @@ General-purpose browser automation skill. I'll write custom Playwright code for 
 
 **CRITICAL WORKFLOW - Follow these steps in order:**
 
+0. **Create a session directory** - ALWAYS create a timestamped session directory FIRST for all screenshots and artifacts:
+
+   ```bash
+   # For custom scripts: use helpers.createSessionDir()
+   cd $SKILL_DIR && node -e "require('./lib/helpers').createSessionDir('pw-test')"
+   ```
+
+   ```bash
+   # For MCP playwright_screenshot calls: create the dir and pass it as downloadsDir
+   mkdir -p /tmp/pw-test-$(date +%Y-%m-%d_%H-%M-%S)
+   ```
+
+   **NEVER save screenshots to the Downloads folder or bare /tmp.** Always use the session directory.
+
+   **When testing is complete**, clean up the session directory:
+   ```bash
+   # For custom scripts: call helpers.cleanupSessionDir() at the end
+   # For MCP tools: rm -rf /tmp/pw-test-<timestamp>
+   ```
+
 1. **Auto-detect dev servers** - For localhost testing, ALWAYS run server detection FIRST:
 
    ```bash
@@ -65,21 +85,23 @@ cd $SKILL_DIR && node -e "require('./lib/helpers').detectDevServers().then(s => 
 ```javascript
 // /tmp/playwright-test-page.js
 const { chromium } = require('playwright');
+const helpers = require('./lib/helpers');
 
 // Parameterized URL (detected or user-provided)
 const TARGET_URL = 'http://localhost:3001'; // <-- Auto-detected or from user
 
 (async () => {
+  const sessionDir = helpers.createSessionDir('pw-test');
   const browser = await chromium.launch({ headless: false });
   const page = await browser.newPage();
 
   await page.goto(TARGET_URL);
   console.log('Page loaded:', await page.title());
 
-  await page.screenshot({ path: '/tmp/screenshot.png', fullPage: true });
-  console.log('📸 Screenshot saved to /tmp/screenshot.png');
+  await helpers.takeScreenshot(page, 'homepage');
 
   await browser.close();
+  helpers.cleanupSessionDir(); // Clean up when done
 })();
 ```
 
@@ -96,10 +118,12 @@ cd $SKILL_DIR && node run.js /tmp/playwright-test-page.js
 ```javascript
 // /tmp/playwright-test-responsive.js
 const { chromium } = require('playwright');
+const helpers = require('./lib/helpers');
 
 const TARGET_URL = 'http://localhost:3001'; // Auto-detected
 
 (async () => {
+  const sessionDir = helpers.createSessionDir('pw-responsive');
   const browser = await chromium.launch({ headless: false, slowMo: 100 });
   const page = await browser.newPage();
 
@@ -107,13 +131,14 @@ const TARGET_URL = 'http://localhost:3001'; // Auto-detected
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.goto(TARGET_URL);
   console.log('Desktop - Title:', await page.title());
-  await page.screenshot({ path: '/tmp/desktop.png', fullPage: true });
+  await helpers.takeScreenshot(page, 'desktop');
 
   // Mobile test
   await page.setViewportSize({ width: 375, height: 667 });
-  await page.screenshot({ path: '/tmp/mobile.png', fullPage: true });
+  await helpers.takeScreenshot(page, 'mobile');
 
   await browser.close();
+  helpers.cleanupSessionDir(); // Clean up when done
 })();
 ```
 
@@ -297,12 +322,39 @@ await browser.close();
 - **Inline**: Quick one-off tasks (screenshot, check if element exists, get page title)
 - **Files**: Complex tests, responsive design checks, anything user might want to re-run
 
+## Using MCP Playwright Tools (playwright_screenshot, etc.)
+
+When using the built-in MCP Playwright tools (e.g., `playwright_screenshot`), follow the same session directory pattern:
+
+1. **Start of testing session**: Create a timestamped directory
+   ```bash
+   SESSION_DIR="/tmp/pw-test-$(date +%Y-%m-%d_%H-%M-%S)"
+   mkdir -p "$SESSION_DIR"
+   ```
+
+2. **Pass `downloadsDir` on every screenshot call**:
+   ```
+   playwright_screenshot({ name: "homepage", downloadsDir: "/tmp/pw-test-2026-03-04_14-30-00", savePng: true })
+   ```
+
+3. **End of testing session**: Delete the directory
+   ```bash
+   rm -rf /tmp/pw-test-2026-03-04_14-30-00
+   ```
+
+**NEVER** use the default Downloads folder. Always create and pass a session directory.
+
 ## Available Helpers
 
 Optional utility functions in `lib/helpers.js`:
 
 ```javascript
 const helpers = require('./lib/helpers');
+
+// Session directory management (CRITICAL - create at start, cleanup at end!)
+const sessionDir = helpers.createSessionDir('pw-test'); // Creates /tmp/pw-test-2026-03-04_14-30-00/
+helpers.getSessionDir();                                 // Returns current session dir
+helpers.cleanupSessionDir();                             // Deletes session dir when done
 
 // Detect running dev servers (CRITICAL - use this first!)
 const servers = await helpers.detectDevServers();
@@ -314,7 +366,7 @@ await helpers.safeClick(page, 'button.submit', { retries: 3 });
 // Safe type with clear
 await helpers.safeType(page, '#username', 'testuser');
 
-// Take timestamped screenshot
+// Take timestamped screenshot (auto-saves to session dir)
 await helpers.takeScreenshot(page, 'test-result');
 
 // Handle cookie banners

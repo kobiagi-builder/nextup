@@ -7,7 +7,7 @@
 
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { markdownToHTML, isMarkdown } from '@/lib/markdown'
-import { ArrowLeft, CheckCircle, Loader2, Sparkles, Share2, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, MessageSquare, Sparkles, Share2, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-media-query'
@@ -312,13 +312,18 @@ Source Artifact ID: ${sourceId}`
       // Invalidate research to force immediate refetch
       queryClient.invalidateQueries({ queryKey: ['research', artifact.id] })
 
-      // Note: Research area stays collapsed by default per user preference
-      // Users can expand manually if they want to see research sources
+      // Celebration toast when content is ready
+      if (previousStatus && previousStatus !== undefined) {
+        toast({
+          title: 'Content ready!',
+          description: `Your ${artifact.type === 'blog' ? 'blog post' : artifact.type === 'showcase' ? 'case study' : 'social post'} is ready to review and publish.`,
+        })
+      }
     }
 
     // Update ref for next render
     prevStatusRef.current = currentStatus
-  }, [artifact, research.length, queryClient])
+  }, [artifact, research.length, queryClient, toast])
 
   // Real-time artifact updates via Supabase Realtime
   // Listens for UPDATE events on the artifacts table and invalidates cache for immediate refresh
@@ -809,6 +814,21 @@ Source Artifact ID: ${sourceId}`
           </h1>
         </div>
 
+        {/* Generation status indicator */}
+        {['research', 'foundations', 'skeleton', 'writing', 'humanity_checking', 'creating_visuals'].includes(artifact.status) && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <span>
+              {artifact.status === 'research' && 'Researching...'}
+              {artifact.status === 'foundations' && 'Analyzing style...'}
+              {artifact.status === 'skeleton' && 'Structure ready'}
+              {artifact.status === 'writing' && 'Writing...'}
+              {artifact.status === 'humanity_checking' && 'Polishing...'}
+              {artifact.status === 'creating_visuals' && 'Generating images...'}
+            </span>
+          </div>
+        )}
+
         {/* Phase 1: Start Research button (only visible when draft) */}
         {artifact.status === 'draft' && (
           <Button
@@ -906,17 +926,38 @@ Source Artifact ID: ${sourceId}`
           />
         </div>
 
-        {/* Writing/Humanizing Phase: Show shimmer loader instead of editor */}
-        {(artifact.status === 'writing' || artifact.status === 'humanity_checking') && (
+        {/* Writing/Humanizing/Visuals Phase: Show shimmer loader instead of editor */}
+        {(['writing', 'humanity_checking', 'creating_visuals'].includes(artifact.status)) && (
           <div className="flex-1 overflow-hidden">
-            <ContentGenerationLoader artifactType={artifact.type} />
+            <ContentGenerationLoader artifactType={artifact.type} status={artifact.status} />
+          </div>
+        )}
+
+        {/* Foundations/Skeleton Phase: Show status message in editor area */}
+        {(['foundations'].includes(artifact.status)) && (
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div className="space-y-3">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground/40 mx-auto" />
+              <p className="text-sm text-muted-foreground">Analyzing your writing style...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Interview Phase: Show contextual message */}
+        {artifact.status === 'interviewing' && (
+          <div className="flex-1 flex items-center justify-center text-center p-8">
+            <div className="space-y-3">
+              <MessageSquare className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+              <p className="text-sm text-muted-foreground">Your interview answers will shape this case study</p>
+              <p className="text-xs text-muted-foreground/60">Answer the questions in the AI Assistant panel</p>
+            </div>
           </div>
         )}
 
         {/* Editor Area - Collapsible below research (default: expanded) */}
         {/* Phase 4: HIDE editor during skeleton workflow + writing (shimmer shown above) */}
         {/* Content area should only appear AFTER writing completes */}
-        {!['foundations', 'skeleton', 'foundations_approval', 'writing', 'humanity_checking'].includes(artifact.status) && (
+        {!['foundations', 'skeleton', 'foundations_approval', 'writing', 'humanity_checking', 'creating_visuals', 'interviewing'].includes(artifact.status) && (
           <div className={isEditorCollapsed ? 'h-auto' : 'flex-1'}>
             <ArtifactEditor
               artifactId={artifact.id}

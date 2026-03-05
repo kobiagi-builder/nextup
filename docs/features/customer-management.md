@@ -1,13 +1,13 @@
 # Customer Management
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-01
-**Version:** 7.0.0
-**Status:** Active (Phase 8 — 4-Layer Company Classification Pipeline)
+**Last Updated:** 2026-03-04
+**Version:** 10.0.0
+**Status:** Active (Phase 11 — LinkedIn Team Auto-Triggers)
 
 ## Overview
 
-Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, projects, and deliverable artifacts. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Projects tab with full project and artifact CRUD, including a TipTap rich text editor with auto-save for artifact content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts. Phase 6 adds LinkedIn Connections CSV Import — upload a LinkedIn-exported CSV to auto-create/match customers and upsert team members with edge case handling, ICP score badges, ICP filter pills, and a "Not Relevant" status. Phase 7 adds post-import intelligence: LLM-powered company enrichment (employee count, industry, specialties, about) and hybrid ICP scoring (quantitative formula + qualitative LLM), with ICP settings configuration in the Settings page and auto-status assignment for low-ICP new customers. Phase 8 replaces the inline deterministic-only company classification with a 4-layer pipeline (deterministic → Tavily LinkedIn lookup → LLM batch → fail-open), deduplicates company names before classification, stores LinkedIn company URLs, and guards low-confidence companies from auto-status upgrades.
+Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, projects, and deliverable artifacts. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Projects tab with full project and artifact CRUD, including a TipTap rich text editor with auto-save for artifact content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts. Phase 6 adds LinkedIn Connections CSV Import — upload a LinkedIn-exported CSV to auto-create/match customers and upsert team members with edge case handling, ICP score badges, ICP filter pills, and a "Not Relevant" status. Phase 7 adds post-import intelligence: LLM-powered company enrichment (employee count, industry, specialties, about) and hybrid ICP scoring (quantitative formula + qualitative LLM), with ICP settings configuration in the Settings page and auto-status assignment for low-ICP new customers. Phase 8 replaces the inline deterministic-only company classification with a 4-layer pipeline (deterministic → Tavily LinkedIn lookup → LLM batch → fail-open), deduplicates company names before classification, stores LinkedIn company URLs, and guards low-confidence companies from auto-status upgrades. Phase 9 adds the LinkedIn Team Extraction backend pipeline: scrape team members from LinkedIn company People pages via Tavily + AI role filtering via Haiku, merge scraped members into existing team with source tracking (`manual` vs `linkedin_scrape`), soft-delete stale scraped members, and per-user configurable role filters. Phase 10 adds the frontend UI for LinkedIn Team Extraction: a "Sync" button in TeamSection with LinkedIn icon and loading spinner, "via LinkedIn" source badges on scraped members, URL validation error icons (AlertCircle) next to invalid LinkedIn/website URLs with tooltip explanations, and hidden member filtering in OverviewTab to exclude soft-deleted members from display while preserving them during manual edits. Phase 11 automates team extraction across all entry points: (1) auto-extract on customer creation after enrichment populates a LinkedIn URL, (2) auto-extract on customer update when `info` contains a LinkedIn URL, (3) refactored manual sync handler to use a shared `syncTeamForCustomer` helper, and (4) 5-second delayed query invalidation on `useUpdateCustomer` to surface background results without manual refresh.
 
 ## User Perspective
 
@@ -115,6 +115,150 @@ Runs automatically after Phase 1. For each unique company:
 
 **Results returned:** total rows, classification stats (layer0/layer1/layer2/layer3/total), companies created/matched, team members created/updated, skipped rows with reasons, errors, enrichment stats (enriched/skippedFresh/failed), ICP score distribution (low/medium/high/very_high/not_scored)
 
+### LinkedIn Team Extraction (Phase 9 — Backend Pipeline)
+
+Extracts team members from a company's LinkedIn People page and merges them into the customer's `info.team` array. Requires the customer to have a valid LinkedIn company URL in `info.enrichment.linkedinCompanyUrl` or similar field.
+
+**API endpoint:** `POST /api/customers/:id/sync-team-from-linkedin`
+
+**Pipeline:**
+
+1. **Extract company slug** — `EnrichmentService.extractCompanySlug(url)` parses the LinkedIn company URL to extract the slug (e.g., `acme-corp` from `https://linkedin.com/company/acme-corp/people/`)
+2. **Scrape People page** — `EnrichmentService.scrapeLinkedInPeople(slug)` performs dual Tavily search (LinkedIn-domain + general web) and uses Claude Haiku to extract structured people data (name, role, linkedin_url)
+3. **AI role filtering** — `EnrichmentService.filterTeamByRoles(people, roleFilters, exclusions)` sends the full list to Claude Haiku in a single batch request. Returns indices of people matching configured role categories
+4. **Merge** — `mergeTeamMembers(existingTeam, filteredPeople)` applies 3-pass merge:
+   - **Pass 1 (soft-delete):** Mark stale `linkedin_scrape` members as `hidden: true` if not in new scrape
+   - **Pass 2 (un-hide):** Returning members get `hidden: false` and updated role/linkedin_url
+   - **Pass 3 (add):** New members added with `source: 'linkedin_scrape'`
+   - Manual members (no source or `source: 'manual'`) are never modified or removed
+5. **Persist** — `CustomerService.mergeInfo()` writes merged team back via `merge_customer_info` RPC
+
+**Default role filters (when no per-user config exists):**
+- Founder, C-Level (CEO, CTO, CMO, etc.), VP-level, Director-level, Head of, Product Management, Product Design
+- **Exclusions:** HR, Human Resources, Recruiting, Talent Acquisition, People Operations, Office Manager, Administrative
+
+**Per-user configuration:** Stored in `team_role_filters` table. Users can customize which role categories to include/exclude.
+
+**Error handling:** On failure, error message is persisted to `customer.info.enrichment_errors.linkedin` for UI display. On success, the error key is cleared.
+
+**Response:**
+```json
+{
+  "added": 5,
+  "removed": 2,
+  "total": 12,
+  "members": [{ "name": "...", "role": "...", "source": "linkedin_scrape" }]
+}
+```
+
+**Errors:** 400 (no LinkedIn URL), 401 (unauthorized), 404 (customer not found), 500 (scraping/AI failure — persisted to enrichment_errors)
+
+### LinkedIn Team Extraction (Phase 10 — Frontend UI)
+
+Adds the user-facing controls for triggering team sync, displaying source information, and showing URL validation feedback.
+
+**Sync Button (TeamSection):**
+- Located in team section header, next to "Add" button
+- Shows LinkedIn icon (`Linkedin` from lucide) when idle, `Loader2` spinner when syncing
+- **Enabled** when customer has a valid LinkedIn company URL (regex-validated: `^https?://(www\.)?linkedin\.com/company/[^\/\?#]+`)
+- **Disabled** when no valid URL — tooltip explains "Add a LinkedIn company URL to sync team members"
+- On success: toast shows "Team synced — X added, Y removed"
+- On failure: toast shows destructive "Sync failed. Try again later."
+
+**Source Badges:**
+- Members with `source: 'linkedin_scrape'` display a "via LinkedIn" badge (small Linkedin icon + text in `#0A66C2/60` opacity)
+- Manually added members get `source: 'manual'` automatically
+- Editing a member preserves its original `source` value
+
+**URL Error Icons (CustomerInfoSection):**
+- `AlertCircle` icon appears next to LinkedIn URL when: format is invalid (`isValidLinkedInCompanyUrl` fails) OR `enrichment_errors.linkedin` is set
+- Same pattern for website URL with `isValidWebsiteUrl`
+- Each icon has a Tooltip with `data-portal-ignore-click-outside` showing the specific error message
+
+**Hidden Member Filtering (OverviewTab):**
+- `visibleTeam = team.filter(m => !m.hidden)` — hidden members are not rendered
+- On manual team save, hidden members are re-appended to preserve them in the JSONB payload
+
+**Frontend files modified:**
+| File | Changes |
+|------|---------|
+| `frontend/src/features/customers/hooks/useCustomers.ts` | `useSyncTeamFromLinkedIn` mutation hook |
+| `frontend/src/features/customers/components/overview/TeamSection.tsx` | Sync button, source badges, manual source tagging |
+| `frontend/src/features/customers/components/overview/CustomerInfoSection.tsx` | `isValidLinkedInCompanyUrl`, `isValidWebsiteUrl` (exported), AlertCircle error icons |
+| `frontend/src/features/customers/components/overview/OverviewTab.tsx` | Hidden member filtering, `customerId`/`linkedinCompanyUrl` props to TeamSection |
+
+**Test files:**
+| File | Tests |
+|------|-------|
+| `frontend/src/features/customers/components/overview/__tests__/url-validators.test.ts` | 19 tests: URL validators (9 LinkedIn, 5 website) + hidden member filtering (5) |
+| `frontend/src/features/customers/hooks/__tests__/useSyncTeamFromLinkedIn.test.ts` | 4 tests: API endpoint, response data, error handling, query keys |
+
+### LinkedIn Team Auto-Triggers (Phase 11)
+
+Automates team extraction so users never need to manually click "Sync" — team members are extracted automatically whenever a LinkedIn company URL enters the system.
+
+**Reusable Helper — `syncTeamForCustomer(customerId)`:**
+
+Extracted from the manual `syncTeamFromLinkedIn` HTTP handler into a standalone async function at `customer.controller.ts`. The helper:
+
+1. Fetches customer via `CustomerService.getById()`
+2. Reads `linkedin_company_url` from `customer.info` — returns `null` if missing
+3. Extracts slug via `EnrichmentService.extractCompanySlug()` — returns `null` if invalid
+4. Scrapes people via `enrichmentService.scrapeLinkedInPeople(slug)`
+5. On empty scrape: returns `{ added: 0, removed: 0 }` without clearing errors (could be silent failure)
+6. Loads per-user role filters from `team_role_filters` table (falls back to defaults)
+7. Filters via `enrichmentService.filterTeamByRoles()`
+8. Merges via `mergeTeamMembers()` (same 3-pass logic as Phase 9)
+9. Persists via `service.mergeInfo()` — clears `enrichment_errors.linkedin` on success
+10. Returns `{ added, removed }`
+
+**Auto-Trigger 1 — Customer Creation (`enrichAndScoreNewCustomer`):**
+
+After enrichment saves company data (which may populate `linkedin_company_url`), the pipeline:
+- Re-fetches the customer to get latest data including enrichment results
+- If `linkedin_company_url` exists: calls `await syncTeamForCustomer(customer.id)`
+- On failure: logs error and persists `enrichment_errors.linkedin` (preserving existing `website` errors via spread)
+- Team extraction failure does NOT block the enrichment/ICP pipeline — wrapped in its own try/catch
+
+**Auto-Trigger 2 — Customer Update (`updateCustomer`):**
+
+After the update is saved and ICP rescoring is triggered, if the update payload contained `info` and the updated customer has a valid LinkedIn company URL (extractable slug):
+- Fire-and-forget: `syncTeamForCustomer(customer.id).catch(err => logger.error(...))`
+- Merge is idempotent — re-syncing an unchanged URL confirms existing members without duplicates
+- Response is returned immediately; team sync runs in the background
+
+**Skipped Trigger — `enrichFromLinkedIn`:**
+
+The `enrichFromLinkedIn` endpoint is a stateless preview — it takes only `linkedin_url` in the body with no `customer_id` context. Not connected to a customer record, so team extraction is not applicable.
+
+**Frontend — Delayed Query Invalidation (`useUpdateCustomer`):**
+
+Added 5-second delayed re-invalidation in `onSuccess` callback (matching `useCreateCustomer` pattern):
+```typescript
+setTimeout(() => {
+  queryClient.invalidateQueries({ queryKey: customerKeys.detail(data.id) })
+  queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+}, 5000)
+```
+This ensures background team extraction + ICP rescoring results appear without manual page refresh.
+
+**Backend files modified:**
+| File | Changes |
+|------|---------|
+| `backend/src/controllers/customer.controller.ts` | New `syncTeamForCustomer` helper (exported `@internal`), auto-trigger in `enrichAndScoreNewCustomer`, auto-trigger in `updateCustomer`, refactored `syncTeamFromLinkedIn` handler to delegate to helper |
+
+**Frontend files modified:**
+| File | Changes |
+|------|---------|
+| `frontend/src/features/customers/hooks/useCustomers.ts` | `useUpdateCustomer` — added 5s delayed invalidation with comment |
+
+**Test files:**
+| File | Tests |
+|------|-------|
+| `backend/src/__tests__/unit/controllers/syncTeamForCustomer.test.ts` | 7 tests: null on missing customer, null on no URL, null on bad slug, empty scrape, filter+merge, clears enrichment_errors, correct counts |
+| `backend/src/__tests__/unit/controllers/autoTriggers.test.ts` | 4 tests: triggers sync with LinkedIn URL, skips without info, skips with invalid URL, HTTP response unaffected by sync failure |
+| `frontend/src/features/customers/hooks/__tests__/useUpdateCustomerDelayed.test.ts` | 4 tests: correct API endpoint, immediate invalidation, 5s delayed setTimeout scheduled, no delay without data.id |
+
 ### Agreement Types
 
 | Type | Label | Description |
@@ -215,7 +359,7 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Service | `backend/src/services/ReceivableService.ts` | Receivable CRUD + getSummary via RPC |
 | Service | `backend/src/services/CompanyClassificationService.ts` | 4-layer company name classification pipeline (deterministic → Tavily → LLM → fail-open) |
 | Service | `backend/src/services/LinkedInImportService.ts` | CSV parsing, classify-first flow, company matching, team upsert, post-import enrichment + ICP scoring |
-| Service | `backend/src/services/EnrichmentService.ts` | LLM-powered company enrichment (claude-haiku): employee count, about, industry, specialties |
+| Service | `backend/src/services/EnrichmentService.ts` | LLM-powered company enrichment (claude-haiku): employee count, about, industry, specialties; LinkedIn People page scraping + AI role filtering (Phase 9) |
 | Service | `backend/src/services/IcpScoringService.ts` | Hybrid ICP scoring: quantitative formula + qualitative LLM |
 | Service | `backend/src/services/IcpSettingsService.ts` | ICP settings CRUD (upsert with `ON CONFLICT user_id`) |
 | Controller | `backend/src/controllers/linkedinImport.controller.ts` | Multer CSV upload + import handler |
@@ -284,6 +428,10 @@ interface CustomerInfo {
     source?: 'linkedin_scrape' | 'llm_enrichment'
     updated_at?: string
   }
+  enrichment_errors?: {             // Phase 9: error tracking for UI display
+    linkedin?: string
+    website?: string
+  }
 }
 ```
 
@@ -295,6 +443,8 @@ interface TeamMember {
   email?: string
   notes?: string
   linkedin_url?: string
+  source?: 'manual' | 'linkedin_scrape'  // Origin tracking (Phase 9)
+  hidden?: boolean                         // Soft-delete for stale scraped members (Phase 9)
 }
 ```
 

@@ -1,8 +1,8 @@
 # NextUp
 
 **Created:** 2026-01-15
-**Last Updated:** 2026-02-28
-**Version:** 2.0.0
+**Last Updated:** 2026-03-02
+**Version:** 2.1.0
 **Status:** Active
 
 ## Overview
@@ -43,6 +43,7 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | Customer AI Chat | Dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing, 9 tools, structured response cards | Shipped (Phase 4) |
 | Customer Search & Dashboard | Full-text search, enriched list cards with summary metrics, dashboard stats, cross-module artifact linking, health signals in AI context | Shipped (Phase 5) |
 | LinkedIn Import & ICP | CSV import of LinkedIn connections, auto-create/match customers and team members, ICP score badges, ICP filter, "Not Relevant" status | Shipped (Phase 6) |
+| Onboarding Wizard | Guided new-user setup with AI profile extraction from LinkedIn/website, 5-step wizard, writing reference upload | Shipped (Phase 1) |
 | Dark/Light Theme | System-aware theme with manual override | Shipped |
 
 ## Tech Stack
@@ -53,7 +54,7 @@ NextUp is an AI-native operating system for advisors, consultants, and fractiona
 | UI | Tailwind CSS 3, shadcn/ui (Radix) | 20+ UI components |
 | State | Zustand (client), TanStack Query (server) | 4 stores, cache management |
 | Backend | Node.js, Express 4, TypeScript | REST API on port 3001 |
-| Database | Supabase (PostgreSQL) | 18 tables + 5 functions, RLS enabled |
+| Database | Supabase (PostgreSQL) | 20 tables + 5 functions, RLS enabled |
 | AI | Anthropic Claude (Vercel AI SDK v6), DALL-E 3, Gemini | Multi-provider via Vercel AI SDK |
 | Research | Tavily API | Multi-source web research |
 | Auth | Supabase Auth | JWT tokens, session management |
@@ -69,6 +70,7 @@ For full tech stack details, see [CLAUDE.md](../CLAUDE.md).
 | Path | Page | Description |
 |------|------|-------------|
 | `/` | Redirect | Redirects to `/portfolio` |
+| `/onboarding` | OnboardingPage | New-user onboarding wizard (standalone layout, no AppShell) |
 | `/portfolio` | PortfolioPage | Artifact grid with filters, create dialog, AI chat |
 | `/portfolio/artifacts/:id` | ArtifactPage | Full editor with chat panel, foundations, image approval |
 | `/profile` | ProfilePage | User context, skills management |
@@ -115,6 +117,7 @@ draft -> [interviewing] -> research -> foundations -> skeleton
 - **Customer Phase 4:** Complete (AI Chat — Dual Agent with Auto-Routing)
 - **Customer Phase 5:** Complete (Search, Dashboard Stats, Enriched Cards, Health Signals, UX Polish, Cross-Module Linking)
 - **Customer Phase 6:** Complete (LinkedIn CSV Import, ICP Score Badges & Filter, "Not Relevant" Status, Team Member LinkedIn URLs)
+- **Onboarding Phase 1:** Complete (5-step wizard, AI profile extraction, route guard, writing reference upload)
 - All core features shipped. Platform is production-ready.
 
 ## Related Documentation

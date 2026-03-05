@@ -57,9 +57,17 @@ export function createCustomerMgmtTools(supabase: SupabaseClient, customerId: st
     }),
 
     updateCustomerInfo: tool({
-      description: 'Update customer information fields (about, vertical, persona, icp, product). Uses atomic JSONB merge — safe for concurrent updates.',
+      description: `Update customer information fields. Uses atomic JSONB merge — safe for concurrent updates.
+
+Field definitions:
+- "about": Free-text description of the customer's company, business, and what they do.
+- "vertical": The industry or market vertical (e.g., "B2B SaaS", "FinTech", "Healthcare").
+- "persona": Text description of the customer's TARGET BUYER PERSONAS — fictional/representative profiles of their ideal end users or buyers. These are NOT real people. Include persona names, demographics, goals, frustrations, and decision criteria as a structured text description. NEVER put personas in the "team" field.
+- "icp": Text description of the customer's IDEAL CUSTOMER PROFILE — firmographic criteria like company size, revenue, geography, trigger events, pain intensity. This defines WHAT KIND of company is an ideal customer, not specific people.
+- "product": Object with product details: { name, stage, category, description, url }.
+- "team": Array of REAL people who work at the customer's company — actual employees, contacts, stakeholders you interact with. Each entry: { name, role, email?, notes?, linkedin_url? }. NEVER put fictional personas, buyer profiles, or representative user archetypes here.`,
       inputSchema: z.object({
-        updates: z.record(z.unknown()).describe('Key-value pairs of info fields to update (e.g., { "vertical": "SaaS", "persona": "VP Product" })'),
+        updates: z.record(z.unknown()).describe('Key-value pairs of info fields to update. Use "persona" and "icp" for buyer profiles and ideal customer criteria (text). Use "team" ONLY for real company employees (array of {name, role}).'),
       }),
       execute: async ({ updates }) => {
         logToFile('TOOL EXECUTED: updateCustomerInfo', { hasCustomerId: !!customerId, fields: Object.keys(updates) })

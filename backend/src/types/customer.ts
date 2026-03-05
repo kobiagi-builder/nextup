@@ -58,6 +58,8 @@ export interface TeamMember {
   email?: string
   notes?: string
   linkedin_url?: string
+  source?: 'manual' | 'linkedin_scrape'
+  hidden?: boolean
 }
 
 export interface CustomerInfo {
@@ -83,7 +85,28 @@ export interface CustomerInfo {
     updated_at?: string
   }
   linkedin_company_url?: string
+  website_url?: string
+  enrichment_errors?: {
+    linkedin?: string
+    website?: string
+  }
   [key: string]: unknown // Extensible
+}
+
+// =============================================================================
+// Team Role Filters (per-account configuration)
+// =============================================================================
+
+export interface TeamRoleFilter {
+  category: string
+  patterns: string[]
+}
+
+export interface TeamSyncResult {
+  added: number
+  removed: number
+  total: number
+  members: TeamMember[]
 }
 
 // =============================================================================
@@ -145,6 +168,8 @@ export interface CustomerWithSummary extends Customer {
   outstanding_balance: number
   active_projects_count: number
   last_activity: string | null
+  next_action_description: string | null
+  next_action_due_date: string | null
 }
 
 // =============================================================================
@@ -221,6 +246,12 @@ export const VALID_AGREEMENT_TYPES: AgreementType[] = [
   'retainer', 'project_based', 'hourly', 'fixed_price', 'equity', 'hybrid', 'custom',
 ]
 
+export type AgreementStatus = 'draft' | 'proposal' | 'agreed' | 'signed' | 'active' | 'completed' | 'on_hold' | 'archived'
+
+export const VALID_AGREEMENT_STATUSES: AgreementStatus[] = [
+  'draft', 'proposal', 'agreed', 'signed', 'active', 'completed', 'on_hold', 'archived',
+]
+
 export interface AgreementPricing {
   amount: number
   currency: string
@@ -234,10 +265,10 @@ export interface Agreement {
   customer_id: string
   scope: string
   type: AgreementType
+  status: AgreementStatus
   start_date: string | null
   end_date: string | null
   pricing: AgreementPricing
-  override_status: string | null
   created_at: string
   updated_at: string
 }
@@ -245,19 +276,19 @@ export interface Agreement {
 export interface CreateAgreementInput {
   scope: string
   type?: AgreementType
+  status?: AgreementStatus
   start_date?: string | null
   end_date?: string | null
   pricing?: AgreementPricing
-  override_status?: string | null
 }
 
 export interface UpdateAgreementInput {
   scope?: string
   type?: AgreementType
+  status?: AgreementStatus
   start_date?: string | null
   end_date?: string | null
   pricing?: AgreementPricing
-  override_status?: string | null
 }
 
 // =============================================================================

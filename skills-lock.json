@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "interface-design": {
+      "source": "dammyjay93/interface-design",
+      "sourceType": "github",
+      "computedHash": "d004c5e5e2e7132e1d64e9c2a339db7f7aaa69053a5c19cddc210dd35dd6fff5"
+    },
+    "skill-creator": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "computedHash": "9b03bb78ec5c81c4e0546dbb78cfc970368c72dcae5482e8c59690175abbc8e7"
+    },
+    "software-architecture": {
+      "source": "davila7/claude-code-templates",
+      "sourceType": "github",
+      "computedHash": "5ed3a499c43a7c4682f33525fb27c1b5ea1fe680bbcbc904918b6ee25edad89e"
+    }
+  }
+}

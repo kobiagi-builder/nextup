@@ -17,6 +17,20 @@ const turndownService = new TurndownService({
   codeBlockStyle: 'fenced',
 })
 
+// Preserve colored text spans as inline HTML (markdown doesn't support text color)
+turndownService.addRule('coloredSpan', {
+  filter: (node) =>
+    node.nodeName === 'SPAN' &&
+    !!(node as HTMLElement).style?.color,
+  replacement: (_content, node) => (node as HTMLElement).outerHTML,
+})
+
+// Preserve highlighted text (mark elements) as inline HTML
+turndownService.addRule('highlightMark', {
+  filter: 'mark',
+  replacement: (_content, node) => (node as HTMLElement).outerHTML,
+})
+
 /**
  * Convert markdown to HTML
  *

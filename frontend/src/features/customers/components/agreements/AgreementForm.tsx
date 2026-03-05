@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -27,8 +28,14 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCreateAgreement, useUpdateAgreement } from '../../hooks'
-import { AGREEMENT_TYPES, AGREEMENT_TYPE_LABELS } from '../../types'
-import type { Agreement } from '../../types'
+import {
+  AGREEMENT_TYPES,
+  AGREEMENT_TYPE_LABELS,
+  AGREEMENT_STATUSES,
+  AGREEMENT_STATUS_LABELS,
+  AGREEMENT_STATUS_DOT_COLORS,
+} from '../../types'
+import type { Agreement, AgreementStatus } from '../../types'
 
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'ILS'] as const
 const FREQUENCIES = ['monthly', 'quarterly', 'annually', 'one_time', 'per_milestone'] as const
@@ -43,6 +50,7 @@ const FREQUENCY_LABELS: Record<string, string> = {
 const agreementFormSchema = z.object({
   scope: z.string().min(1, 'Scope is required'),
   type: z.string().optional(),
+  status: z.string().optional(),
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   pricing_amount: z.union([z.string(), z.number()]).optional(),
@@ -70,6 +78,7 @@ export function AgreementForm({ customerId, agreement, open, onOpenChange }: Agr
     defaultValues: {
       scope: '',
       type: 'retainer',
+      status: 'draft',
       start_date: '',
       end_date: '',
       pricing_amount: '',
@@ -85,6 +94,7 @@ export function AgreementForm({ customerId, agreement, open, onOpenChange }: Agr
       form.reset({
         scope: agreement.scope,
         type: agreement.type,
+        status: agreement.status || 'draft',
         start_date: agreement.start_date || '',
         end_date: agreement.end_date || '',
         pricing_amount: agreement.pricing?.amount || '',
@@ -96,6 +106,7 @@ export function AgreementForm({ customerId, agreement, open, onOpenChange }: Agr
       form.reset({
         scope: '',
         type: 'retainer',
+        status: 'draft',
         start_date: '',
         end_date: '',
         pricing_amount: '',
@@ -120,6 +131,7 @@ export function AgreementForm({ customerId, agreement, open, onOpenChange }: Agr
     const payload = {
       scope: data.scope,
       type: data.type as Agreement['type'] | undefined,
+      status: (data.status || 'draft') as AgreementStatus,
       start_date: data.start_date || null,
       end_date: data.end_date || null,
       pricing,
@@ -167,44 +179,65 @@ export function AgreementForm({ customerId, agreement, open, onOpenChange }: Agr
             )}
           </div>
 
-          {/* Type */}
-          <div>
-            <Label>Type</Label>
-            <Select
-              value={form.watch('type') || 'retainer'}
-              onValueChange={(val) => form.setValue('type', val)}
-            >
-              <SelectTrigger className="mt-1">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent data-portal-ignore-click-outside>
-                {AGREEMENT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {AGREEMENT_TYPE_LABELS[t]}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Type & Status */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Type</Label>
+              <Select
+                value={form.watch('type') || 'retainer'}
+                onValueChange={(val) => form.setValue('type', val)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent data-portal-ignore-click-outside>
+                  {AGREEMENT_TYPES.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {AGREEMENT_TYPE_LABELS[t]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={form.watch('status') || 'draft'}
+                onValueChange={(val) => form.setValue('status', val)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent data-portal-ignore-click-outside>
+                  {AGREEMENT_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      <span className="flex items-center gap-2">
+                        <span className={`inline-block h-2 w-2 rounded-full ${AGREEMENT_STATUS_DOT_COLORS[s]}`} />
+                        {AGREEMENT_STATUS_LABELS[s]}
+                      </span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           {/* Dates */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <Label htmlFor="agreement-start">Start Date</Label>
-              <Input
-                id="agreement-start"
-                type="date"
-                {...form.register('start_date')}
-                className="mt-1"
+              <DatePicker
+                value={form.watch('start_date')}
+                onChange={(date) => form.setValue('start_date', date || '', { shouldValidate: true })}
+                placeholder="Start date"
               />
             </div>
             <div>
               <Label htmlFor="agreement-end">End Date</Label>
-              <Input
-                id="agreement-end"
-                type="date"
-                {...form.register('end_date')}
-                className="mt-1"
+              <DatePicker
+                value={form.watch('end_date')}
+                onChange={(date) => form.setValue('end_date', date || '', { shouldValidate: true })}
+                placeholder="End date"
               />
             </div>
           </div>

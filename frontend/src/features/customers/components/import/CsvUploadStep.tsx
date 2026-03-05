@@ -60,7 +60,7 @@ export function CsvUploadStep({ file, onFileSelect, onImport, isPending }: CsvUp
           className={cn(
             'flex flex-col items-center justify-center gap-3 rounded-lg border-2 border-dashed p-8 cursor-pointer transition-colors',
             isDragOver
-              ? 'border-[#0A66C2] bg-[#0A66C2]/5'
+              ? 'border-[#0A66C2] bg-[#0A66C2]/5' // LinkedIn brand blue — intentional exception
               : 'border-muted-foreground/25 hover:border-muted-foreground/50'
           )}
         >
@@ -71,6 +71,18 @@ export function CsvUploadStep({ file, onFileSelect, onImport, isPending }: CsvUp
           </div>
           <p className="text-xs text-muted-foreground">
             Expected columns: First Name, Last Name, URL, Email Address, Company, Position
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Export from{' '}
+            <a
+              href="https://www.linkedin.com/mypreferences/d/download-my-data"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-[#0A66C2] hover:underline" // LinkedIn brand blue — intentional exception
+            >
+              LinkedIn Data Export
+            </a>
+            {' '}&rarr; select &quot;Connections&quot; and download.
           </p>
           <input
             ref={inputRef}

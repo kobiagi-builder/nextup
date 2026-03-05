@@ -7,6 +7,7 @@
 
 import { useCallback, useMemo, useState } from 'react'
 import { useAIChat, type UseAIChatOptions } from './useAIChat'
+import type { ProcessedAttachment } from '../types/attachment'
 import {
   useChatStore,
   selectMessages,
@@ -37,8 +38,8 @@ export interface UseStructuredChatReturn {
   input: string
   /** Set input value */
   setInput: (value: string) => void
-  /** Send a message */
-  sendMessage: (content?: string) => void
+  /** Send a message (optionally with file attachments) */
+  sendMessage: (content?: string, attachments?: ProcessedAttachment[]) => void
   /** Stop generation */
   stop: () => void
   /** Clear messages */

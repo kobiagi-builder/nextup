@@ -9,8 +9,9 @@
  * The main ArtifactEditor shows final content only (after writing phase).
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
+  CheckCircle,
   ChevronDown,
   ChevronUp,
   Lightbulb,
@@ -110,6 +111,14 @@ export function FoundationsSection({
     }
   }, [status, isCollapsed, hasBeenViewed, artifactId, setIsCollapsed])
 
+  // Approval celebration state
+  const [showCelebration, setShowCelebration] = useState(false)
+  const handleApproveWithCelebration = useCallback(() => {
+    setShowCelebration(true)
+    setTimeout(() => setShowCelebration(false), 1200)
+    onApprove?.()
+  }, [onApprove])
+
   // Show "New" badge when: has characteristics, collapsed, and not yet viewed
   const showNewBadge = characteristics && isCollapsed && !hasBeenViewed
 
@@ -179,10 +188,18 @@ export function FoundationsSection({
       data-testid="foundations-section"
     >
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+      <div className={cn(
+        'flex items-center justify-between gap-2 border-b px-4 py-3 transition-colors duration-500',
+        showCelebration && 'bg-emerald-100 dark:bg-emerald-900/30'
+      )}>
         <div className="flex items-center gap-2">
-          <Lightbulb className="h-4 w-4 text-muted-foreground" />
-          <h3 className="font-semibold text-sm">Foundations</h3>
+          {showCelebration
+            ? <CheckCircle className="h-4 w-4 text-emerald-600" />
+            : <Lightbulb className="h-4 w-4 text-muted-foreground" />
+          }
+          <h3 className="font-semibold text-sm">
+            {showCelebration ? 'Approved!' : 'Foundations'}
+          </h3>
         </div>
 
         <Button
@@ -260,14 +277,8 @@ export function FoundationsSection({
           </div>
         )}
 
-        {/* Approval Button */}
-        {showApprovalButton && onApprove && (
-          <FoundationsApprovedButton
-            onClick={onApprove}
-            loading={approvalLoading}
-            data-testid="foundations-approved-button"
-          />
-        )}
+        {/* Spacer for sticky approval button */}
+        {showApprovalButton && onApprove && <div className="h-16" />}
 
         {/* Empty state when no characteristics yet */}
         {!characteristics && !characteristicsLoading && status === 'research' && (
@@ -282,6 +293,17 @@ export function FoundationsSection({
           </div>
         )}
       </div>
+
+      {/* Sticky Approval Button */}
+      {showApprovalButton && onApprove && (
+        <div className="sticky bottom-0 border-t border-border bg-background p-4 z-10">
+          <FoundationsApprovedButton
+            onClick={handleApproveWithCelebration}
+            loading={approvalLoading}
+            data-testid="foundations-approved-button"
+          />
+        </div>
+      )}
     </div>
   )
 }

@@ -23,22 +23,24 @@ const pricingSchema = z.object({
   notes: z.string().optional(),
 })
 
+const agreementStatusEnum = z.enum(['draft', 'proposal', 'agreed', 'signed', 'active', 'completed', 'on_hold', 'archived'])
+
 const createAgreementSchema = z.object({
   scope: z.string().min(1, 'Scope is required'),
   type: z.enum(['retainer', 'project_based', 'hourly', 'fixed_price', 'equity', 'hybrid', 'custom']).optional(),
+  status: agreementStatusEnum.optional(),
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
   pricing: pricingSchema.optional(),
-  override_status: z.enum(['terminated', 'suspended']).nullable().optional(),
 })
 
 const updateAgreementSchema = z.object({
   scope: z.string().min(1).optional(),
   type: z.enum(['retainer', 'project_based', 'hourly', 'fixed_price', 'equity', 'hybrid', 'custom']).optional(),
+  status: agreementStatusEnum.optional(),
   start_date: z.string().nullable().optional(),
   end_date: z.string().nullable().optional(),
   pricing: pricingSchema.optional(),
-  override_status: z.enum(['terminated', 'suspended']).nullable().optional(),
 })
 
 // =============================================================================

@@ -8,6 +8,7 @@ import type { Request, Response } from 'express'
 import { z } from 'zod'
 import { aiService } from '../services/ai/AIService.js'
 import { logger } from '../lib/logger.js'
+import { buildMultimodalMessages } from '../lib/attachmentUtils.js'
 
 // Simple message type for chat
 interface ChatMessage {
@@ -29,10 +30,20 @@ const chatMessageSchema = z.object({
   { message: 'Message must have either content or parts' }
 )
 
+const attachmentSchema = z.object({
+  type: z.enum(['image', 'document', 'text']),
+  data: z.string().optional(),
+  content: z.string().optional(),
+  mimeType: z.string(),
+  fileName: z.string(),
+  fileSize: z.number(),
+})
+
 const chatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1),
   model: z.enum(['claude-sonnet', 'claude-haiku', 'gpt-4o', 'gpt-4o-mini']).optional(),
   includeTools: z.boolean().optional(),
+  attachments: z.array(attachmentSchema).optional(),
   screenContext: z.object({
     currentPage: z.string(),
     artifactId: z.string().optional(),
@@ -121,16 +132,21 @@ export async function streamChat(req: Request, res: Response) {
       return
     }
 
-    const { messages, model, includeTools, screenContext, selectionContext } = parsed.data
+    const { messages, model, includeTools, screenContext, selectionContext, attachments } = parsed.data
 
     // Convert AI SDK v6 messages to simple format
     const simpleMessages = messages.map(convertToSimpleMessage)
+
+    // Build multimodal messages when attachments are present
+    const aiMessages = buildMultimodalMessages(simpleMessages, attachments)
 
     logger.debug('Starting chat stream', {
       messageCount: simpleMessages.length,
       model,
       hasScreenContext: !!screenContext,
       hasSelectionContext: !!selectionContext,
+      hasAttachments: !!attachments?.length,
+      attachmentCount: attachments?.length || 0,
       selectionType: selectionContext?.type,
       screenContext: screenContext ? {
         currentPage: screenContext.currentPage,
@@ -138,7 +154,7 @@ export async function streamChat(req: Request, res: Response) {
       } : undefined,
     })
 
-    const result = await aiService.streamChat(simpleMessages, {
+    const result = await aiService.streamChat(aiMessages as any, {
       model,
       includeTools,
       screenContext,

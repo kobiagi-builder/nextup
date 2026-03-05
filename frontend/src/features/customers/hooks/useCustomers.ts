@@ -17,6 +17,7 @@ import type {
   CustomerFilters,
   CreateCustomerInput,
   UpdateCustomerInput,
+  TeamSyncResult,
 } from '../types'
 
 // =============================================================================
@@ -113,8 +114,15 @@ export function useCreateCustomer() {
     mutationFn: async (input: CreateCustomerInput) => {
       return api.post<Customer>('/api/customers', input)
     },
-    onSuccess: () => {
+    onSuccess: (customer) => {
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+
+      // Background enrichment + ICP scoring completes ~3-5s after creation.
+      // Refetch the detail + list queries so the ICP badge appears without manual refresh.
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: customerKeys.detail(customer.id) })
+        queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+      }, 5000)
     },
   })
 }
@@ -133,6 +141,19 @@ export function useUpdateCustomer() {
       queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
       if (data?.id) {
         queryClient.invalidateQueries({ queryKey: customerKeys.detail(data.id) })
+
+        // Background team extraction + ICP rescoring completes ~5-10s after update.
+        // Refetch so new team members and ICP badge appear without manual refresh.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: customerKeys.detail(data.id) })
+          queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+        }, 5000)
+
+        // Enrichment from URL changes can take 8-12s. Second refetch catches it.
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: customerKeys.detail(data.id) })
+          queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
+        }, 12000)
       }
     },
   })
@@ -153,6 +174,24 @@ export function useUpdateCustomerStatus() {
       if (data?.id) {
         queryClient.invalidateQueries({ queryKey: customerKeys.detail(data.id) })
       }
+    },
+  })
+}
+
+/**
+ * Sync team members from LinkedIn People page.
+ * Calls POST /api/customers/:id/sync-team-from-linkedin
+ */
+export function useSyncTeamFromLinkedIn() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (customerId: string) => {
+      return api.post<TeamSyncResult>(`/api/customers/${customerId}/sync-team-from-linkedin`, {})
+    },
+    onSuccess: (_data, customerId) => {
+      queryClient.invalidateQueries({ queryKey: customerKeys.detail(customerId) })
+      queryClient.invalidateQueries({ queryKey: customerKeys.lists() })
     },
   })
 }

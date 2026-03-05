@@ -79,7 +79,7 @@ export function ReceivablesTab({ customerId }: ReceivablesTabProps) {
   const hasTransactions = receivables.length > 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Financial Summary */}
       <FinancialSummary summary={summary ?? undefined} isLoading={summaryLoading} />
 
@@ -90,16 +90,18 @@ export function ReceivablesTab({ customerId }: ReceivablesTabProps) {
           <h3 className="text-sm font-medium text-muted-foreground">
             {receivables.length} {receivables.length === 1 ? 'Transaction' : 'Transactions'}
           </h3>
-          <div className="flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={() => setInvoiceFormOpen(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Record Invoice
-            </Button>
-            <Button size="sm" onClick={() => setPaymentFormOpen(true)}>
-              <Plus className="h-3.5 w-3.5 mr-1.5" />
-              Record Payment
-            </Button>
-          </div>
+          {hasTransactions && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setInvoiceFormOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Record Invoice
+              </Button>
+              <Button size="sm" onClick={() => setPaymentFormOpen(true)}>
+                <Plus className="h-3.5 w-3.5 mr-1.5" />
+                Record Payment
+              </Button>
+            </div>
+          )}
         </div>
 
         {/* Transaction list or empty state */}

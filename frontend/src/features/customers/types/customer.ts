@@ -25,13 +25,13 @@ export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
 }
 
 export const CUSTOMER_STATUS_COLORS: Record<CustomerStatus, string> = {
-  lead: 'bg-sky-500/10 text-sky-400 border-sky-500/20',
-  prospect: 'bg-violet-500/10 text-violet-400 border-violet-500/20',
-  negotiation: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  live: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  on_hold: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  archive: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-  not_relevant: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
+  lead: 'bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20',
+  prospect: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+  negotiation: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  live: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  on_hold: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+  archive: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+  not_relevant: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
 }
 
 /** Solid dot colors for dropdown indicators (Tailwind JIT needs literal classes) */
@@ -61,10 +61,10 @@ export const ICP_SCORE_LABELS: Record<IcpScore, string> = {
 }
 
 export const ICP_SCORE_COLORS: Record<IcpScore, string> = {
-  low: 'bg-rose-500/10 text-rose-400 border-rose-500/20',
-  medium: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  high: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  very_high: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+  low: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+  medium: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  high: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  very_high: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
 }
 
 /** Solid dot colors for ICP dropdown indicators (Tailwind JIT needs literal classes) */
@@ -107,6 +107,8 @@ export interface TeamMember {
   email?: string
   notes?: string
   linkedin_url?: string
+  source?: 'manual' | 'linkedin_scrape'
+  hidden?: boolean
 }
 
 export interface CustomerInfo {
@@ -132,6 +134,11 @@ export interface CustomerInfo {
     updated_at?: string
   }
   linkedin_company_url?: string
+  website_url?: string
+  enrichment_errors?: {
+    linkedin?: string
+    website?: string
+  }
   [key: string]: unknown
 }
 
@@ -163,6 +170,8 @@ export interface CustomerWithSummary extends Customer {
   active_projects_count: number
   action_items_count: number
   last_activity: string | null
+  next_action_description: string | null
+  next_action_due_date: string | null
 }
 
 export interface DashboardStats {
@@ -224,6 +233,17 @@ export interface CreateEventInput {
 }
 
 // =============================================================================
+// Team Sync
+// =============================================================================
+
+export interface TeamSyncResult {
+  added: number
+  removed: number
+  total: number
+  members: TeamMember[]
+}
+
+// =============================================================================
 // LinkedIn Import
 // =============================================================================
 
@@ -280,24 +300,43 @@ export const AGREEMENT_TYPE_LABELS: Record<AgreementType, string> = {
   custom: 'Custom',
 }
 
-export type AgreementStatus = 'active' | 'upcoming' | 'expired' | 'open_ended' | 'terminated' | 'suspended'
+export type AgreementStatus = 'draft' | 'proposal' | 'agreed' | 'signed' | 'active' | 'completed' | 'on_hold' | 'archived'
+
+export const AGREEMENT_STATUSES: AgreementStatus[] = [
+  'draft', 'proposal', 'agreed', 'signed', 'active', 'completed', 'on_hold', 'archived',
+]
 
 export const AGREEMENT_STATUS_LABELS: Record<AgreementStatus, string> = {
+  draft: 'Draft',
+  proposal: 'Proposal',
+  agreed: 'Agreed',
+  signed: 'Signed',
   active: 'Active',
-  upcoming: 'Upcoming',
-  expired: 'Expired',
-  open_ended: 'Open-ended',
-  terminated: 'Terminated',
-  suspended: 'Suspended',
+  completed: 'Completed',
+  on_hold: 'On Hold',
+  archived: 'Archived',
 }
 
 export const AGREEMENT_STATUS_COLORS: Record<AgreementStatus, string> = {
-  active: 'bg-green-500/10 text-green-400 border-green-500/20',
-  upcoming: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  expired: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-  open_ended: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-  terminated: 'bg-red-500/10 text-red-400 border-red-500/20',
-  suspended: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+  draft: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
+  proposal: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+  agreed: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  signed: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+  active: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  completed: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+  on_hold: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+  archived: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+}
+
+export const AGREEMENT_STATUS_DOT_COLORS: Record<AgreementStatus, string> = {
+  draft: 'bg-gray-400',
+  proposal: 'bg-violet-400',
+  agreed: 'bg-blue-400',
+  signed: 'bg-cyan-400',
+  active: 'bg-green-400',
+  completed: 'bg-purple-400',
+  on_hold: 'bg-orange-400',
+  archived: 'bg-slate-400',
 }
 
 export interface AgreementPricing {
@@ -316,7 +355,7 @@ export interface Agreement {
   start_date: string | null
   end_date: string | null
   pricing: AgreementPricing
-  override_status: string | null
+  status: AgreementStatus
   created_at: string
   updated_at: string
 }
@@ -324,19 +363,19 @@ export interface Agreement {
 export interface CreateAgreementInput {
   scope: string
   type?: AgreementType
+  status?: AgreementStatus
   start_date?: string | null
   end_date?: string | null
   pricing?: AgreementPricing
-  override_status?: string | null
 }
 
 export interface UpdateAgreementInput {
   scope?: string
   type?: AgreementType
+  status?: AgreementStatus
   start_date?: string | null
   end_date?: string | null
   pricing?: AgreementPricing
-  override_status?: string | null
 }
 
 // =============================================================================
@@ -358,11 +397,11 @@ export const INVOICE_STATUS_LABELS: Record<InvoiceStatus, string> = {
 }
 
 export const INVOICE_STATUS_COLORS: Record<InvoiceStatus, string> = {
-  draft: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-  sent: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  overdue: 'bg-red-500/10 text-red-400 border-red-500/20',
-  paid: 'bg-green-500/10 text-green-400 border-green-500/20',
-  cancelled: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  draft: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
+  sent: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  overdue: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  paid: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  cancelled: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
 }
 
 export const PAYMENT_METHODS = ['bank_transfer', 'check', 'credit_card', 'paypal', 'other'] as const
@@ -438,11 +477,11 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 }
 
 export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
-  planning: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  active: 'bg-green-500/10 text-green-400 border-green-500/20',
-  on_hold: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
-  completed: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  archived: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  planning: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  active: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  on_hold: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
+  completed: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+  archived: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
 }
 
 export interface Project {
@@ -495,12 +534,12 @@ export const ACTION_ITEM_TYPE_LABELS: Record<ActionItemType, string> = {
 }
 
 export const ACTION_ITEM_TYPE_COLORS: Record<ActionItemType, string> = {
-  follow_up: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  proposal: 'bg-purple-500/10 text-purple-400 border-purple-500/20',
-  meeting: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
-  delivery: 'bg-green-500/10 text-green-400 border-green-500/20',
-  review: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  custom: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
+  follow_up: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  proposal: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+  meeting: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+  delivery: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  review: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  custom: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
 }
 
 export type ActionItemStatus = 'todo' | 'in_progress' | 'done' | 'cancelled'
@@ -517,10 +556,10 @@ export const ACTION_ITEM_STATUS_LABELS: Record<ActionItemStatus, string> = {
 }
 
 export const ACTION_ITEM_STATUS_COLORS: Record<ActionItemStatus, string> = {
-  todo: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-  in_progress: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  done: 'bg-green-500/10 text-green-400 border-green-500/20',
-  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+  todo: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
+  in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  done: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  cancelled: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
 }
 
 export interface ActionItem {
@@ -570,16 +609,16 @@ export const ARTIFACT_TYPES: ArtifactType[] = [
 ]
 
 export const ARTIFACT_TYPE_CONFIG: Record<ArtifactType, { label: string; color: string }> = {
-  strategy: { label: 'Strategy', color: 'bg-purple-500/10 text-purple-400 border-purple-500/20' },
-  research: { label: 'Research', color: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
-  roadmap: { label: 'Roadmap', color: 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' },
-  competitive_analysis: { label: 'Competitive', color: 'bg-red-500/10 text-red-400 border-red-500/20' },
-  user_research: { label: 'User Research', color: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/20' },
-  product_spec: { label: 'Product Spec', color: 'bg-green-500/10 text-green-400 border-green-500/20' },
-  meeting_notes: { label: 'Notes', color: 'bg-gray-500/10 text-gray-400 border-gray-500/20' },
-  presentation: { label: 'Presentation', color: 'bg-amber-500/10 text-amber-400 border-amber-500/20' },
-  ideation: { label: 'Ideation', color: 'bg-pink-500/10 text-pink-400 border-pink-500/20' },
-  custom: { label: 'Custom', color: 'bg-slate-500/10 text-slate-400 border-slate-500/20' },
+  strategy: { label: 'Strategy', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
+  research: { label: 'Research', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
+  roadmap: { label: 'Roadmap', color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
+  competitive_analysis: { label: 'Competitive', color: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20' },
+  user_research: { label: 'User Research', color: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' },
+  product_spec: { label: 'Product Spec', color: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20' },
+  meeting_notes: { label: 'Notes', color: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20' },
+  presentation: { label: 'Presentation', color: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20' },
+  ideation: { label: 'Ideation', color: 'bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20' },
+  custom: { label: 'Custom', color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
 }
 
 export type ArtifactStatus = 'draft' | 'in_progress' | 'review' | 'final' | 'archived'
@@ -597,11 +636,11 @@ export const ARTIFACT_STATUS_LABELS: Record<ArtifactStatus, string> = {
 }
 
 export const ARTIFACT_STATUS_COLORS: Record<ArtifactStatus, string> = {
-  draft: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
-  in_progress: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  review: 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  final: 'bg-green-500/10 text-green-400 border-green-500/20',
-  archived: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+  draft: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
+  in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  review: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  final: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
+  archived: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
 }
 
 export interface CustomerArtifact {

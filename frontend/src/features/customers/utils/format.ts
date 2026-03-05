@@ -2,7 +2,7 @@
  * Customer-specific formatters
  */
 
-import type { Agreement, AgreementPricing, AgreementStatus } from '../types/customer'
+import type { AgreementPricing } from '../types/customer'
 
 /**
  * Format currency amount with symbol.
@@ -16,26 +16,6 @@ export function formatCurrency(amount: number | string, currency = 'USD'): strin
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(num)
-}
-
-/**
- * Compute agreement status from dates and override.
- * Override takes precedence, then computed from start/end dates.
- */
-export function getAgreementStatus(agreement: Agreement): AgreementStatus {
-  if (agreement.override_status === 'terminated') return 'terminated'
-  if (agreement.override_status === 'suspended') return 'suspended'
-
-  const now = new Date()
-  const start = agreement.start_date ? new Date(agreement.start_date) : null
-  const end = agreement.end_date ? new Date(agreement.end_date) : null
-
-  if (start && start > now) return 'upcoming'
-  if (end && end < now) return 'expired'
-  if (start && !end) return 'open_ended'
-  if (start && end) return 'active'
-
-  return 'open_ended'
 }
 
 /**

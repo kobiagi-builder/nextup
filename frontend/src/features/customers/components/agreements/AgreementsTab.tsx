@@ -9,7 +9,7 @@ import { Plus, FileText } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { useAgreements, useDeleteAgreement, useUpdateAgreement } from '../../hooks'
-import type { Agreement } from '../../types'
+import type { Agreement, AgreementStatus } from '../../types'
 import { AgreementCard } from './AgreementCard'
 import { AgreementForm } from './AgreementForm'
 
@@ -39,12 +39,12 @@ export function AgreementsTab({ customerId }: AgreementsTabProps) {
     }
   }
 
-  const handleTerminate = async (id: string) => {
+  const handleStatusChange = async (id: string, status: AgreementStatus) => {
     try {
-      await updateAgreement.mutateAsync({ id, override_status: 'terminated' })
-      toast({ title: 'Agreement terminated' })
+      await updateAgreement.mutateAsync({ id, status })
+      toast({ title: 'Status updated' })
     } catch {
-      toast({ title: 'Failed to terminate agreement', variant: 'destructive' })
+      toast({ title: 'Failed to update status', variant: 'destructive' })
     }
   }
 
@@ -74,10 +74,12 @@ export function AgreementsTab({ customerId }: AgreementsTabProps) {
         <h3 className="text-sm font-medium text-muted-foreground">
           {agreements.length} {agreements.length === 1 ? 'Agreement' : 'Agreements'}
         </h3>
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Add Agreement
-        </Button>
+        {agreements.length > 0 && (
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Agreement
+          </Button>
+        )}
       </div>
 
       {/* Agreement list or empty state */}
@@ -102,7 +104,7 @@ export function AgreementsTab({ customerId }: AgreementsTabProps) {
               agreement={agreement}
               onEdit={handleEdit}
               onDelete={handleDelete}
-              onTerminate={handleTerminate}
+              onStatusChange={handleStatusChange}
               isDeleting={deleteAgreement.isPending}
             />
           ))}

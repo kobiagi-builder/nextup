@@ -12,6 +12,7 @@ Transform unstructured brain dumps into structured, actionable implementation ar
 **ALWAYS use the `AskUserQuestion` tool when asking clarifying questions.** Do not ask questions in plain text. The tool provides structured options and ensures the user can respond clearly.
 
 Use `AskUserQuestion` for:
+
 - Clarifying questions during confidence scoring (Phase 2)
 - Project name confirmation before writing artifacts
 - Contract approval before PRD generation
@@ -63,30 +64,31 @@ Load `references/confidence-rubric.md` for detailed scoring criteria.
 
 Score each dimension (0-20 points):
 
-| Dimension | Question |
-|-----------|----------|
-| Problem Clarity | Do I understand what problem we're solving and why it matters? |
-| Goal Definition | Are the goals specific and measurable? |
-| Success Criteria | Can I write tests or validation steps for "done"? |
-| Scope Boundaries | Do I know what's in and out of scope? |
-| Consistency | Are there contradictions I need resolved? |
+| Dimension        | Question                                                       |
+| ---------------- | -------------------------------------------------------------- |
+| Problem Clarity  | Do I understand what problem we're solving and why it matters? |
+| Goal Definition  | Are the goals specific and measurable?                         |
+| Success Criteria | Can I write tests or validation steps for "done"?              |
+| Scope Boundaries | Do I know what's in and out of scope?                          |
+| Consistency      | Are there contradictions I need resolved?                      |
 
 **Total: /100 points**
 
 ### 2.3 Confidence Thresholds
 
-| Score | Action |
-|-------|--------|
-| < 70 | Major gaps. Ask 5+ questions targeting lowest dimensions. |
-| 70-84 | Moderate gaps. Ask 3-5 targeted questions. |
-| 85-94 | Minor gaps. Ask 1-2 specific questions. |
-| ≥ 95 | Ready to generate contract. |
+| Score | Action                                                    |
+| ----- | --------------------------------------------------------- |
+| < 70  | Major gaps. Ask 5+ questions targeting lowest dimensions. |
+| 70-84 | Moderate gaps. Ask 3-5 targeted questions.                |
+| 85-94 | Minor gaps. Ask 1-2 specific questions.                   |
+| ≥ 95  | Ready to generate contract.                               |
 
 ### 2.4 Ask Clarifying Questions
 
 When confidence < 95%, **MUST use `AskUserQuestion` tool** to ask clarifying questions. Structure questions with clear options when possible.
 
 **Using AskUserQuestion effectively**:
+
 - Provide 2-4 options per question when choices are clear
 - Use `multiSelect: true` when multiple answers apply
 - Keep question headers short (max 12 chars)
@@ -104,6 +106,7 @@ Options:
 ```
 
 **If yes**: Add a "Feature Rollout" section to the contract and PRD specifying:
+
 - Flag name (snake_case, e.g., `customer_management`)
 - Flag description
 - Default state (`false` for gradual rollout, `true` for opt-out)
@@ -123,26 +126,31 @@ Options:
 **Question templates by dimension**:
 
 **Problem Clarity**:
+
 - "What specific problem are you trying to solve?"
 - "Who experiences this problem and how often?"
 - "What's the cost of NOT solving this?"
 
 **Goal Definition**:
+
 - "What does success look like for this project?"
 - "How will you measure whether this worked?"
 - "What specific metrics should improve?"
 
 **Success Criteria**:
+
 - "How will you know when you're done?"
 - "What tests would prove this feature works?"
 - "What would a QA person check?"
 
 **Scope Boundaries**:
+
 - "What is explicitly NOT part of this project?"
 - "Are there related features we should defer?"
 - "What's the MVP vs. nice-to-have?"
 
 **Consistency**:
+
 - "You mentioned [X] but also [Y]. Which takes priority?"
 - "These requirements seem to conflict. Can you clarify?"
 - "How should we handle [edge case]?"
@@ -168,12 +176,14 @@ After contract is approved:
 Analyze the contract and break scope into logical implementation phases.
 
 **Phasing criteria**:
+
 - Dependencies (what must be built first?)
 - Risk (tackle high-risk items early)
 - Value delivery (can users benefit after each phase?)
 - Complexity (balance phases for consistent effort)
 
 Typical phasing:
+
 - Phase 1: Core functionality / MVP
 - Phase 2: Enhanced features
 - Phase 3: Polish and optimization
@@ -184,9 +194,11 @@ Typical phasing:
 For each phase, generate `prd-phase-{n}.md` using `references/prd-template.md`.
 
 Include:
+
 - Phase overview and rationale
 - User stories for this phase
 - Functional requirements (grouped)
+- UX and UI requirements
 - Non-functional requirements
 - Dependencies (prerequisites and outputs)
 - Acceptance criteria
@@ -215,10 +227,12 @@ After PRDs are approved:
 For each approved phase, generate `spec-phase-{n}.md` using `references/spec-template.md`.
 
 Include:
+
 - Technical approach
 - File changes (new and modified)
+- Detailed UX and UI design using /interface-design skill
 - Implementation details with code patterns
-- Testing requirements
+- Testing requirements (unit, integration, E2E)
 - Error handling
 - Validation commands
 

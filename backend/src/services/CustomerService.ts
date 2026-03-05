@@ -21,7 +21,7 @@ import type {
   CustomerEvent,
   CreateEventInput,
 } from '../types/customer.js'
-import type { CompanyEnrichmentData } from './EnrichmentService.js'
+import { EnrichmentService, type CompanyEnrichmentData } from './EnrichmentService.js'
 
 export class CustomerService {
   constructor(private supabase: SupabaseClient) {}
@@ -379,12 +379,34 @@ export class CustomerService {
 
   /**
    * Merge enrichment data into customer info via atomic JSONB merge.
+   * Uses LLM-based smart merge to preserve existing user-edited content.
    */
   async updateEnrichment(
     customerId: string,
     enrichmentData: CompanyEnrichmentData,
     source: EnrichmentSource = 'llm_enrichment',
   ): Promise<void> {
+    // Fetch existing info to compare and smart-merge
+    const existing = await this.getById(customerId)
+    const existingAbout = existing?.info?.about || ''
+    const existingVertical = existing?.info?.vertical || ''
+    const existingPersona = existing?.info?.persona || ''
+    const existingIcp = existing?.info?.icp || ''
+
+    // Helper: smart-merge a single text field
+    const smartMerge = async (fieldName: string, existingVal: string, newVal: string | undefined): Promise<string> => {
+      if (!newVal) return '' // Don't overwrite existing with nothing
+      if (!existingVal) return newVal // Empty existing → use new as-is
+      return EnrichmentService.mergeEnrichmentText(fieldName, existingVal, newVal)
+    }
+
+    const [mergedAbout, mergedVertical, mergedPersona, mergedIcp] = await Promise.all([
+      smartMerge('About', existingAbout, enrichmentData.about),
+      smartMerge('Vertical/Industry', existingVertical, enrichmentData.industry),
+      smartMerge('Persona', existingPersona, enrichmentData.persona),
+      smartMerge('ICP Description', existingIcp, enrichmentData.icp),
+    ])
+
     const { error } = await this.supabase.rpc('merge_customer_info', {
       cid: customerId,
       new_info: {
@@ -395,8 +417,10 @@ export class CustomerService {
           updated_at: new Date().toISOString(),
         },
         // Sync to top-level fields the UI reads from (only if non-empty)
-        ...(enrichmentData.about ? { about: enrichmentData.about } : {}),
-        ...(enrichmentData.industry ? { vertical: enrichmentData.industry } : {}),
+        ...(mergedAbout ? { about: mergedAbout } : {}),
+        ...(mergedVertical ? { vertical: mergedVertical } : {}),
+        ...(mergedPersona ? { persona: mergedPersona } : {}),
+        ...(mergedIcp ? { icp: mergedIcp } : {}),
       },
     })
 
@@ -421,6 +445,25 @@ export class CustomerService {
     if (error) {
       logger.error('[CustomerService] Error updating ICP score', {
         sourceCode: 'CustomerService.updateIcpScore',
+        hasError: true,
+      })
+      throw error
+    }
+  }
+
+  /**
+   * Merge arbitrary fields into customer info via atomic JSONB merge.
+   * Uses the merge_customer_info RPC (shallow || merge).
+   */
+  async mergeInfo(customerId: string, info: Record<string, unknown>): Promise<void> {
+    const { error } = await this.supabase.rpc('merge_customer_info', {
+      cid: customerId,
+      new_info: info,
+    })
+
+    if (error) {
+      logger.error('[CustomerService] Error merging customer info', {
+        sourceCode: 'CustomerService.mergeInfo',
         hasError: true,
       })
       throw error

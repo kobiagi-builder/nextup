@@ -5,16 +5,27 @@
  */
 
 import { useState } from 'react'
-import { Plus, Pencil, Trash2, X, Check, ExternalLink } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, Check, ExternalLink, Linkedin, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
+import { useToast } from '@/hooks/use-toast'
+import { useSyncTeamFromLinkedIn } from '../../hooks/useCustomers'
+import { isValidLinkedInCompanyUrl } from './CustomerInfoSection'
 import type { TeamMember } from '../../types'
 
 interface TeamSectionProps {
   team: TeamMember[]
   onSave: (team: TeamMember[]) => void
   isSaving?: boolean
+  customerId?: string
+  linkedinCompanyUrl?: string
 }
 
 interface TeamMemberFormState {
@@ -52,6 +63,12 @@ function TeamMemberRow({
             >
               <ExternalLink className="h-3 w-3" />
             </a>
+          )}
+          {member.source === 'linkedin_scrape' && (
+            <span className="inline-flex items-center gap-0.5 text-xs text-[#0A66C2]/60">
+              <Linkedin className="h-2.5 w-2.5" />
+              via LinkedIn
+            </span>
           )}
         </div>
         {member.role && <p className="text-xs text-muted-foreground">{member.role}</p>}
@@ -158,9 +175,31 @@ function TeamMemberForm({
   )
 }
 
-export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
+export function TeamSection({ team, onSave, isSaving, customerId, linkedinCompanyUrl }: TeamSectionProps) {
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
   const [isAdding, setIsAdding] = useState(false)
+  const { toast } = useToast()
+  const syncMutation = useSyncTeamFromLinkedIn()
+
+  const hasValidLinkedInUrl = !!linkedinCompanyUrl && isValidLinkedInCompanyUrl(linkedinCompanyUrl)
+  const canSync = !!customerId && hasValidLinkedInUrl && !syncMutation.isPending
+
+  const handleSync = async () => {
+    if (!customerId) return
+    try {
+      const result = await syncMutation.mutateAsync(customerId)
+      toast({
+        title: 'Team synced',
+        description: `${result.added} added, ${result.removed} removed`,
+      })
+    } catch {
+      toast({
+        title: 'Sync failed',
+        description: 'Could not sync team from LinkedIn. Try again later.',
+        variant: 'destructive',
+      })
+    }
+  }
 
   const handleAddMember = (member: TeamMemberFormState) => {
     const newTeam = [...team, {
@@ -169,6 +208,7 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
       email: member.email.trim() || undefined,
       notes: member.notes.trim() || undefined,
       linkedin_url: member.linkedin_url.trim() || undefined,
+      source: 'manual' as const,
     }]
     onSave(newTeam)
     setIsAdding(false)
@@ -182,6 +222,7 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
       email: member.email.trim() || undefined,
       notes: member.notes.trim() || undefined,
       linkedin_url: member.linkedin_url.trim() || undefined,
+      source: team[index].source,
     }
     onSave(newTeam)
     setEditingIndex(null)
@@ -196,20 +237,51 @@ export function TeamSection({ team, onSave, isSaving }: TeamSectionProps) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-foreground">Team Members</h3>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => setIsAdding(true)}
-          disabled={isAdding || isSaving}
-          className="gap-1"
-        >
-          <Plus className="h-3 w-3" />
-          Add
-        </Button>
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleSync}
+                    disabled={!canSync}
+                    className="gap-1"
+                  >
+                    {syncMutation.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Linkedin className="h-3 w-3" />
+                    )}
+                    Sync
+                  </Button>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent data-portal-ignore-click-outside>
+                {!hasValidLinkedInUrl
+                  ? 'Add a LinkedIn company URL to sync team members'
+                  : syncMutation.isPending
+                  ? 'Syncing team from LinkedIn\u2026'
+                  : 'Sync team from LinkedIn'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsAdding(true)}
+            disabled={isAdding || isSaving}
+            className="gap-1"
+          >
+            <Plus className="h-3 w-3" />
+            Add
+          </Button>
+        </div>
       </div>
 
       {team.length === 0 && !isAdding && (
-        <p className="text-sm text-muted-foreground italic py-2">No team members added yet.</p>
+        <p className="text-sm text-muted-foreground py-2">No team members added yet.</p>
       )}
 
       <div className="space-y-1">

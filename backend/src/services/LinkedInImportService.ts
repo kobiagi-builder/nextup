@@ -423,8 +423,9 @@ export class LinkedInImportService {
           })
         } else {
           const linkedinUrl = customer.info?.linkedin_company_url
+          const websiteUrl = customer.info?.website_url
           const industryHint = customer.info?.vertical || customer.info?.product?.category || undefined
-          const enrichResult = await enrichmentService.enrichCompany(customer.name, linkedinUrl, industryHint)
+          const enrichResult = await enrichmentService.enrichCompany(customer.name, linkedinUrl, industryHint, websiteUrl)
 
           if (enrichResult) {
             await customerService.updateEnrichment(customer.id, enrichResult.data, enrichResult.source)
@@ -437,6 +438,15 @@ export class LinkedInImportService {
             enrichmentChanged = true
             result.enrichment.enriched++
 
+            // Save discovered website URL if not already present
+            if (enrichResult.data.website_url && !customer.info?.website_url) {
+              await this.supabase.rpc('merge_customer_info', {
+                cid: customer.id,
+                new_info: { website_url: enrichResult.data.website_url },
+              })
+              customer.info = { ...customer.info, website_url: enrichResult.data.website_url }
+            }
+
             logger.info('[LinkedInImport] Company enriched', {
               companyName: customer.name,
               source: enrichResult.source,
@@ -445,6 +455,7 @@ export class LinkedInImportService {
               hasIndustry: !!enrichResult.data.industry,
               specialtiesCount: enrichResult.data.specialties.length,
               hasLinkedinUrl: !!linkedinUrl,
+              hasWebsiteUrl: !!websiteUrl,
             })
           } else {
             result.enrichment.failed++

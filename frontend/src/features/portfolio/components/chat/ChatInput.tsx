@@ -1,13 +1,16 @@
 /**
  * ChatInput Component
  *
- * Input field for chat messages with send button and keyboard hints.
+ * Input field for chat messages with send button, file attachment support,
+ * drag-and-drop, and keyboard hints.
  */
 
-import { useCallback, useRef, useState, useEffect, useLayoutEffect, type KeyboardEvent } from 'react'
+import { useCallback, useRef, useState, useEffect, useLayoutEffect, type KeyboardEvent, type DragEvent } from 'react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { Send, Square, Loader2 } from 'lucide-react'
+import { Send, Square, Loader2, Paperclip, X, FileText, Image as ImageIcon, File } from 'lucide-react'
+import { Spinner } from '@/components/ui/spinner'
+import type { ProcessedAttachment } from '../../types/attachment'
 
 // =============================================================================
 // Constants
@@ -15,6 +18,19 @@ import { Send, Square, Loader2 } from 'lucide-react'
 
 const MIN_HEIGHT = 44 // Minimum height in pixels
 const MAX_HEIGHT = 200 // Maximum height in pixels before scrollbar appears
+
+const ACCEPT_FILE_TYPES = [
+  'image/jpeg',
+  'image/png',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'text/csv',
+  'text/plain',
+  'text/markdown',
+  '.docx',
+].join(',')
 
 // =============================================================================
 // Types
@@ -41,6 +57,14 @@ export interface ChatInputProps {
   className?: string
   /** External ref to access the textarea */
   inputRef?: React.RefObject<HTMLTextAreaElement | null>
+  /** Currently attached files */
+  attachments?: ProcessedAttachment[]
+  /** Handler to add a file attachment */
+  onAttach?: (file: File) => void
+  /** Handler to remove an attachment by index */
+  onRemoveAttachment?: (index: number) => void
+  /** Whether a file is currently being uploaded */
+  isUploading?: boolean
 }
 
 // =============================================================================
@@ -58,10 +82,16 @@ export function ChatInput({
   disabled,
   className,
   inputRef,
+  attachments,
+  onAttach,
+  onRemoveAttachment,
+  isUploading,
 }: ChatInputProps) {
   const internalRef = useRef<HTMLTextAreaElement>(null)
   const textareaRef = inputRef || internalRef
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [hasContent, setHasContent] = useState(false)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   // Update hasContent when value prop changes
   useEffect(() => {
@@ -100,37 +130,136 @@ export function ChatInput({
       // Submit on Enter (without Shift)
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault()
-        if (!isStreaming && !isLoading && value.trim()) {
+        if (!isStreaming && !isLoading && (value.trim() || (attachments && attachments.length > 0))) {
           onSubmit()
         }
       }
     },
-    [isStreaming, isLoading, value, onSubmit]
+    [isStreaming, isLoading, value, attachments, onSubmit]
   )
 
   // Handle submit button click
   const handleSubmit = useCallback(() => {
     if (isStreaming && onStop) {
       onStop()
-    } else if (value.trim()) {
+    } else if (value.trim() || (attachments && attachments.length > 0)) {
       onSubmit()
     }
-  }, [isStreaming, onStop, value, onSubmit])
+  }, [isStreaming, onStop, value, attachments, onSubmit])
+
+  // Handle file selection from input
+  const handleFileSelect = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const files = e.target.files
+      if (!files || !onAttach) return
+      for (const file of Array.from(files)) {
+        onAttach(file)
+      }
+      // Reset input so the same file can be selected again
+      e.target.value = ''
+    },
+    [onAttach]
+  )
+
+  // Drag-and-drop handlers
+  const handleDragOver = useCallback(
+    (e: DragEvent) => {
+      if (!onAttach) return
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(true)
+    },
+    [onAttach]
+  )
+
+  const handleDragLeave = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(false)
+    },
+    []
+  )
+
+  const handleDrop = useCallback(
+    (e: DragEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setIsDragOver(false)
+      if (!onAttach) return
+      const files = e.dataTransfer.files
+      for (const file of Array.from(files)) {
+        onAttach(file)
+      }
+    },
+    [onAttach]
+  )
 
   const isDisabled = disabled || isLoading
-  const canSubmit = !isDisabled && (isStreaming || hasContent)
+  const hasAttachments = attachments && attachments.length > 0
+  const canSubmit = !isDisabled && (isStreaming || hasContent || !!hasAttachments)
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
+    <div
+      className={cn('flex flex-col gap-2', className)}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Attachment preview chips */}
+      {hasAttachments && (
+        <div className="flex flex-wrap gap-1.5">
+          {attachments.map((att, index) => (
+            <AttachmentChip
+              key={`${att.fileName}-${index}`}
+              attachment={att}
+              onRemove={() => onRemoveAttachment?.(index)}
+            />
+          ))}
+        </div>
+      )}
+
       {/* Input area */}
-      <div className="flex items-end gap-2">
+      <div className={cn(
+        'flex items-end gap-2 rounded-md transition-colors',
+        isDragOver && 'ring-2 ring-primary/50 bg-primary/5',
+      )}>
+        {/* Paperclip button */}
+        {onAttach && (
+          <>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPT_FILE_TYPES}
+              multiple
+              className="hidden"
+              onChange={handleFileSelect}
+            />
+            <Button
+              type="button"
+              size="icon"
+              variant="ghost"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isDisabled || isUploading}
+              className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
+              title="Attach file"
+            >
+              {isUploading ? (
+                <Spinner size="sm" />
+              ) : (
+                <Paperclip className="h-4 w-4" />
+              )}
+            </Button>
+          </>
+        )}
+
         <div className="relative flex-1">
           <textarea
             ref={textareaRef}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={placeholder}
+            placeholder={isDragOver ? 'Drop file here...' : placeholder}
             disabled={isDisabled}
             rows={1}
             className={cn(
@@ -174,6 +303,56 @@ export function ChatInput({
         Press <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Enter</kbd> to send,{' '}
         <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Shift+Enter</kbd> for new line
       </p>
+    </div>
+  )
+}
+
+// =============================================================================
+// Attachment Chip
+// =============================================================================
+
+function AttachmentChip({
+  attachment,
+  onRemove,
+}: {
+  attachment: ProcessedAttachment
+  onRemove: () => void
+}) {
+  const icon = attachment.type === 'image' ? (
+    <ImageIcon className="h-3 w-3" />
+  ) : attachment.type === 'document' ? (
+    <FileText className="h-3 w-3" />
+  ) : (
+    <File className="h-3 w-3" />
+  )
+
+  const sizeLabel = attachment.fileSize < 1024
+    ? `${attachment.fileSize}B`
+    : attachment.fileSize < 1024 * 1024
+      ? `${Math.round(attachment.fileSize / 1024)}KB`
+      : `${(attachment.fileSize / (1024 * 1024)).toFixed(1)}MB`
+
+  // For images, show a small thumbnail
+  const thumbnail = attachment.type === 'image' && attachment.data ? (
+    <img
+      src={`data:${attachment.mimeType};base64,${attachment.data}`}
+      alt={attachment.fileName}
+      className="h-6 w-6 rounded object-cover"
+    />
+  ) : null
+
+  return (
+    <div className="flex items-center gap-1.5 rounded-md border bg-muted/50 px-2 py-1 text-xs">
+      {thumbnail || icon}
+      <span className="max-w-[120px] truncate">{attachment.fileName}</span>
+      <span className="text-muted-foreground">{sizeLabel}</span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="ml-0.5 rounded-full p-0.5 hover:bg-destructive/10 hover:text-destructive transition-colors"
+      >
+        <X className="h-3 w-3" />
+      </button>
     </div>
   )
 }

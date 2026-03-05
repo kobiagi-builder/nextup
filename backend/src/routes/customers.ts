@@ -25,6 +25,10 @@ router.get('/artifacts/search', customerController.searchArtifacts)
 // LinkedIn import (must come BEFORE /:id to avoid route collision)
 router.post('/import/linkedin', requireFeature('linkedin_import'), uploadMiddleware, importLinkedInConnections)
 
+// URL enrichment (must come BEFORE /:id to avoid route collision)
+router.post('/enrich-from-linkedin', customerController.enrichFromLinkedIn)
+router.post('/enrich-from-website', customerController.enrichFromWebsite)
+
 // Customer CRUD
 router.get('/', customerController.listCustomers)
 router.get('/:id', customerController.getCustomer)
@@ -36,6 +40,9 @@ router.delete('/:id', customerController.deleteCustomer)
 // Customer Events
 router.get('/:id/events', customerController.listCustomerEvents)
 router.post('/:id/events', customerController.createCustomerEvent)
+
+// LinkedIn team sync
+router.post('/:id/sync-team-from-linkedin', customerController.syncTeamFromLinkedIn)
 
 // Nested sub-routes (agreements, receivables, projects)
 router.use('/:id/agreements', agreementsRouter)

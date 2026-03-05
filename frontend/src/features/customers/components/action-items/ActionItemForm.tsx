@@ -10,7 +10,8 @@ import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
+import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -141,11 +142,12 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
           {/* Description */}
           <div>
             <Label htmlFor="action-item-description">Description *</Label>
-            <Input
+            <Textarea
               id="action-item-description"
               {...form.register('description')}
               placeholder="What needs to happen?"
-              className="mt-1"
+              rows={2}
+              className="mt-1 resize-none"
               autoFocus
             />
             {form.formState.errors.description && (
@@ -156,11 +158,10 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
           {/* Due Date */}
           <div>
             <Label htmlFor="action-item-due-date">Due Date</Label>
-            <Input
-              id="action-item-due-date"
-              type="date"
-              {...form.register('due_date')}
-              className="mt-1"
+            <DatePicker
+              value={form.watch('due_date')}
+              onChange={(date) => form.setValue('due_date', date || '', { shouldValidate: true })}
+              placeholder="Pick a due date"
             />
           </div>
 

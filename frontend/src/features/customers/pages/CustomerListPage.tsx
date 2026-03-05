@@ -28,7 +28,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { useCustomers, useUpdateCustomerStatus, useDeleteCustomer } from '../hooks'
+import { useCustomers, useUpdateCustomer, useUpdateCustomerStatus, useDeleteCustomer } from '../hooks'
 import { CustomerCard } from '../components/shared/CustomerCard'
 import { CustomerCardSkeleton } from '../components/shared/CustomerCardSkeleton'
 import { MultiSelectFilter } from '../components/shared/MultiSelectFilter'
@@ -77,6 +77,7 @@ export function CustomerListPage() {
   }
 
   const { data: customers = [], isLoading } = useCustomers(filters)
+  const updateCustomer = useUpdateCustomer()
   const updateStatus = useUpdateCustomerStatus()
   const deleteCustomer = useDeleteCustomer()
 
@@ -122,6 +123,16 @@ export function CustomerListPage() {
     }
   }
 
+  const handleIcpScoreChange = async (id: string, score: IcpScore) => {
+    const customer = customers.find(c => c.id === id)
+    if (!customer) return
+    try {
+      await updateCustomer.mutateAsync({ id, info: { ...customer.info, icp_score: score } })
+    } catch {
+      toast({ title: 'Failed to update ICP score', variant: 'destructive' })
+    }
+  }
+
   const handleDelete = (id: string) => {
     setCustomerToArchive(id)
   }
@@ -156,8 +167,8 @@ export function CustomerListPage() {
         </div>
       </div>
 
-      {/* Filters bar */}
-      <div className="flex items-center gap-3 px-6 py-3 border-b border-border/50">
+      {/* Filters bar — hidden when no customers exist yet */}
+      {!showEmptyState && <div className="flex items-center gap-3 px-6 py-3 border-b border-border/50">
         {/* Status filter (multi-select) */}
         <MultiSelectFilter
           label="Status"
@@ -186,7 +197,7 @@ export function CustomerListPage() {
         />
 
         {/* Search */}
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1 max-w-[240px]">
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder="Search customers..."
@@ -210,12 +221,12 @@ export function CustomerListPage() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </div>}
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto px-6 py-4">
+      <div className="flex-1 overflow-y-auto px-6 py-6">
         {isLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <CustomerCardSkeleton key={i} />
             ))}
@@ -226,12 +237,13 @@ export function CustomerListPage() {
         {showNoResults && <EmptyCustomerSearch />}
 
         {!isLoading && customers.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {customers.map((customer) => (
               <CustomerCard
                 key={customer.id}
                 customer={customer}
                 onStatusChange={handleStatusChange}
+                onIcpScoreChange={handleIcpScoreChange}
                 onDelete={handleDelete}
               />
             ))}

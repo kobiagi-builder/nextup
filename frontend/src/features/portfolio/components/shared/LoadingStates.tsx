@@ -38,12 +38,13 @@ export function CardSkeleton({ className }: CardSkeletonProps) {
 
 interface GridSkeletonProps {
   count?: number
-  columns?: 2 | 3 | 4
+  columns?: 1 | 2 | 3 | 4
   className?: string
 }
 
 export function GridSkeleton({ count = 6, columns = 3, className }: GridSkeletonProps) {
   const gridCols = {
+    1: '',
     2: 'md:grid-cols-2',
     3: 'md:grid-cols-2 lg:grid-cols-3',
     4: 'md:grid-cols-2 lg:grid-cols-4',

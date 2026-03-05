@@ -1,13 +1,13 @@
 # Database Schema Reference
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-28
-**Version:** 5.0.0
+**Last Updated:** 2026-03-04
+**Version:** 7.0.0
 **Status:** Complete
 
 ## Overview
 
-Product Consultant Helper uses Supabase (PostgreSQL) with 19 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
+Product Consultant Helper uses Supabase (PostgreSQL) with 21 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
 
 **Supabase Project ID:** `ohwubfmipnpguunryopl`
 
@@ -36,6 +36,8 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 19 tables in the `publ
 | 17 | `customer_events` | Timeline events per customer | Many-to-one → customers | Yes |
 | 18 | `customer_chat_messages` | AI chat messages per customer | Many-to-one → customers | Yes |
 | 19 | `icp_settings` | ICP criteria for automated scoring | One-to-one per user | Yes |
+| 20 | `onboarding_progress` | Onboarding wizard state and extraction results | One-to-one per user | Yes |
+| 21 | `team_role_filters` | Per-user role filter config for LinkedIn team extraction | One-to-one per user | Yes |
 
 ---
 
@@ -57,6 +59,7 @@ erDiagram
     users ||--o{ user_writing_examples : "has many"
 
     users ||--o| icp_settings : "has one"
+    users ||--o| team_role_filters : "has one"
     users ||--o{ customers : "owns many"
     customers ||--o{ customer_agreements : "has many"
     customers ||--o{ customer_receivables : "has many"
@@ -703,6 +706,51 @@ CHECK (weight_quantitative BETWEEN 0 AND 100)
 
 ---
 
+## 21. team_role_filters
+
+Per-user configuration for role-based filtering during LinkedIn team extraction. Determines which role categories are included/excluded when scraping team members from company pages.
+
+### Schema
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | NO | `gen_random_uuid()` | Primary key |
+| `user_id` | UUID | NO | - | FK → auth.users(id) CASCADE, UNIQUE |
+| `roles` | JSONB | NO | `'[]'::jsonb` | Array of role category strings to include |
+| `exclusions` | JSONB | NO | `'[]'::jsonb` | Array of role patterns to exclude |
+| `created_at` | TIMESTAMPTZ | NO | `now()` | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NO | `now()` | Last update |
+
+### Indexes
+
+| Index | Column(s) | Purpose |
+|-------|-----------|---------|
+| `team_role_filters_pkey` | `id` | Primary key |
+| `team_role_filters_user_id_key` | `user_id` UNIQUE | One per user |
+| `idx_team_role_filters_user_id` | `user_id` | Lookup by user |
+
+### JSONB: roles
+
+Array of role category strings that the AI filter should match against:
+```json
+["Founder", "C-Level", "VP", "Director", "Head of", "Product Management", "Product Design"]
+```
+
+### JSONB: exclusions
+
+Array of role patterns to explicitly exclude:
+```json
+["HR", "Human Resources", "Recruiting", "Talent Acquisition", "People Operations"]
+```
+
+### RLS Policies
+
+| Policy | Command | Condition |
+|--------|---------|-----------|
+| Users can manage their own role filters | ALL | `user_id = auth.uid()` |
+
+---
+
 ## Database Functions
 
 ### `get_receivables_summary(cid UUID)`
@@ -947,6 +995,7 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **7.0.0** (2026-03-04) - Added `team_role_filters` table (#21) for per-user LinkedIn team extraction role configuration. Updated table count to 21, ER diagram, table summary
 - **5.0.0** (2026-02-28) - Added `icp_settings` table (#19) for ICP scoring criteria. Updated table count to 19, ER diagram, table summary
 - **3.2.0** (2026-02-25) - Added `merge_customer_info(cid, new_info)` function for Customer AI Agent atomic JSONB merge
 - **3.1.0** (2026-02-25) - Added Database Functions section documenting `get_receivables_summary(cid UUID)`

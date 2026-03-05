@@ -47,10 +47,10 @@ export class AgreementService {
         customer_id: customerId,
         scope: input.scope,
         type: input.type || 'retainer',
+        status: input.status || 'draft',
         start_date: input.start_date || null,
         end_date: input.end_date || null,
         pricing: input.pricing || {},
-        override_status: input.override_status || null,
       })
       .select()
       .single()
@@ -74,10 +74,10 @@ export class AgreementService {
 
     if (input.scope !== undefined) updates.scope = input.scope
     if (input.type !== undefined) updates.type = input.type
+    if (input.status !== undefined) updates.status = input.status
     if (input.start_date !== undefined) updates.start_date = input.start_date
     if (input.end_date !== undefined) updates.end_date = input.end_date
     if (input.pricing !== undefined) updates.pricing = input.pricing
-    if (input.override_status !== undefined) updates.override_status = input.override_status
 
     const { data, error } = await this.supabase
       .from('customer_agreements')

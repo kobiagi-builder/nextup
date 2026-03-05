@@ -44,8 +44,10 @@ import {
   type AgentType,
   type HandoffResult,
 } from '../services/ai/agents/shared/handoffTools.js'
+import { createFetchUrlTool } from '../services/ai/agents/shared/fetchUrlTool.js'
 import { getSupabase, getUserId } from '../lib/requestContext.js'
 import { logger, logToFile } from '../lib/logger.js'
+import { buildMultimodalMessages } from '../lib/attachmentUtils.js'
 
 // =============================================================================
 // Constants
@@ -70,9 +72,19 @@ const chatMessageSchema = z.object({
   { message: 'Message must have either content or parts' }
 )
 
+const attachmentSchema = z.object({
+  type: z.enum(['image', 'document', 'text']),
+  data: z.string().optional(),
+  content: z.string().optional(),
+  mimeType: z.string(),
+  fileName: z.string(),
+  fileSize: z.number(),
+})
+
 const customerChatRequestSchema = z.object({
   messages: z.array(chatMessageSchema).min(1),
   customerId: z.string().uuid(),
+  attachments: z.array(attachmentSchema).optional(),
   screenContext: z.object({
     currentPage: z.string(),
     activeTab: z.string().optional(),
@@ -125,8 +137,11 @@ function buildAgentTools(
   includeHandoff: boolean,
   previousAgent?: AgentType,
 ) {
+  const sharedTools = { ...createFetchUrlTool() }
+
   const domainTools = agentType === 'product_mgmt'
     ? {
+        ...sharedTools,
         ...createProductMgmtTools(supabase, customerId),
         ...createProductStrategyTool(supabase, customerId),
         ...evaluateBuildStrategyTool(supabase, customerId),
@@ -145,7 +160,7 @@ function buildAgentTools(
         ...createNarrativeTool(supabase, customerId),
         ...prioritizeItemsTool(supabase, customerId),
       }
-    : { ...createCustomerMgmtTools(supabase, customerId), ...createActionItemTools(supabase, customerId) }
+    : { ...sharedTools, ...createCustomerMgmtTools(supabase, customerId), ...createActionItemTools(supabase, customerId) }
 
   if (!includeHandoff) return domainTools
 
@@ -208,7 +223,7 @@ export async function streamCustomerChat(req: Request, res: Response) {
       return
     }
 
-    const { messages, customerId } = parsed.data
+    const { messages, customerId, attachments } = parsed.data
     const supabase = getSupabase()
 
     // Convert messages for AI processing
@@ -221,15 +236,20 @@ export async function streamCustomerChat(req: Request, res: Response) {
     const initialAgent = selectInitialAgent(simpleMessages)
 
     // Strip custom metadata — prepare clean messages for the AI model
-    const aiMessages = simpleMessages.map(m => ({
+    const strippedMessages = simpleMessages.map(m => ({
       role: m.role as 'user' | 'assistant',
       content: m.content,
     }))
+
+    // Build multimodal messages when attachments are present
+    const aiMessages = buildMultimodalMessages(strippedMessages, attachments) as any[]
 
     logger.debug('[CustomerAI] Starting handoff-capable stream', {
       initialAgent,
       messageCount: simpleMessages.length,
       contextChars: customerContext.length,
+      hasAttachments: !!attachments?.length,
+      attachmentCount: attachments?.length || 0,
     })
 
     // Create composed UI message stream with handoff loop

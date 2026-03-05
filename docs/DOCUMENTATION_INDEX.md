@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-01
-**Version:** 16.0.0
-**Total Documentation Files:** 65+
-**Status:** Complete (LinkedIn Import Phase 3 — 4-Layer Company Classification Pipeline)
+**Last Updated:** 2026-03-04
+**Version:** 21.0.0
+**Total Documentation Files:** 69+
+**Status:** Complete (LinkedIn Team Extraction Phase 11 — Auto-Triggers)
 
 ## Overview
 
@@ -25,11 +25,11 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md) | Value proposition, feature list, tech stack summary, current state (v2.0.0) |
+| [PRODUCT_OVERVIEW.md](./PRODUCT_OVERVIEW.md) | Value proposition, feature list, tech stack summary, current state (v2.1.0) |
 
 ---
 
-## Layer 2: User Flows (9 files)
+## Layer 2: User Flows (10 files)
 
 **Location:** `docs/flows/`
 
@@ -43,11 +43,12 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [showcase-interview-flow.md](./flows/showcase-interview-flow.md) | Multi-turn showcase interview with coverage scoring |
 | [social-post-creation-flow.md](./flows/social-post-creation-flow.md) | Social post generation from source blog/showcase artifact |
 | [writing-style-setup-flow.md](./flows/writing-style-setup-flow.md) | Writing references management: 4 upload methods, per-artifact-type, async extraction |
-| [customer-management-flow.md](./flows/customer-management-flow.md) | Customer CRUD, filtering, status changes, archiving; Flows 9-14: Agreements + Receivables; Flows 15-20: Projects + Artifacts; Flows 21-23: Search, Enriched Cards, Cross-Module Linking (Phase 5) |
+| [customer-management-flow.md](./flows/customer-management-flow.md) | Customer CRUD, filtering, status changes, archiving; Flows 9-14: Agreements + Receivables; Flows 15-20: Projects + Artifacts; Flows 21-23: Search, Enriched Cards, Cross-Module Linking; Flow 24: Auto Team Extraction (Phase 11) |
+| [onboarding-flow.md](./flows/onboarding-flow.md) | New-user onboarding wizard: 6 steps, AI extraction, waterfall reveal, step transitions, skip dialog, mobile layout, celebration sequence (Phase 1 + 2) |
 
 ---
 
-## Layer 3: Screens (9 files)
+## Layer 3: Screens (10 files)
 
 **Location:** `docs/screens/`
 
@@ -62,6 +63,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [settings-page.md](./screens/settings-page.md) | Theme switching, AI interaction mode, embedded writing references |
 | [writing-style-page.md](./screens/writing-style-page.md) | Writing references (embedded in Settings; `/settings/style` redirects to `/settings`) |
 | [customer-pages.md](./screens/customer-pages.md) | CustomerListPage (enriched cards, full-text search, 6 sort options, structured skeletons, AlertDialog, responsive 2-col grid) + CustomerDetailPage (4 tabs, event type filter, cross-module "Referenced by") |
+| [onboarding-page.md](./screens/onboarding-page.md) | OnboardingPage: WizardShell, WizardLayout, ProgressBar, 6 step components, 10 shared components, mobile-optimized VoiceStep, extraction waterfall, celebration completion (Phase 1 + 2) |
 
 ---
 
@@ -79,7 +81,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 5: Features (14 files)
+## Layer 5: Features (15 files)
 
 **Location:** `docs/features/`
 
@@ -97,8 +99,9 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [storytelling-analysis.md](./features/storytelling-analysis.md) | Storytelling framework selection, narrative arc design, emotional journey |
 | [topic-creation.md](./features/topic-creation.md) | Topic suggestion flow, entry points, tools, data model, known limitations |
 | [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing references system + characteristics extraction (per artifact type) |
-| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 8) |
+| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, LinkedIn team extraction (Tavily scrape + AI role filter + merge + frontend sync UI + auto-triggers on creation/update), per-user role filters, URL validation error icons, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 11) |
 | [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 25 tools, structured response cards (Phase 4) |
+| [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 
 ---
 
@@ -112,7 +115,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend AI architecture: AIService.ts, Vercel AI SDK v6, tool orchestration (v3.0.0) |
 | [backend/security-architecture.md](./Architecture/backend/security-architecture.md) | Multi-layered security (prompt injection, PII, rate limiting) |
 | [backend/observability-architecture.md](./Architecture/backend/observability-architecture.md) | Distributed tracing, metrics, circuit breaker |
-| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 19 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v5.0.0) |
+| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 21 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v7.0.0) |
 | [database/artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) | Table relationships and data flow diagrams |
 | [database/artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) | Artifacts table schema with status workflow |
 | [frontend/screen-context-integration.md](./Architecture/frontend/screen-context-integration.md) | useScreenContext hook, React Query caching |
@@ -125,12 +128,12 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | **18 endpoints** across AI chat (`/api/ai/*`), artifacts, writing examples, logging, auth (v4.0.0) |
+| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | **21 endpoints** across AI chat (`/api/ai/*`), artifacts, writing examples, onboarding, logging, auth (v5.0.0) |
 | [authentication-and-security.md](./api/authentication-and-security.md) | Bearer token auth, rate limits (10/min, 100/hr, 20 pipelines/day) |
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
 | [MOCK_CONFIGURATION_GUIDE.md](./api/MOCK_CONFIGURATION_GUIDE.md) | Mock toggle configuration for development/testing |
-| [customer-endpoints.md](./api/customer-endpoints.md) | 34 endpoints (8 customer + 1 LinkedIn import + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 project + 6 artifact): full CRUD + search + dashboard + import + ICP config (v6.0.0) |
+| [customer-endpoints.md](./api/customer-endpoints.md) | 37 endpoints (8 customer + 1 LinkedIn import + 3 enrichment/sync + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 project + 6 artifact): full CRUD + search + dashboard + import + enrichment + team sync + ICP config (v7.0.0) |
 | [customer-ai-endpoints.md](./api/customer-ai-endpoints.md) | Customer AI chat streaming endpoint (POST /api/ai/customer/chat/stream) with LLM-driven agent handoff (v2.0.0) |
 
 ---
@@ -154,7 +157,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 ## Layer 9: Database Schema
 
 Covered by Layer 6 Architecture files:
-- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (19 tables, 5 functions)
+- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (21 tables, 5 functions)
 - [artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) — Relationships and data flow
 - [artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) — Artifacts table detail
 
@@ -190,12 +193,13 @@ Covered by Layers 2, 3, 6, and 7:
 
 ## Additional Documentation
 
-### Frontend Reference (3 files)
+### Frontend Reference (4 files)
 
 **Location:** `docs/frontend/`
 
 | File | Description |
 |------|-------------|
+| [ux-ui-design-guide.md](./frontend/ux-ui-design-guide.md) | Comprehensive UX/UI design system guide: "Midnight Architect" theme, color tokens (light/dark), typography, spacing grid, surface elevation, component patterns, states, animations, accessibility (WCAG 2.1 AA), anti-patterns, decision framework |
 | [phase-3-image-generation-components.md](./frontend/phase-3-image-generation-components.md) | ImageApprovalPanel, ImageRegenerationModal, useImageGeneration |
 | [color-palettes/COLOR_PALETTE_GUIDE.md](./frontend/color-palettes/COLOR_PALETTE_GUIDE.md) | Color palette usage guide |
 | [color-palettes/COLOR_PALETTE_REFERENCE.md](./frontend/color-palettes/COLOR_PALETTE_REFERENCE.md) | Complete color token reference |
@@ -220,6 +224,8 @@ Contains product requirement documents and specifications for major features:
 - `user-auth-data-separation/` — User authentication PRD and specs
 - `writing-references-redesign/` — Writing references redesign phases 1-3 (per-type refs, file parsing, publication scraping)
 - `customers-management-platform/` — Customer management PRD, spec, and review summary
+- `new-account-onboarding/` — Onboarding wizard contract, PRDs, specs, UX/interface design reviews
+- `linkedin-team-extraction/` — LinkedIn team extraction contract, PRDs, and Phase 1-3 specs (backend pipeline, frontend UI, auto-triggers)
 
 ---
 
@@ -258,10 +264,10 @@ Social Post:    draft → ready
 | AI tools | 60+ across 37 tool files (35 content + 25 customer) |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 53 (18 AI/content + 34 customer + 1 customer AI) |
-| Database tables | 19 (11 content + 7 customer + 1 ICP settings) + 5 functions |
+| API endpoints | 59 (21 AI/content/onboarding + 37 customer + 1 customer AI) |
+| Database tables | 21 (11 content + 7 customer + 1 ICP settings + 1 onboarding + 1 team role filters) + 5 functions |
 | Error categories | 13 |
-| Documentation files | 65+ |
+| Documentation files | 69+ |
 
 ### Key Implementation Files
 
@@ -290,10 +296,20 @@ Social Post:    draft → ready
 | Product Mgmt Tools | `backend/src/services/ai/agents/product-mgmt/tools/productMgmtTools.ts` |
 | Product Mgmt Capability Tools | `backend/src/services/ai/agents/product-mgmt/tools/` (16 capability tool files) |
 | CustomerChatPanel | `frontend/src/features/customers/components/chat/CustomerChatPanel.tsx` |
+| Profile Extraction Service | `backend/src/services/ProfileExtractionService.ts` |
+| Onboarding Controller | `backend/src/controllers/onboarding.controller.ts` |
+| Onboarding Routes | `backend/src/routes/onboarding.ts` |
+| OnboardingGate | `frontend/src/components/auth/OnboardingGate.tsx` |
+| Onboarding Wizard Store | `frontend/src/features/onboarding/stores/onboardingWizardStore.ts` |
 
 ---
 
 **Version History:**
+- **21.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 11 (Auto-Triggers): updated customer-management.md (v10.0.0, `syncTeamForCustomer` reusable helper, auto-trigger on creation via `enrichAndScoreNewCustomer`, auto-trigger on update via fire-and-forget, 5s delayed invalidation on `useUpdateCustomer`, 15 new tests across 3 test files), customer-management-flow.md (v5.0.0, updated Flow 1 with background pipeline, added Flow 24: Automatic Team Extraction with sequence diagram). 0 new doc files, 4 updated.
+- **20.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 10 (Frontend UI): updated customer-management.md (v9.0.0, sync button, source badges, URL error icons, hidden member filtering, 23 new frontend tests). 0 new doc files, 2 updated.
+- **19.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 9 (backend pipeline): updated customer-management.md (v8.0.0, LinkedIn team extraction via Tavily scrape + AI role filter + merge, TeamMember source/hidden fields, enrichment_errors, per-user role filters), customer-endpoints.md (v7.0.0, +3 endpoints: sync-team-from-linkedin, enrich-from-linkedin, enrich-from-website), database-schema-reference.md (v7.0.0, +1 table: team_role_filters). 0 new doc files, 4 updated.
+- **18.0.0** (2026-03-02) — Onboarding Wizard Phase 2 (UX Polish): updated onboarding-wizard.md (v2.0.0, CSS animations, extraction waterfall, ChipToggle priorities, celebration sequence, reduced motion, 10 shared components, mobile layouts), onboarding-flow.md (v2.0.0, step transitions, skip dialog, Escape key, waterfall reveal, ChipToggle, accessibility), onboarding-page.md (v2.0.0, full component hierarchy rewrite with WizardLayout/ProgressBar/shared components, keyboard interactions, responsive behavior). 0 new doc files, 4 updated.
+- **17.0.0** (2026-03-02) — Onboarding Wizard Phase 1: added onboarding-wizard.md (feature), onboarding-flow.md (flow), onboarding-page.md (screen), updated content-agent-endpoints.md (v5.0.0, +3 endpoints: GET/PUT /api/onboarding/progress, POST /api/onboarding/extract-profile), database-schema-reference.md (v6.0.0, +1 table: onboarding_progress), PRODUCT_OVERVIEW.md (v2.1.0, onboarding feature row, /onboarding route, Phase 1 status). 3 new doc files, 4 updated.
 - **16.0.0** (2026-03-01) — LinkedIn Import Phase 3 (4-Layer Company Classification Pipeline): updated customer-management.md (v7.0.0, CompanyClassificationService with 4-layer pipeline: deterministic → Tavily LinkedIn lookup → LLM batch → fail-open, classify-first architecture, low-confidence tracking, LinkedIn company URL storage). Updated DOCUMENTATION_INDEX key files table. 0 new doc files, 2 updated.
 - **15.0.0** (2026-02-28) — LinkedIn Import Phase 2 (Enrichment + ICP Scoring): updated customer-management.md (v6.0.0, LLM enrichment via EnrichmentService, hybrid ICP scoring via IcpScoringService, ICP settings configuration, auto-status for low-ICP new customers), customer-endpoints.md (v6.0.0, +2 endpoints: GET/PUT /api/icp-settings, enrichment/ICP fields in LinkedIn import response), database-schema-reference.md (v5.0.0, +1 table: icp_settings). 0 new doc files, 4 updated.
 - **14.0.0** (2026-02-28) — LinkedIn Import Phase 1 + ICP Scores: updated customer-management.md (v5.0.0, LinkedIn CSV import, ICP score badges/filter, "Not Relevant" status, team member LinkedIn URLs), customer-endpoints.md (v5.0.0, +1 endpoint: POST /api/customers/import/linkedin, icp query parameter), PRODUCT_OVERVIEW.md (Phase 6 status, LinkedIn Import feature row). 0 new doc files, 4 updated.

@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, PanelLeftOpen, PanelLeftClose, X } from 'lucide-react'
+import { ArrowLeft, Bot, Check, MessageSquareOff, X } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -17,14 +17,13 @@ import { useChatLayoutStore } from '@/stores/chatLayoutStore'
 import { useCustomer, useUpdateCustomer, useUpdateCustomerStatus, useCustomerChat } from '../hooks'
 import { useCustomerStore } from '../stores'
 import { CustomerStatusPill } from '../components/shared/CustomerStatusPill'
-import { IcpScoreBadge } from '../components/shared/IcpScoreBadge'
-import type { IcpScore } from '../types'
+import { IcpScorePill } from '../components/shared/IcpScorePill'
 import { ProjectsTab } from '../components/projects'
 import { OverviewTab } from '../components/overview/OverviewTab'
 import { AgreementsTab } from '../components/agreements/AgreementsTab'
 import { ReceivablesTab } from '../components/receivables/ReceivablesTab'
 import { ActionItemsTab } from '../components/action-items/ActionItemsTab'
-import type { CustomerStatus, CustomerInfo, CustomerTab } from '../types'
+import type { CustomerStatus, CustomerInfo, CustomerTab, IcpScore } from '../types'
 
 export function CustomerDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -43,6 +42,10 @@ export function CustomerDetailPage() {
   const [editedName, setEditedName] = useState('')
   const nameInputRef = useRef<HTMLInputElement>(null)
 
+  // Enrichment loading state — tracks when background enrichment is running
+  const [isEnriching, setIsEnriching] = useState(false)
+  const enrichmentTimerRef = useRef<ReturnType<typeof setTimeout>>(null)
+
   // Set active customer in store
   useEffect(() => {
     if (id) setActiveCustomer(id)
@@ -53,6 +56,17 @@ export function CustomerDetailPage() {
   useEffect(() => {
     if (!activeTab) setActiveTab('overview')
   }, [activeTab, setActiveTab])
+
+  // Clear enrichment spinner when enrichment.updated_at changes (new data arrived)
+  const enrichmentUpdatedAt = customer?.info?.enrichment?.updated_at
+  const prevEnrichmentRef = useRef(enrichmentUpdatedAt)
+  useEffect(() => {
+    if (isEnriching && enrichmentUpdatedAt && enrichmentUpdatedAt !== prevEnrichmentRef.current) {
+      setIsEnriching(false)
+      if (enrichmentTimerRef.current) clearTimeout(enrichmentTimerRef.current)
+    }
+    prevEnrichmentRef.current = enrichmentUpdatedAt
+  }, [enrichmentUpdatedAt, isEnriching])
 
   const handleStatusChange = async (status: CustomerStatus) => {
     if (!id) return
@@ -92,11 +106,35 @@ export function CustomerDetailPage() {
 
   const handleUpdateInfo = async (info: CustomerInfo) => {
     if (!id) return
+
+    // Detect URL changes to trigger enrichment spinner
+    const oldWebsite = customer?.info?.website_url || ''
+    const oldLinkedin = customer?.info?.linkedin_company_url || ''
+    const newWebsite = info.website_url || ''
+    const newLinkedin = info.linkedin_company_url || ''
+    const urlChanged = (newWebsite && newWebsite !== oldWebsite) || (newLinkedin && newLinkedin !== oldLinkedin)
+
     try {
       await updateCustomer.mutateAsync({ id, info })
       toast({ title: 'Customer info updated' })
+
+      if (urlChanged) {
+        setIsEnriching(true)
+        // Clear enrichment state after enough time for backend to complete
+        if (enrichmentTimerRef.current) clearTimeout(enrichmentTimerRef.current)
+        enrichmentTimerRef.current = setTimeout(() => setIsEnriching(false), 15_000)
+      }
     } catch {
       toast({ title: 'Failed to update customer info', variant: 'destructive' })
+    }
+  }
+
+  const handleIcpScoreChange = async (score: IcpScore) => {
+    if (!id || !customer) return
+    try {
+      await updateCustomer.mutateAsync({ id, info: { ...customer.info, icp_score: score } })
+    } catch {
+      toast({ title: 'Failed to update ICP score', variant: 'destructive' })
     }
   }
 
@@ -151,7 +189,7 @@ export function CustomerDetailPage() {
             onClick={() => isChatOpen ? closeChat() : openCustomerChat()}
             title={isChatOpen ? 'Close panel' : 'Open AI Assistant'}
           >
-            {isChatOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
+            {isChatOpen ? <MessageSquareOff className="h-5 w-5" /> : <Bot className="h-5 w-5" />}
           </Button>
           <div className="h-6 w-px bg-border" />
           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => navigate('/customers')}>
@@ -190,8 +228,7 @@ export function CustomerDetailPage() {
             onStatusChange={handleStatusChange}
             size="md"
           />
-          <IcpScoreBadge score={(customer.info?.icp_score as IcpScore) ?? null} />
-
+          <IcpScorePill score={(customer.info?.icp_score as IcpScore) ?? null} onScoreChange={handleIcpScoreChange} />
         </div>
       </div>
 
@@ -213,51 +250,52 @@ export function CustomerDetailPage() {
               value="agreements"
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
-              Agreements ({customer.agreements_count})
+              Agreements{customer.agreements_count > 0 ? ` (${customer.agreements_count})` : ''}
             </TabsTrigger>
             <TabsTrigger
               value="receivables"
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
-              Receivables ({customer.receivables_count})
+              Receivables{customer.receivables_count > 0 ? ` (${customer.receivables_count})` : ''}
             </TabsTrigger>
             <TabsTrigger
               value="projects"
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
-              Projects ({customer.projects_count})
+              Projects{customer.projects_count > 0 ? ` (${customer.projects_count})` : ''}
             </TabsTrigger>
             <TabsTrigger
               value="action_items"
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
-              Action Items ({customer.action_items_count})
+              Action Items{customer.action_items_count > 0 ? ` (${customer.action_items_count})` : ''}
             </TabsTrigger>
           </TabsList>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <TabsContent value="overview" className="px-6 py-4 mt-0">
+          <TabsContent value="overview" className="px-6 py-6 mt-0">
             <OverviewTab
               customer={customer}
               onUpdateInfo={handleUpdateInfo}
               isUpdating={updateCustomer.isPending}
+              isEnriching={isEnriching}
             />
           </TabsContent>
 
-          <TabsContent value="agreements" className="px-6 py-4 mt-0">
+          <TabsContent value="agreements" className="px-6 py-6 mt-0">
             <AgreementsTab customerId={customer.id} />
           </TabsContent>
 
-          <TabsContent value="receivables" className="px-6 py-4 mt-0">
+          <TabsContent value="receivables" className="px-6 py-6 mt-0">
             <ReceivablesTab customerId={customer.id} />
           </TabsContent>
 
-          <TabsContent value="projects" className="px-6 py-4 mt-0">
+          <TabsContent value="projects" className="px-6 py-6 mt-0">
             <ProjectsTab customerId={customer.id} />
           </TabsContent>
 
-          <TabsContent value="action_items" className="px-6 py-4 mt-0">
+          <TabsContent value="action_items" className="px-6 py-6 mt-0">
             <ActionItemsTab customerId={customer.id} />
           </TabsContent>
         </div>

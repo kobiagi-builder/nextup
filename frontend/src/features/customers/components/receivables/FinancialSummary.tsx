@@ -49,7 +49,7 @@ export function FinancialSummary({ summary, isLoading }: FinancialSummaryProps) 
         {/* Total Paid */}
         <div>
           <p className="text-xs text-muted-foreground mb-1">Total Paid</p>
-          <p className="text-lg font-semibold text-green-400">
+          <p className="text-lg font-semibold text-green-600 dark:text-green-400">
             {formatCurrency(totalPaid)}
           </p>
         </div>
@@ -61,9 +61,9 @@ export function FinancialSummary({ summary, isLoading }: FinancialSummaryProps) 
           </p>
           <p className={cn(
             'text-lg font-semibold',
-            balanceDirection === 'positive' && 'text-amber-400',
-            balanceDirection === 'negative' && 'text-blue-400',
-            balanceDirection === 'zero' && 'text-green-400',
+            balanceDirection === 'positive' && 'text-amber-600 dark:text-amber-400',
+            balanceDirection === 'negative' && 'text-blue-600 dark:text-blue-400',
+            balanceDirection === 'zero' && 'text-muted-foreground',
           )}>
             {formatCurrency(balance)}
           </p>

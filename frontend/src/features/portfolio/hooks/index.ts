@@ -87,3 +87,6 @@ export {
 
 // Phase 4: Foundations Approval
 export { useFoundationsApproval } from './useFoundationsApproval'
+
+// File Attachments
+export { useFileAttachment, type UseFileAttachmentReturn } from './useFileAttachment'

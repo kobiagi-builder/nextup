@@ -1,8 +1,10 @@
+export { AgreementStatusPill } from './AgreementStatusPill'
 export { CustomerStatusBadge } from './CustomerStatusBadge'
 export { CustomerStatusPill } from './CustomerStatusPill'
 export { CustomerStatusSelect } from './CustomerStatusSelect'
 export { CustomerCard } from './CustomerCard'
 export { IcpScoreBadge } from './IcpScoreBadge'
+export { IcpScorePill } from './IcpScorePill'
 export { MultiSelectFilter } from './MultiSelectFilter'
 export {
   EmptyCustomers,

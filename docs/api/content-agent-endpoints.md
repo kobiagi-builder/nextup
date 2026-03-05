@@ -1,7 +1,7 @@
 # API Endpoints
 
-**Version:** 4.0.0
-**Last Updated:** 2026-02-25
+**Version:** 5.0.0
+**Last Updated:** 2026-03-02
 **Base URL:** `http://localhost:3001` (development) | `https://api.yourapp.com` (production)
 
 > **⚠️ v4.0.0**: Content Agent refactored to Vercel AI SDK v6. Routes changed from `/api/content-agent/*` to `/api/ai/*`. `ContentAgent.ts` replaced by `AIService.ts`. Intent detection now handled implicitly by LLM tool-calling (no explicit `intentDetection.ts`).
@@ -87,6 +87,9 @@ curl -X POST http://localhost:3001/api/auth/login \
 | `POST` | `/api/user/writing-examples/upload` | Yes | Upload file |
 | `POST` | `/api/user/writing-examples/extract-url` | Yes | Extract from file URL |
 | `POST` | `/api/user/writing-examples/extract-publication` | Yes | Scrape publication URL |
+| `GET` | `/api/onboarding/progress` | Yes | Get onboarding progress |
+| `PUT` | `/api/onboarding/progress` | Yes | Upsert onboarding progress |
+| `POST` | `/api/onboarding/extract-profile` | Yes | Start AI profile extraction (202) |
 | `POST` | `/api/user/writing-examples/:id/retry` | Yes | Retry failed extraction |
 | `DELETE` | `/api/artifacts/:id` | Yes | Delete artifact + storage |
 | `POST` | `/api/log` | No | Frontend logging bridge |

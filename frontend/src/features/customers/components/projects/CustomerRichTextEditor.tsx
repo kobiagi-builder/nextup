@@ -5,11 +5,14 @@
  * No portfolio-specific dependencies (ToneSelector, ImageBubbleMenu, etc.).
  */
 
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useEditor, EditorContent, type Editor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Placeholder from '@tiptap/extension-placeholder'
 import Link from '@tiptap/extension-link'
+import Color from '@tiptap/extension-color'
+import { TextStyle } from '@tiptap/extension-text-style'
+import Highlight from '@tiptap/extension-highlight'
 import {
   Bold,
   Italic,
@@ -22,9 +25,13 @@ import {
   Undo,
   Redo,
   Code,
+  Baseline,
+  Highlighter,
+  Ban,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 interface CustomerRichTextEditorProps {
   content: string
@@ -62,6 +69,118 @@ function ToolbarButton({
     >
       {children}
     </Button>
+  )
+}
+
+const TEXT_COLORS = [
+  { label: 'Red', value: '#ef4444' },
+  { label: 'Orange', value: '#f97316' },
+  { label: 'Yellow', value: '#eab308' },
+  { label: 'Green', value: '#22c55e' },
+  { label: 'Blue', value: '#3b82f6' },
+  { label: 'Purple', value: '#8b5cf6' },
+  { label: 'Pink', value: '#ec4899' },
+  { label: 'White', value: '#ffffff' },
+]
+
+const HIGHLIGHT_COLORS = [
+  { label: 'Red', value: '#7f1d1d' },
+  { label: 'Orange', value: '#78350f' },
+  { label: 'Yellow', value: '#713f12' },
+  { label: 'Green', value: '#14532d' },
+  { label: 'Blue', value: '#1e3a5f' },
+  { label: 'Purple', value: '#4c1d95' },
+  { label: 'Pink', value: '#831843' },
+  { label: 'Gray', value: '#374151' },
+]
+
+function ColorPickerButton({
+  editor,
+  type,
+}: {
+  editor: Editor
+  type: 'textColor' | 'highlight'
+}) {
+  const [open, setOpen] = useState(false)
+  const isTextColor = type === 'textColor'
+  const colors = isTextColor ? TEXT_COLORS : HIGHLIGHT_COLORS
+  const title = isTextColor ? 'Text Color' : 'Highlight Color'
+
+  const activeColor = isTextColor
+    ? (editor.getAttributes('textStyle').color as string | undefined)
+    : (editor.getAttributes('highlight').color as string | undefined)
+
+  const applyColor = (color: string | null) => {
+    if (isTextColor) {
+      if (color) {
+        editor.chain().focus().setColor(color).run()
+      } else {
+        editor.chain().focus().unsetColor().run()
+      }
+    } else {
+      if (color) {
+        editor.chain().focus().toggleHighlight({ color }).run()
+      } else {
+        editor.chain().focus().unsetHighlight().run()
+      }
+    }
+    setOpen(false)
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn('h-8 w-8', activeColor && 'bg-muted text-primary')}
+          title={title}
+        >
+          <div className="flex flex-col items-center gap-0">
+            {isTextColor ? (
+              <Baseline className="h-3.5 w-3.5" />
+            ) : (
+              <Highlighter className="h-3.5 w-3.5" />
+            )}
+            <div
+              className="h-0.5 w-3.5 rounded-full"
+              style={{ backgroundColor: activeColor || 'currentColor' }}
+            />
+          </div>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        data-portal-ignore-click-outside
+        className="w-auto p-2"
+        align="start"
+        sideOffset={8}
+      >
+        <div className="grid grid-cols-4 gap-1.5">
+          <button
+            type="button"
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-border hover:ring-2 hover:ring-primary/50"
+            onClick={() => applyColor(null)}
+            title={isTextColor ? 'Default' : 'None'}
+          >
+            <Ban className="h-3 w-3 text-muted-foreground" />
+          </button>
+          {colors.map(({ label, value }) => (
+            <button
+              key={value}
+              type="button"
+              className={cn(
+                'h-6 w-6 rounded-full hover:ring-2 hover:ring-primary/50',
+                activeColor === value && 'ring-2 ring-primary'
+              )}
+              style={{ backgroundColor: value }}
+              onClick={() => applyColor(value)}
+              title={label}
+            />
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
   )
 }
 
@@ -146,6 +265,10 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
           <Code className="h-4 w-4" />
         </ToolbarButton>
 
+        {/* Text color & highlight */}
+        <ColorPickerButton editor={editor} type="textColor" />
+        <ColorPickerButton editor={editor} type="highlight" />
+
         <div className="w-px h-6 bg-border mx-1" />
 
         {/* Lists */}
@@ -200,6 +323,9 @@ export function CustomerRichTextEditor({
           levels: [1, 2, 3],
         },
       }),
+      TextStyle,
+      Color,
+      Highlight.configure({ multicolor: true }),
       Placeholder.configure({
         placeholder,
       }),

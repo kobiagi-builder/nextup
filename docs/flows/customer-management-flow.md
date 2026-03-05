@@ -1,13 +1,13 @@
 # Customer Management Flow
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-25
-**Version:** 4.0.0
-**Status:** Complete (Phase 5)
+**Last Updated:** 2026-03-04
+**Version:** 5.0.0
+**Status:** Complete (Phase 11 — Auto-Triggers)
 
 ## Overview
 
-User flows for managing customer relationships: creating, browsing, editing, and archiving customers (Flows 1-8), Agreements (Flows 9-11), Receivables (Flows 12-14), Projects & Artifacts (Flows 15-20), and Search/Dashboard/Cross-Linking (Flows 21-23).
+User flows for managing customer relationships: creating, browsing, editing, and archiving customers (Flows 1-8), Agreements (Flows 9-11), Receivables (Flows 12-14), Projects & Artifacts (Flows 15-20), Search/Dashboard/Cross-Linking (Flows 21-23), and Auto-Triggers (Flow 24).
 
 **Phase 5 additions:**
 - **Flow 21: Full-Text Search** — User types in search box, query passed to `get_customer_list_summary` RPC via `websearch_to_tsquery('english', query)`, TSVECTOR indexes name/vertical/about/persona. Results update in real-time via TanStack Query.
@@ -39,9 +39,19 @@ sequenceDiagram
     Dialog->>Dialog: Invalidate customer list queries
     Dialog->>Dialog: Close modal + success toast
     User->>User: Sees new card in list
+    Note over API,DB: Background (fire-and-forget):
+    API->>API: enrichAndScoreNewCustomer()
+    API->>API: Enrich company data
+    API->>API: syncTeamForCustomer() if LinkedIn URL exists
+    API->>API: ICP scoring
+    Note over Dialog: 5s delayed re-invalidation
+    Dialog->>Dialog: Refetch detail + list queries
+    User->>User: Team members + ICP badge appear
 ```
 
-**Error path:** Validation failure shows inline error. API error shows destructive toast.
+**Background pipeline:** After the 201 response, `enrichAndScoreNewCustomer` runs fire-and-forget: (1) enrich company via Tavily + Claude, (2) if enrichment populated a LinkedIn URL, extract team members via `syncTeamForCustomer`, (3) auto-score ICP. The frontend's `useCreateCustomer` hook fires a 5-second delayed query invalidation to surface the results.
+
+**Error path:** Validation failure shows inline error. API error shows destructive toast. Background enrichment/team failures are logged and persisted to `enrichment_errors` but don't affect the user's creation flow.
 
 ## Flow 2: Browse & Filter Customers
 
@@ -371,6 +381,57 @@ sequenceDiagram
 5. ArtifactRow disappears from list
 
 ---
+
+## Flow 24: Automatic Team Extraction
+
+**Trigger:** Automatic — runs in the background after customer creation or update when a LinkedIn company URL exists.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Frontend
+    participant API as Backend API
+    participant Tavily
+    participant AI as Claude Haiku
+    participant DB as Supabase
+
+    alt Customer Creation
+        User->>Frontend: Create customer with LinkedIn URL
+        Frontend->>API: POST /api/customers
+        API->>DB: INSERT customer
+        API-->>Frontend: 201 Created
+        Note over API: Fire-and-forget pipeline
+        API->>API: enrichAndScoreNewCustomer()
+        API->>API: Enrich company data
+        API->>API: Re-fetch customer (enrichment may have populated URL)
+        API->>API: syncTeamForCustomer()
+    else Customer Update (info changed)
+        User->>Frontend: Update customer info
+        Frontend->>API: PUT /api/customers/:id
+        API->>DB: UPDATE customer
+        API-->>Frontend: 200 OK
+        Note over API: Fire-and-forget
+        API->>API: syncTeamForCustomer()
+    end
+    API->>Tavily: Scrape LinkedIn People page
+    Tavily-->>API: People list
+    API->>AI: Filter by role categories
+    AI-->>API: Matching indices
+    API->>API: mergeTeamMembers()
+    API->>DB: mergeInfo (team + clear errors)
+    Note over Frontend: 5s delayed invalidation
+    Frontend->>API: Refetch queries
+    Frontend-->>User: Team members appear
+```
+
+**Trigger conditions:**
+- **Creation:** `enrichAndScoreNewCustomer` runs after INSERT. Team extraction fires if `latestCustomer.info.linkedin_company_url` exists post-enrichment.
+- **Update:** `updateCustomer` handler checks if `parsed.data.info` is in payload AND `customer.info.linkedin_company_url` has an extractable slug.
+- **Manual:** "Sync" button in TeamSection still works as a direct trigger (Phase 10).
+
+**Idempotency:** The merge logic (`mergeTeamMembers`) is idempotent. Re-syncing the same URL confirms existing members without creating duplicates. New members are added, stale `linkedin_scrape` members are soft-deleted.
+
+**Error isolation:** Team extraction failures never affect the HTTP response. Errors are logged and persisted to `enrichment_errors.linkedin` for UI display (AlertCircle icon).
 
 ## Related Documentation
 

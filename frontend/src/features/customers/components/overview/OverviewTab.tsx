@@ -15,18 +15,24 @@ interface OverviewTabProps {
   customer: CustomerWithCounts
   onUpdateInfo: (info: CustomerInfo) => void
   isUpdating?: boolean
+  isEnriching?: boolean
 }
 
-export function OverviewTab({ customer, onUpdateInfo, isUpdating }: OverviewTabProps) {
+export function OverviewTab({ customer, onUpdateInfo, isUpdating, isEnriching }: OverviewTabProps) {
   const { data: events = [], isLoading: eventsLoading } = useCustomerEvents(customer.id)
   const { data: financialSummary } = useReceivableSummary(customer.id)
 
+  // Filter out hidden members before display
+  const visibleTeam = (customer.info?.team || []).filter(m => !m.hidden)
+
   const handleTeamSave = (team: TeamMember[]) => {
-    onUpdateInfo({ ...customer.info, team })
+    // Preserve hidden members in the save payload
+    const hiddenMembers = (customer.info?.team || []).filter(m => m.hidden)
+    onUpdateInfo({ ...customer.info, team: [...team, ...hiddenMembers] })
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <QuickStats
         counts={{
           agreements: customer.agreements_count,
@@ -37,23 +43,26 @@ export function OverviewTab({ customer, onUpdateInfo, isUpdating }: OverviewTabP
         financialSummary={financialSummary ?? undefined}
       />
 
-      <div className="rounded-lg border border-border/50 bg-card p-4">
+      <div className="rounded-lg border border-border/50 bg-card p-5">
         <CustomerInfoSection
           info={customer.info || {}}
           onSave={onUpdateInfo}
           isSaving={isUpdating}
+          isEnriching={isEnriching}
         />
       </div>
 
-      <div className="rounded-lg border border-border/50 bg-card p-4">
+      <div className="rounded-lg border border-border/50 bg-card p-5">
         <TeamSection
-          team={customer.info?.team || []}
+          team={visibleTeam}
           onSave={handleTeamSave}
           isSaving={isUpdating}
+          customerId={customer.id}
+          linkedinCompanyUrl={customer.info?.linkedin_company_url}
         />
       </div>
 
-      <div className="rounded-lg border border-border/50 bg-card p-4">
+      <div className="rounded-lg border border-border/50 bg-card p-5">
         <EventTimeline
           customerId={customer.id}
           events={events}

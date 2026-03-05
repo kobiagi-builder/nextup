@@ -169,6 +169,7 @@
   /* Typography defaults */
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-display);
+    text-wrap: pretty;
     @apply font-semibold tracking-tight;
   }
 
@@ -409,5 +410,122 @@
   .selection-context-banner {
     border-color: hsl(var(--primary) / 0.3);
     background: hsl(var(--primary) / 0.05);
+  }
+
+  /* =============================================================================
+     Onboarding Wizard Animations
+     ============================================================================= */
+
+  /* --- Step Transitions --- */
+  @keyframes onboarding-step-enter-forward {
+    from {
+      opacity: 0;
+      transform: translateX(24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes onboarding-step-enter-backward {
+    from {
+      opacity: 0;
+      transform: translateX(-24px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* --- Content Entrance (used for staggered field/element reveals) --- */
+  @keyframes onboarding-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes onboarding-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  @keyframes onboarding-scale-in {
+    from {
+      opacity: 0;
+      transform: scale(0.85);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  /* Waterfall: badge slides in from right */
+  @keyframes onboarding-badge-enter {
+    from {
+      opacity: 0;
+      transform: translateX(8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  /* --- Chip selection checkmark appears --- */
+  @keyframes onboarding-chip-check {
+    from {
+      opacity: 0;
+      transform: scale(0.5) rotate(-10deg);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+  }
+
+  /* --- Completion checkmark (circle + stroke) --- */
+  @keyframes onboarding-checkmark-circle {
+    from { stroke-dashoffset: 166; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  @keyframes onboarding-checkmark-stroke {
+    from { stroke-dashoffset: 48; }
+    to   { stroke-dashoffset: 0; }
+  }
+
+  /* --- Utility classes --- */
+  .onboarding-animate-fade-up {
+    animation: onboarding-fade-up 300ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .onboarding-animate-fade-in {
+    animation: onboarding-fade-in 200ms ease-out both;
+  }
+
+  .onboarding-animate-scale-in {
+    animation: onboarding-scale-in 200ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .onboarding-animate-badge-enter {
+    animation: onboarding-badge-enter 200ms ease-out both;
+  }
+
+  /* prefers-reduced-motion: collapse all onboarding animations to instant opacity */
+  @media (prefers-reduced-motion: reduce) {
+    .onboarding-animate-fade-up,
+    .onboarding-animate-fade-in,
+    .onboarding-animate-scale-in,
+    .onboarding-animate-badge-enter {
+      animation: onboarding-fade-in 0ms both;
+    }
   }
 }

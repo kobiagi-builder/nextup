@@ -32,7 +32,7 @@ export function QuickStats({ counts, financialSummary }: QuickStatsProps) {
       subValue: financialSummary ? `${formatCurrency(financialSummary.balance)} balance` : null,
       icon: Receipt,
       valueColor: '',
-      subValueColor: balanceDir === 'positive' ? 'text-amber-400' : balanceDir === 'negative' ? 'text-blue-400' : 'text-green-400',
+      subValueColor: balanceDir === 'positive' ? 'text-amber-600 dark:text-amber-400' : balanceDir === 'negative' ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground',
     },
     {
       label: 'Projects',

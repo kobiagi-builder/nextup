@@ -12,6 +12,7 @@ import { Bot, User } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import DOMPurify from 'dompurify'
 import { ChatInput } from '@/features/portfolio/components/chat/ChatInput'
+import { useFileAttachment } from '@/features/portfolio/hooks/useFileAttachment'
 import {
   useCustomerStructuredChat,
   type CustomerParsedMessage,
@@ -57,6 +58,9 @@ export function CustomerChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const queryClient = useQueryClient()
+
+  // File attachment support
+  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading } = useFileAttachment()
 
   // Invalidate customer queries when AI tools change customer data
   const handleCustomerDataChanged = useCallback(() => {
@@ -145,12 +149,19 @@ export function CustomerChatPanel({
         <ChatInput
           value={input}
           onChange={setInput}
-          onSubmit={() => sendMessage()}
+          onSubmit={() => {
+            sendMessage(undefined, attachments.length > 0 ? attachments : undefined)
+            clearAttachments()
+          }}
           onStop={stop}
           isStreaming={isStreaming}
           isLoading={isLoading}
           placeholder="Ask about this customer..."
           inputRef={inputRef}
+          attachments={attachments}
+          onAttach={addAttachment}
+          onRemoveAttachment={removeAttachment}
+          isUploading={isUploading}
         />
       </div>
     </div>
@@ -269,7 +280,7 @@ function EmptyState({ suggestions, onSuggestionClick }: EmptyStateProps) {
         <Bot className="h-6 w-6 text-primary" />
       </div>
       <div className="space-y-2">
-        <h3 className="font-medium">Customer AI</h3>
+        <h3 className="font-medium">AI Assistant</h3>
         <p className="text-sm text-muted-foreground">
           I can help with customer management and product strategy.
         </p>

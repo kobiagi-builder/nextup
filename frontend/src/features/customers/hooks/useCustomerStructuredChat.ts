@@ -13,6 +13,7 @@
 
 import { useCallback, useMemo } from 'react'
 import { useAIChat, type UseAIChatOptions } from '@/features/portfolio/hooks/useAIChat'
+import type { ProcessedAttachment } from '@/features/portfolio/types/attachment'
 import {
   useChatStore,
   selectMessages,
@@ -53,7 +54,7 @@ export interface UseCustomerStructuredChatReturn {
   messages: CustomerParsedMessage[]
   input: string
   setInput: (value: string) => void
-  sendMessage: (content?: string) => void
+  sendMessage: (content?: string, attachments?: ProcessedAttachment[]) => void
   stop: () => void
   clear: () => void
   isStreaming: boolean

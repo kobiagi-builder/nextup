@@ -2,6 +2,11 @@
 // Reusable utility functions for Playwright automation
 
 const { chromium, firefox, webkit } = require('playwright');
+const fs = require('fs');
+const path = require('path');
+
+// Session directory for screenshots and artifacts
+let _sessionDir = null;
 
 /**
  * Parse extra HTTP headers from environment variables.
@@ -177,23 +182,83 @@ async function extractTexts(page, selector) {
 }
 
 /**
- * Take screenshot with timestamp
+ * Create a timestamped session directory for screenshots and test artifacts.
+ * All screenshots and files from this test session will be stored here.
+ * Call cleanupSessionDir() when testing is complete.
+ * @param {string} prefix - Optional prefix for the folder name (default: 'pw-test')
+ * @returns {string} Absolute path to the session directory
+ */
+function createSessionDir(prefix = 'pw-test') {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19);
+  const dirName = `${prefix}-${timestamp}`;
+  const dirPath = path.join('/tmp', dirName);
+
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+
+  _sessionDir = dirPath;
+  console.log(`📁 Session directory created: ${dirPath}`);
+  return dirPath;
+}
+
+/**
+ * Get the current session directory, creating one if it doesn't exist.
+ * @returns {string} Absolute path to the session directory
+ */
+function getSessionDir() {
+  if (!_sessionDir) {
+    return createSessionDir();
+  }
+  return _sessionDir;
+}
+
+/**
+ * Clean up the session directory and all its contents.
+ * Call this when the testing session is complete.
+ * @param {string} dirPath - Optional explicit path. If omitted, cleans up the current session dir.
+ */
+function cleanupSessionDir(dirPath) {
+  const target = dirPath || _sessionDir;
+  if (!target) {
+    console.log('No session directory to clean up.');
+    return;
+  }
+
+  try {
+    if (fs.existsSync(target)) {
+      fs.rmSync(target, { recursive: true, force: true });
+      console.log(`🧹 Session directory cleaned up: ${target}`);
+    }
+  } catch (e) {
+    console.warn(`Failed to clean up session directory: ${e.message}`);
+  }
+
+  if (target === _sessionDir) {
+    _sessionDir = null;
+  }
+}
+
+/**
+ * Take screenshot with timestamp, saved to the session directory.
  * @param {Object} page - Playwright page
  * @param {string} name - Screenshot name
  * @param {Object} options - Screenshot options
  */
 async function takeScreenshot(page, name, options = {}) {
+  const sessionDir = getSessionDir();
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const filename = `${name}-${timestamp}.png`;
-  
+  const filePath = path.join(sessionDir, filename);
+
   await page.screenshot({
-    path: filename,
+    path: filePath,
     fullPage: options.fullPage !== false,
     ...options
   });
-  
-  console.log(`Screenshot saved: ${filename}`);
-  return filename;
+
+  console.log(`📸 Screenshot saved: ${filePath}`);
+  return filePath;
 }
 
 /**
@@ -437,5 +502,8 @@ module.exports = {
   retryWithBackoff,
   createContext,
   detectDevServers,
-  getExtraHeadersFromEnv
+  getExtraHeadersFromEnv,
+  createSessionDir,
+  getSessionDir,
+  cleanupSessionDir
 };

@@ -153,7 +153,7 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
 
           {/* Sort toggle */}
           <Button
-            variant="ghost"
+            variant={sortBy === 'due_date' ? 'secondary' : 'ghost'}
             size="sm"
             className="h-8 text-xs text-muted-foreground"
             onClick={() => setSortBy(sortBy === 'due_date' ? 'created_at' : 'due_date')}
@@ -163,10 +163,12 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
           </Button>
         </div>
 
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          Add Item
-        </Button>
+        {actionItems.length > 0 && (
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            Add Item
+          </Button>
+        )}
       </div>
 
       {/* Action items list or empty state */}

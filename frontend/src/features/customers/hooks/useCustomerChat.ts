@@ -17,7 +17,7 @@ export function useCustomerChat(customerId: string, customerName: string) {
 
   const openCustomerChat = useCallback(() => {
     openChat({
-      title: `${customerName} AI`,
+      title: `AI Assistant \u2022 ${customerName}`,
       contextKey: `customer:${customerId}`,
       endpoint: `${API_URL}/api/ai/customer/chat/stream`,
       screenContext: {

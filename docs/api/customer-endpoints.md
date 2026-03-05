@@ -1,9 +1,9 @@
 # Customer API Endpoints
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-28
-**Version:** 6.0.0
-**Status:** Complete (Phase 7 — Enrichment + ICP Scoring)
+**Last Updated:** 2026-03-04
+**Version:** 7.0.0
+**Status:** Complete (Phase 9 — LinkedIn Team Extraction)
 
 ## Overview
 
@@ -311,6 +311,81 @@ Search customer artifacts by title for cross-module linking (portfolio -> custom
 ```
 
 **Errors:** 400 (query too short), 401, 500
+
+---
+
+### POST /api/customers/:id/sync-team-from-linkedin
+
+Scrape team members from a customer's LinkedIn company page, filter by role using AI, and merge into the customer's team array. Requires the customer to have a valid LinkedIn company URL stored in `info`.
+
+**Pipeline:** Extract company slug → Tavily scrape People page → AI role filter (Claude Haiku, single batch) → Merge with existing team (add new, soft-delete stale, preserve manual)
+
+**Response 200:**
+```json
+{
+  "added": 5,
+  "removed": 2,
+  "total": 12,
+  "members": [
+    {
+      "name": "Jane Smith",
+      "role": "CEO",
+      "source": "linkedin_scrape",
+      "linkedin_url": "https://linkedin.com/in/janesmith"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `added` | number | New team members added from scrape |
+| `removed` | number | Stale `linkedin_scrape` members soft-deleted (`hidden: true`) |
+| `total` | number | Total team members after merge |
+| `members` | TeamMember[] | Full merged team array |
+
+**Merge behavior:**
+- Members with `source: 'manual'` or no source are never modified or removed
+- New scraped members are added with `source: 'linkedin_scrape'`
+- Stale `linkedin_scrape` members (not in new scrape) get `hidden: true`
+- Returning members (previously hidden) get `hidden: false` and updated role
+- Name matching is case-insensitive
+
+**Role filtering defaults:** Founder, C-Level, VP, Director, Head of, Product Management, Product Design. Excludes HR, Recruiting, Talent Acquisition, People Ops, Office Manager, Administrative. Per-user overrides stored in `team_role_filters` table.
+
+**On error:** Persists error to `customer.info.enrichment_errors.linkedin` for UI display.
+
+**Errors:** 400 (customer has no LinkedIn URL), 401 (unauthorized), 404 (customer not found), 500 (scraping/AI failure)
+
+---
+
+### POST /api/customers/enrich-from-linkedin
+
+Enrich a new customer record from a LinkedIn company URL before creation. Uses Tavily + Claude Haiku to extract company data.
+
+**Body:**
+```json
+{
+  "linkedinUrl": "https://linkedin.com/company/acme-corp"
+}
+```
+
+**Response 200:** Extracted company info (name, about, industry, specialties, employee count)
+
+---
+
+### POST /api/customers/enrich-from-website
+
+Enrich a new customer record from a company website URL before creation. Uses Tavily + Claude Haiku to extract company data.
+
+**Body:**
+```json
+{
+  "websiteUrl": "https://acme.com"
+}
+```
+
+**Response 200:** Extracted company info
 
 ---
 

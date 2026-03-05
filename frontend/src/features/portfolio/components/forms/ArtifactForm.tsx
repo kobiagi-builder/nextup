@@ -141,6 +141,9 @@ export function ArtifactForm({
         onChange={(tone) => setValue('tone', tone)}
       />
 
+      {/* Visual separator between configuration and content sections */}
+      <div className="border-t border-border" />
+
       {/* Title */}
       <div className="space-y-2">
         <Label htmlFor="title">Title</Label>

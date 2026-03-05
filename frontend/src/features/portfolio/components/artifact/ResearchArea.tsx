@@ -327,6 +327,14 @@ export function ResearchArea({
               NEW
             </span>
           )}
+          {status === 'loaded' && isCollapsed && research.length > 0 && (
+            <>
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              <span className="px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400 rounded-full">
+                {research.length} sources
+              </span>
+            </>
+          )}
         </div>
         <Button
           variant="ghost"

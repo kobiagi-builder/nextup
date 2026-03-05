@@ -17,6 +17,7 @@ import {
   type UseStructuredChatOptions,
 } from "../../hooks/useStructuredChat";
 import { useCreateArtifact } from "../../hooks/useArtifacts";
+import { useFileAttachment } from "../../hooks/useFileAttachment";
 import { useChatStore, artifactContextKey } from "../../stores/chatStore";
 import type { ParsedChatMessage, ArtifactSuggestion } from "../../types/chat";
 import { ChatInput } from "./ChatInput";
@@ -60,6 +61,9 @@ export function ChatPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialMessageSentRef = useRef(false);
   const { toast } = useToast();
+
+  // File attachment support
+  const { attachments, addAttachment, removeAttachment, clearAttachments, isUploading } = useFileAttachment();
 
   // Create artifact mutation
   const createArtifactMutation = useCreateArtifact();
@@ -220,6 +224,14 @@ export function ChatPanel({
           <div className="flex items-center gap-2 text-sm text-indigo-400">
             <MessageCircleQuestion className="h-4 w-4" />
             <span>Showcase Interview</span>
+            {(() => {
+              const questionCount = messages.filter(m => m.role === 'assistant' && m.content.trim().endsWith('?')).length
+              return questionCount > 0 ? (
+                <span className="text-xs text-muted-foreground ml-1">
+                  Question {questionCount} of ~6
+                </span>
+              ) : null
+            })()}
           </div>
           <button
             type="button"
@@ -278,6 +290,24 @@ export function ChatPanel({
             })()
           )}
 
+          {/* Typing indicator */}
+          {isLoading && !isStreaming && (
+            <div className="flex gap-3 p-4 flex-row">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <Bot className="h-4 w-4" />
+              </div>
+              <div className="flex items-center">
+                <div className="rounded-2xl rounded-bl-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 px-4 py-3">
+                  <div className="flex gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Error message */}
           {error && (
             <div className="mx-4 my-2 rounded-md bg-destructive/10 p-3 text-sm text-destructive" data-testid="chat-panel-error">
@@ -302,12 +332,19 @@ export function ChatPanel({
         <ChatInput
           value={input}
           onChange={setInput}
-          onSubmit={() => sendMessage()}
+          onSubmit={() => {
+            sendMessage(undefined, attachments.length > 0 ? attachments : undefined);
+            clearAttachments();
+          }}
           onStop={stop}
           isStreaming={isStreaming}
           isLoading={isLoading}
           placeholder="Let's chat about your content..."
           inputRef={inputRef}
+          attachments={attachments}
+          onAttach={addAttachment}
+          onRemoveAttachment={removeAttachment}
+          isUploading={isUploading}
         />
       </div>
     </div>
@@ -341,7 +378,7 @@ function ChatMessageRenderer({
           <User className="h-4 w-4" />
         </div>
         <div className="flex max-w-[80%] flex-col gap-2 items-end">
-          <div className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm">
+          <div className="rounded-2xl rounded-br-sm bg-primary text-primary-foreground px-4 py-2 text-sm">
             <div className="whitespace-pre-wrap break-words">
               {message.content}
             </div>

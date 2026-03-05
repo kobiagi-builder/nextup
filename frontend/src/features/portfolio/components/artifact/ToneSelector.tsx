@@ -5,12 +5,19 @@
  * Applied during skeleton generation to match user's desired style.
  */
 
+import { HelpCircle } from 'lucide-react'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
 } from '@/components/ui/select'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import type { ToneOption } from '../../types/portfolio'
 
 // =============================================================================
@@ -88,12 +95,24 @@ export function ToneSelector({
 
   return (
     <div className={isHorizontal ? 'flex items-center gap-2' : 'space-y-2'}>
-      <label
-        htmlFor="tone-selector"
-        className={isHorizontal ? 'text-sm font-medium whitespace-nowrap' : 'text-sm font-medium'}
-      >
-        Tone{isHorizontal ? ':' : ''}
-      </label>
+      <div className={isHorizontal ? 'flex items-center gap-1 whitespace-nowrap' : 'flex items-center gap-1'}>
+        <label
+          htmlFor="tone-selector"
+          className="text-sm font-medium"
+        >
+          Tone{isHorizontal ? ':' : ''}
+        </label>
+        <TooltipProvider>
+          <Tooltip delayDuration={300}>
+            <TooltipTrigger asChild>
+              <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[240px]">
+              Sets the writing style for your content. Professional is polished and direct. Conversational is warm and personal.
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      </div>
       <Select
         value={value || 'professional'}
         onValueChange={(value) => onChange(value as ToneOption)}

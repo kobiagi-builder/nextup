@@ -1,12 +1,11 @@
 /**
  * Agreement Card
  *
- * Displays a single agreement with scope, computed status, type, dates, pricing, and actions.
+ * Displays a single agreement with scope, status pill, type, dates, pricing, and actions.
  */
 
 import { useState } from 'react'
-import { Calendar, DollarSign, MoreHorizontal, Pencil, Trash2, XCircle } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Calendar, DollarSign, MoreHorizontal, Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -24,40 +23,35 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import type { Agreement } from '../../types'
-import {
-  AGREEMENT_TYPE_LABELS,
-  AGREEMENT_STATUS_LABELS,
-  AGREEMENT_STATUS_COLORS,
-} from '../../types'
-import { getAgreementStatus, formatPricing, formatDateRange } from '../../utils/format'
+import type { Agreement, AgreementStatus } from '../../types'
+import { AGREEMENT_TYPE_LABELS } from '../../types'
+import { AgreementStatusPill } from '../shared/AgreementStatusPill'
+import { formatPricing, formatDateRange } from '../../utils/format'
 
 interface AgreementCardProps {
   agreement: Agreement
   onEdit: (agreement: Agreement) => void
   onDelete: (id: string) => void
-  onTerminate: (id: string) => void
+  onStatusChange: (id: string, status: AgreementStatus) => void
   isDeleting?: boolean
 }
 
-export function AgreementCard({ agreement, onEdit, onDelete, onTerminate, isDeleting }: AgreementCardProps) {
+export function AgreementCard({ agreement, onEdit, onDelete, onStatusChange, isDeleting }: AgreementCardProps) {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
-  const status = getAgreementStatus(agreement)
-  const statusLabel = AGREEMENT_STATUS_LABELS[status]
-  const statusColor = AGREEMENT_STATUS_COLORS[status]
   const typeLabel = AGREEMENT_TYPE_LABELS[agreement.type] || agreement.type
 
   return (
     <>
       <div className="group rounded-lg border border-border/50 bg-card p-5 space-y-3 hover:border-border transition-colors">
-        {/* Row 1: Scope + Status badge */}
+        {/* Row 1: Scope + Status pill + Actions */}
         <div className="flex items-start justify-between gap-3">
           <h4 className="font-medium text-foreground line-clamp-1">{agreement.scope}</h4>
           <div className="flex items-center gap-2 shrink-0">
-            <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium', statusColor)}>
-              {statusLabel}
-            </span>
+            <AgreementStatusPill
+              status={agreement.status}
+              onStatusChange={(status) => onStatusChange(agreement.id, status)}
+            />
 
             {/* Actions dropdown */}
             <DropdownMenu>
@@ -75,12 +69,6 @@ export function AgreementCard({ agreement, onEdit, onDelete, onTerminate, isDele
                   <Pencil className="h-3.5 w-3.5 mr-2" />
                   Edit
                 </DropdownMenuItem>
-                {status !== 'terminated' && (
-                  <DropdownMenuItem onClick={() => onTerminate(agreement.id)}>
-                    <XCircle className="h-3.5 w-3.5 mr-2" />
-                    Terminate
-                  </DropdownMenuItem>
-                )}
                 <DropdownMenuItem
                   onClick={() => setShowDeleteConfirm(true)}
                   className="text-destructive focus:text-destructive"

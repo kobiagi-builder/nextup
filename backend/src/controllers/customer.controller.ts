@@ -13,7 +13,8 @@ import { CustomerService } from '../services/CustomerService.js'
 import { EnrichmentService } from '../services/EnrichmentService.js'
 import { IcpScoringService } from '../services/IcpScoringService.js'
 import { VALID_CUSTOMER_STATUSES } from '../types/customer.js'
-import type { Customer, IcpSettings } from '../types/customer.js'
+import { DEFAULT_ROLE_FILTERS, DEFAULT_ROLE_EXCLUSIONS } from '../services/EnrichmentService.js'
+import type { Customer, IcpSettings, TeamMember, TeamRoleFilter } from '../types/customer.js'
 
 // =============================================================================
 // Validation Schemas
@@ -29,6 +30,8 @@ const teamMemberSchema = z.object({
   email: z.string().email().optional(),
   notes: z.string().optional(),
   linkedin_url: z.string().url().optional(),
+  source: z.enum(['manual', 'linkedin_scrape']).optional(),
+  hidden: z.boolean().optional(),
 })
 
 const customerInfoSchema = z.object({
@@ -126,6 +129,66 @@ async function rescoreIcpIfNeeded(customer: Customer): Promise<void> {
 }
 
 /**
+ * Sync team members from LinkedIn for a customer (reusable helper).
+ * Used by both the manual sync endpoint and auto-triggers.
+ * Returns the sync result or null if customer/URL is invalid.
+ * @internal Exported for unit testing only.
+ */
+export async function syncTeamForCustomer(customerId: string): Promise<{ added: number; removed: number } | null> {
+  const supabase = getSupabase()
+  const service = new CustomerService(supabase)
+  const customer = await service.getById(customerId)
+
+  if (!customer) return null
+
+  const linkedinUrl = customer.info?.linkedin_company_url
+  if (!linkedinUrl) return null
+
+  const slug = EnrichmentService.extractCompanySlug(linkedinUrl)
+  if (!slug) return null
+
+  const enrichmentService = new EnrichmentService()
+  const scrapedPeople = await enrichmentService.scrapeLinkedInPeople(slug)
+
+  if (scrapedPeople.length === 0) {
+    // Don't clear enrichment_errors on empty result — could be a silent scraper failure.
+    // Errors are only cleared on confirmed success (actual results below).
+    return { added: 0, removed: 0 }
+  }
+
+  // Load role filters (RLS-scoped, falls back to defaults)
+  const { data: filterRow } = await supabase
+    .from('team_role_filters')
+    .select('roles, exclusions')
+    .maybeSingle()
+
+  const roleFilters: TeamRoleFilter[] = filterRow?.roles?.length
+    ? filterRow.roles
+    : DEFAULT_ROLE_FILTERS
+  const exclusions: string[] = filterRow?.exclusions?.length
+    ? filterRow.exclusions
+    : DEFAULT_ROLE_EXCLUSIONS
+
+  const filtered = await enrichmentService.filterTeamByRoles(scrapedPeople, roleFilters, exclusions)
+  const result = mergeTeamMembers(customer.info?.team || [], filtered)
+
+  await service.mergeInfo(customerId, {
+    team: result.mergedTeam,
+    enrichment_errors: { ...customer.info?.enrichment_errors, linkedin: undefined },
+  })
+
+  logger.info('[CustomerController] Team sync complete', {
+    companyName: customer.name,
+    scraped: scrapedPeople.length,
+    filtered: filtered.length,
+    added: result.added,
+    removed: result.removed,
+  })
+
+  return { added: result.added, removed: result.removed }
+}
+
+/**
  * Enrich and ICP-score a newly created customer (fire-and-forget).
  * Calls EnrichmentService for company data, then IcpScoringService.
  */
@@ -143,7 +206,8 @@ async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
     const enrichmentService = new EnrichmentService()
     const linkedinUrl = customer.info?.linkedin_company_url
     const industryHint = customer.info?.vertical || customer.info?.product?.category || undefined
-    const enrichResult = await enrichmentService.enrichCompany(customer.name, linkedinUrl, industryHint)
+    const websiteUrl = customer.info?.website_url || undefined
+    const enrichResult = await enrichmentService.enrichCompany(customer.name, linkedinUrl, industryHint, websiteUrl)
 
     if (!enrichResult) {
       logger.info('[CustomerController] Post-create enrichment returned no data', {
@@ -162,7 +226,43 @@ async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
       hasIndustry: !!enrichResult.data.industry,
     })
 
+    // --- Team Extraction ---
+    // Re-fetch to get latest data (enrichment may have populated linkedin_company_url)
+    try {
+      const latestCustomer = await service.getById(customer.id)
+      if (latestCustomer?.info?.linkedin_company_url) {
+        await syncTeamForCustomer(customer.id)
+        logger.info('[CustomerController] Post-create team extraction complete', {
+          companyName: customer.name,
+        })
+      }
+    } catch (teamError) {
+      logger.error('[CustomerController] Post-create team extraction failed', {
+        sourceCode: 'enrichAndScoreNewCustomer.teamExtraction',
+        error: teamError instanceof Error ? teamError.message : String(teamError),
+      })
+      // Best-effort: persist error for UI display (preserve existing errors)
+      try {
+        const current = await service.getById(customer.id)
+        await service.mergeInfo(customer.id, {
+          enrichment_errors: {
+            ...current?.info?.enrichment_errors,
+            linkedin: 'Failed to extract team from LinkedIn',
+          },
+        })
+      } catch { /* best-effort */ }
+    }
+
     // --- ICP Scoring ---
+    // Skip if user already set a manual score at creation time
+    if (customer.info?.icp_score) {
+      logger.info('[CustomerController] Skipping auto-score — user set ICP manually', {
+        companyName: customer.name,
+        existingScore: customer.info.icp_score,
+      })
+      return
+    }
+
     if (!enrichResult.data.industry) return
 
     const { data: icpSettings } = await supabase
@@ -197,6 +297,65 @@ async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
       error: error instanceof Error ? error.message : String(error),
     })
   }
+}
+
+/**
+ * Merge scraped LinkedIn team members with existing team.
+ * Rules:
+ * - Never modify or remove members with source='manual' (or no source)
+ * - Add new linkedin_scrape members not already present (match by name, case-insensitive)
+ * - Soft-delete (hidden=true) existing linkedin_scrape members not in latest scrape
+ */
+/** @internal Exported for unit testing only */
+export function mergeTeamMembers(
+  existingTeam: TeamMember[],
+  scrapedMembers: Array<{ name: string; role: string; linkedin_url?: string }>,
+): { mergedTeam: TeamMember[]; added: number; removed: number } {
+  const result = [...existingTeam.map(m => ({ ...m }))]
+  let added = 0
+  let removed = 0
+
+  const scrapedNameSet = new Set(scrapedMembers.map(m => m.name.toLowerCase()))
+
+  // Soft-delete stale linkedin_scrape members
+  for (const member of result) {
+    if (member.source === 'linkedin_scrape' && !member.hidden) {
+      if (!scrapedNameSet.has(member.name.toLowerCase())) {
+        member.hidden = true
+        removed++
+      }
+    }
+  }
+
+  // Un-hide previously hidden linkedin_scrape members that are back in the scrape
+  for (const member of result) {
+    if (member.source === 'linkedin_scrape' && member.hidden) {
+      if (scrapedNameSet.has(member.name.toLowerCase())) {
+        member.hidden = false
+        const scraped = scrapedMembers.find(s => s.name.toLowerCase() === member.name.toLowerCase())
+        if (scraped) {
+          member.role = scraped.role
+          if (scraped.linkedin_url) member.linkedin_url = scraped.linkedin_url
+        }
+      }
+    }
+  }
+
+  // Add new members not already in team
+  const existingNameSet = new Set(result.map(m => m.name.toLowerCase()))
+  for (const scraped of scrapedMembers) {
+    if (!existingNameSet.has(scraped.name.toLowerCase())) {
+      result.push({
+        name: scraped.name,
+        role: scraped.role,
+        linkedin_url: scraped.linkedin_url,
+        source: 'linkedin_scrape',
+      })
+      added++
+    }
+  }
+
+  return { mergedTeam: result, added, removed }
 }
 
 // =============================================================================
@@ -337,6 +496,89 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
 }
 
 /**
+ * POST /api/customers/enrich-from-linkedin
+ * Enrich from a LinkedIn URL (company or person page).
+ */
+export const enrichFromLinkedIn = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const schema = z.object({
+      linkedin_url: z.string().url().refine(
+        (url) => url.includes('linkedin.com/company/') || url.includes('linkedin.com/in/'),
+        'Must be a LinkedIn company or person URL'
+      ),
+    })
+
+    const parsed = schema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation error', details: parsed.error.flatten() })
+      return
+    }
+
+    const enrichmentService = new EnrichmentService()
+    const result = await enrichmentService.enrichFromLinkedInUrl(parsed.data.linkedin_url)
+
+    if (!result) {
+      res.status(200).json({ enriched: false, message: 'Could not extract data from this URL' })
+      return
+    }
+
+    res.status(200).json({ enriched: true, ...result })
+  } catch (error) {
+    logger.error('[CustomerController] Error in enrichFromLinkedIn', {
+      sourceCode: 'enrichFromLinkedIn',
+      error: error instanceof Error ? error : new Error(String(error)),
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
+ * POST /api/customers/enrich-from-website
+ * Enrich from a company website URL.
+ */
+export const enrichFromWebsite = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized' })
+      return
+    }
+
+    const schema = z.object({
+      website_url: z.string().url('Must be a valid URL'),
+    })
+
+    const parsed = schema.safeParse(req.body)
+    if (!parsed.success) {
+      res.status(400).json({ error: 'Validation error', details: parsed.error.flatten() })
+      return
+    }
+
+    const enrichmentService = new EnrichmentService()
+    const result = await enrichmentService.enrichFromWebsiteUrl(parsed.data.website_url)
+
+    if (!result) {
+      res.status(200).json({ enriched: false, message: 'Could not extract data from this URL' })
+      return
+    }
+
+    res.status(200).json({ enriched: true, ...result })
+  } catch (error) {
+    logger.error('[CustomerController] Error in enrichFromWebsite', {
+      sourceCode: 'enrichFromWebsite',
+      error: error instanceof Error ? error : new Error(String(error)),
+    })
+    res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+/**
  * PUT /api/customers/:id
  * Update customer (partial update).
  */
@@ -374,11 +616,49 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
     })
 
     const service = getService(req)
+
+    // Snapshot old URLs before update so we can detect changes
+    let oldWebsiteUrl: string | undefined
+    let oldLinkedinUrl: string | undefined
+    if (parsed.data.info) {
+      const existing = await service.getById(id)
+      oldWebsiteUrl = existing?.info?.website_url || undefined
+      oldLinkedinUrl = existing?.info?.linkedin_company_url || undefined
+    }
+
     const customer = await service.update(id, parsed.data)
 
     // Auto-rescore ICP if info was updated (fire-and-forget, non-blocking)
     if (parsed.data.info) {
       rescoreIcpIfNeeded(customer).catch(() => {})
+    }
+
+    // Auto-extract team when LinkedIn URL exists after update (fire-and-forget).
+    // Merge is idempotent so re-syncing an unchanged URL is harmless.
+    if (parsed.data.info && customer.info?.linkedin_company_url
+        && EnrichmentService.extractCompanySlug(customer.info.linkedin_company_url)) {
+      syncTeamForCustomer(customer.id).catch((err) => {
+        logger.error('[CustomerController] Auto team sync after URL update failed', {
+          sourceCode: 'updateCustomer.teamSync',
+          error: err instanceof Error ? err.message : String(err),
+        })
+      })
+    }
+
+    // Auto-enrich when website_url or linkedin_company_url was added/changed (fire-and-forget)
+    if (parsed.data.info) {
+      const newWebsiteUrl = customer.info?.website_url
+      const newLinkedinUrl = customer.info?.linkedin_company_url
+      const websiteChanged = newWebsiteUrl && newWebsiteUrl !== oldWebsiteUrl
+      const linkedinChanged = newLinkedinUrl && newLinkedinUrl !== oldLinkedinUrl
+
+      if (websiteChanged || linkedinChanged) {
+        logger.info('[CustomerController] URL changed on update — triggering enrichment', {
+          hasWebsiteChanged: !!websiteChanged,
+          hasLinkedinChanged: !!linkedinChanged,
+        })
+        enrichAndScoreNewCustomer(customer).catch(() => {})
+      }
     }
 
     res.status(200).json(customer)
@@ -660,5 +940,83 @@ export const createCustomerEvent = async (req: Request, res: Response): Promise<
       error: 'Internal server error',
       message: error instanceof Error ? error.message : 'Unknown error occurred',
     })
+  }
+}
+
+// =============================================================================
+// LinkedIn Team Sync
+// =============================================================================
+
+/**
+ * POST /api/customers/:id/sync-team-from-linkedin
+ * Sync team members from LinkedIn People page.
+ */
+export const syncTeamFromLinkedIn = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.user?.id
+    if (!userId) {
+      res.status(401).json({ error: 'Unauthorized', message: 'User ID not found in request' })
+      return
+    }
+
+    const id = req.params.id as string
+    const service = getService(req)
+    const customer = await service.getById(id)
+
+    if (!customer) {
+      res.status(404).json({ error: 'Customer not found' })
+      return
+    }
+
+    if (!customer.info?.linkedin_company_url) {
+      res.status(400).json({ error: 'Customer has no LinkedIn company URL' })
+      return
+    }
+
+    const slug = EnrichmentService.extractCompanySlug(customer.info.linkedin_company_url)
+    if (!slug) {
+      res.status(400).json({ error: 'Invalid LinkedIn company URL format' })
+      return
+    }
+
+    const result = await syncTeamForCustomer(id)
+
+    if (!result) {
+      res.status(500).json({ error: 'Failed to sync team from LinkedIn' })
+      return
+    }
+
+    // Re-fetch to return updated team
+    const updated = await service.getById(id)
+    const visibleTeam = (updated?.info?.team || []).filter(m => !m.hidden)
+
+    res.json({
+      added: result.added,
+      removed: result.removed,
+      total: visibleTeam.length,
+      members: visibleTeam,
+    })
+  } catch (error) {
+    logger.error('[CustomerController] Team sync failed', {
+      hasError: true,
+      sourceCode: 'syncTeamFromLinkedIn',
+    })
+
+    // Save error to enrichment_errors for UI display
+    try {
+      const id = req.params.id as string
+      const service = getService(req)
+      const customer = await service.getById(id)
+      if (customer) {
+        await service.mergeInfo(id, {
+          enrichment_errors: {
+            ...customer.info?.enrichment_errors,
+            linkedin: 'Failed to sync team from LinkedIn',
+          },
+        })
+      }
+    } catch { /* best-effort error persistence */ }
+
+    res.status(500).json({ error: 'Failed to sync team from LinkedIn' })
   }
 }

@@ -11,8 +11,16 @@ import { z } from 'zod'
 import { Plus, Calendar } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Dialog,
   DialogContent,
@@ -28,6 +36,7 @@ const eventSchema = z.object({
   title: z.string().min(1, 'Title is required'),
   description: z.string().optional(),
   event_type: z.string().optional(),
+  event_date: z.string().optional(),
 })
 
 type EventFormData = z.infer<typeof eventSchema>
@@ -58,7 +67,7 @@ export function EventTimeline({ customerId, events, isLoading }: EventTimelinePr
 
   const form = useForm<EventFormData>({
     resolver: zodResolver(eventSchema),
-    defaultValues: { title: '', description: '', event_type: 'note' },
+    defaultValues: { title: '', description: '', event_type: 'note', event_date: new Date().toISOString().split('T')[0] },
   })
 
   const handleSubmit = async (data: EventFormData) => {
@@ -67,6 +76,7 @@ export function EventTimeline({ customerId, events, isLoading }: EventTimelinePr
       title: data.title,
       description: data.description || undefined,
       event_type: data.event_type || 'note',
+      event_date: data.event_date || undefined,
     })
     form.reset()
     setIsDialogOpen(false)
@@ -78,16 +88,17 @@ export function EventTimeline({ customerId, events, isLoading }: EventTimelinePr
         <h3 className="text-sm font-semibold text-foreground">Activity Timeline</h3>
         <div className="flex items-center gap-2">
           {events.length > 0 && (
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="h-7 rounded-md border border-input bg-transparent px-2 text-[11px] text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="all">All types</option>
-              {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="h-7 w-[120px] text-[11px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent data-portal-ignore-click-outside>
+                <SelectItem value="all">All types</SelectItem>
+                {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>{label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           )}
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
@@ -110,15 +121,27 @@ export function EventTimeline({ customerId, events, isLoading }: EventTimelinePr
               </div>
               <div>
                 <Label htmlFor="event-type">Type</Label>
-                <select
-                  id="event-type"
-                  {...form.register('event_type')}
-                  className="mt-1 flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                <Select
+                  value={form.watch('event_type') || 'note'}
+                  onValueChange={(val) => form.setValue('event_type', val)}
                 >
-                  {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent data-portal-ignore-click-outside>
+                    {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="event-date">Date</Label>
+                <DatePicker
+                  value={form.watch('event_date')}
+                  onChange={(date) => form.setValue('event_date', date || '', { shouldValidate: true })}
+                  placeholder="Pick a date"
+                />
               </div>
               <div>
                 <Label htmlFor="event-description">Description</Label>
@@ -143,11 +166,11 @@ export function EventTimeline({ customerId, events, isLoading }: EventTimelinePr
       )}
 
       {!isLoading && events.length === 0 && (
-        <p className="text-sm text-muted-foreground italic py-2">No events recorded yet.</p>
+        <p className="text-sm text-muted-foreground py-2">No events recorded yet.</p>
       )}
 
       {!isLoading && events.length > 0 && filteredEvents.length === 0 && (
-        <p className="text-sm text-muted-foreground italic py-2">No events of this type.</p>
+        <p className="text-sm text-muted-foreground py-2">No events of this type.</p>
       )}
 
       {filteredEvents.length > 0 && (

@@ -24,32 +24,12 @@ import type {
   Customers,
   Goals,
 } from '../../types/portfolio'
-
-// Section schemas
-const aboutMeSchema = z.object({
-  bio: z.string().max(1000).optional(),
-  background: z.string().max(5000).optional(),
-  years_experience: z.number().min(0).max(50).optional().nullable(),
-  value_proposition: z.string().max(500).optional(),
-})
-
-const professionSchema = z.object({
-  expertise_areas: z.string().max(2000).optional(),
-  industries: z.string().max(2000).optional(),
-  methodologies: z.string().max(2000).optional(),
-  certifications: z.string().max(2000).optional(),
-})
-
-const customersSchema = z.object({
-  ideal_client: z.string().max(2000).optional(),
-  industries_served: z.array(z.string()).optional(),
-})
-
-const goalsSchema = z.object({
-  content_goals: z.string().max(2000).optional(),
-  business_goals: z.string().max(2000).optional(),
-  priorities: z.array(z.string()).optional(),
-})
+import {
+  aboutMeSchema,
+  professionSchema,
+  customersSchema,
+  goalsSchema,
+} from '@/features/onboarding/schemas/userContext'
 
 type SectionType = 'about_me' | 'profession' | 'customers' | 'goals'
 

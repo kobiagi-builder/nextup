@@ -30,7 +30,7 @@ function computeHealthSignals(
 
   // Expiring agreements (end_date within 30 days, not terminated/suspended)
   const expiring = agreements.filter(a => {
-    if (a.override_status === 'terminated' || a.override_status === 'suspended') return false
+    if (a.status === 'completed' || a.status === 'archived') return false
     if (!a.end_date) return false
     const end = new Date(a.end_date)
     return end >= now && end <= thirtyDaysFromNow
@@ -126,7 +126,7 @@ export async function buildCustomerContext(
     const agreementsBlock = agreementSlice.length > 0
       ? agreementSlice.map(a => {
           const pricing = a.pricing ? ` | $${a.pricing.amount || '?'} ${a.pricing.currency || ''} ${a.pricing.frequency || ''}` : ''
-          return `- ${a.scope || 'Untitled'} | ${a.type || 'unspecified'} | ${a.start_date || '?'} - ${a.end_date || 'Ongoing'}${pricing}${a.override_status === 'terminated' ? ' [TERMINATED]' : ''}`
+          return `- ${a.scope || 'Untitled'} | ${a.type || 'unspecified'} | ${a.status || 'draft'} | ${a.start_date || '?'} - ${a.end_date || 'Ongoing'}${pricing}`
         }).join('\n')
       : '- No agreements'
 

@@ -83,10 +83,10 @@ export function ChatMessage({
       >
         <div
           className={cn(
-            'rounded-lg px-4 py-2 text-sm',
+            'px-4 py-2 text-sm',
             isUser
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-muted text-foreground'
+              ? 'rounded-2xl rounded-br-sm bg-primary text-primary-foreground'
+              : 'rounded-2xl rounded-bl-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-foreground'
           )}
         >
           {isUser ? (

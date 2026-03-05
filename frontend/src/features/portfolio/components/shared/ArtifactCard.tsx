@@ -72,16 +72,27 @@ export function ArtifactCard({
     navigate(`/portfolio/artifacts/${artifact.id}?autoResearch=true`)
   }
 
-  // Extract preview from content
+  // Extract preview from content — strip HTML and markdown
   const preview = artifact.content
-    ? artifact.content.replace(/<[^>]*>/g, '').slice(0, 120) + '...'
+    ? artifact.content
+        .replace(/<[^>]*>/g, '')          // strip HTML tags
+        .replace(/#{1,6}\s+/g, '')        // strip markdown headings
+        .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')  // strip bold/italic
+        .replace(/_{1,3}([^_]+)_{1,3}/g, '$1')     // strip underscore emphasis
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')   // links → keep text
+        .replace(/\[IMAGE:[^\]]*\]/g, '')           // strip image placeholders
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, '')       // strip markdown images
+        .replace(/`{1,3}[^`]*`{1,3}/g, '')         // strip inline code
+        .replace(/\n{2,}/g, ' ')          // collapse multiple newlines
+        .trim()
+        .slice(0, 120) + '...'
     : 'No content yet'
 
   return (
     <div
       className={cn(
         'group relative rounded-lg border border-border/50 bg-card p-4',
-        'transition-all duration-200 hover:border-primary/30 hover:shadow-md',
+        'transition-all duration-200 hover:border-primary/30 hover:shadow-md hover:-translate-y-0.5',
         'cursor-pointer',
         className
       )}
@@ -104,7 +115,8 @@ export function ArtifactCard({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="h-6 w-6 opacity-40 group-hover:opacity-100 transition-opacity"
+                aria-label="Artifact options"
               >
                 <MoreVertical className="h-3.5 w-3.5" />
               </Button>

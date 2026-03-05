@@ -7,7 +7,8 @@
 
 import { useState, useMemo, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Search, FileText, MessageSquare, Trophy, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { Plus, Search, FileText, MessageSquare, Trophy, PanelLeftOpen, PanelLeftClose, ArrowRight, Sparkles, LayoutGrid, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -26,9 +27,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Sheet, SheetContent } from '@/components/ui/sheet'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useChatLayoutStore } from '@/stores/chatLayoutStore'
+import { useOnboardingProgress } from '@/features/onboarding/hooks/useOnboardingProgress'
 import { useArtifacts, useCreateArtifact, useDeleteArtifact } from '../hooks/useArtifacts'
 import { ArtifactCard, EmptyArtifacts, GridSkeleton, ChatPanel } from '../components'
 import { ArtifactForm } from '../components/forms'
@@ -61,9 +62,10 @@ export function PortfolioPage() {
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 
-  // Chat layout (split view on desktop, Sheet on mobile)
+  // Chat layout (split view on desktop, tab-based on mobile)
   const isMobile = useIsMobile()
   const { openChat, closeChat, isOpen: isChatOpen, chatConfig, configVersion } = useChatLayoutStore()
+  const [mobileTab, setMobileTab] = useState<'portfolio' | 'assistant'>('portfolio')
 
   // Auto-open AI assistant on mount (so it's visible after login)
   useEffect(() => {
@@ -73,6 +75,10 @@ export function PortfolioPage() {
     // Only run on mount — intentionally omitting deps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Onboarding resume card
+  const { data: onboardingProgress } = useOnboardingProgress()
+  const showResumeCard = onboardingProgress && !onboardingProgress.completed_at
 
   // Data hooks
   const { data: artifacts = [], isLoading } = useArtifacts()
@@ -173,8 +179,189 @@ export function PortfolioPage() {
     }
   }
 
+  // On mobile, show tab-based layout instead of Sheet overlay
+  if (isMobile) {
+    return (
+      <div className="pb-16">
+        {/* Mobile tab content */}
+        {mobileTab === 'portfolio' ? (
+          <div className="space-y-6">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <h1 className="text-xl font-semibold text-foreground">Portfolio</h1>
+            </div>
+
+            {/* Onboarding resume card */}
+            {showResumeCard && (
+              <div className="onboarding-animate-fade-up" style={{ animationDelay: '100ms' }}>
+                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Complete your profile</p>
+                      <p className="text-xs text-muted-foreground">Help the AI create better content</p>
+                    </div>
+                  </div>
+                  <Button asChild variant="outline" size="sm" className="flex-shrink-0">
+                    <Link to="/onboarding">
+                      Resume
+                      <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+                    </Link>
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex rounded-lg bg-secondary p-1">
+                {TYPE_FILTERS.map((filter) => (
+                  <button
+                    key={filter.value}
+                    onClick={() => setTypeFilter(filter.value)}
+                    className={cn(
+                      'px-3 py-1.5 rounded-md text-sm font-medium transition-colors',
+                      typeFilter === filter.value
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    {filter.label}
+                  </button>
+                ))}
+              </div>
+              <div className="relative flex-1 min-w-[140px]">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Content Grid — single column on mobile */}
+            {isLoading ? (
+              <GridSkeleton count={4} columns={1} />
+            ) : filteredArtifacts.length === 0 ? (
+              artifacts.length === 0 ? (
+                <EmptyArtifacts onCreate={() => setIsCreateOpen(true)} />
+              ) : (
+                <div className="rounded-xl bg-card p-12 border border-border text-center">
+                  <h3 className="text-heading-md font-semibold text-foreground mb-2">No matching content</h3>
+                  <p className="text-muted-foreground">Try adjusting your filters or search query.</p>
+                </div>
+              )
+            ) : (
+              <div className="grid grid-cols-1 gap-4">
+                {filteredArtifacts.map((artifact) => (
+                  <ArtifactCard
+                    key={artifact.id}
+                    artifact={artifact}
+                    onEdit={() => navigate(`/portfolio/artifacts/${artifact.id}`)}
+                    onDelete={() => handleDeleteRequest(artifact.id)}
+                    onCreateSocialPost={handleCreateSocialPost}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ) : (
+          /* Mobile AI Assistant tab */
+          <div className="h-[calc(100vh-8rem)]">
+            <ChatPanel
+              key={configVersion}
+              contextKey={chatConfig?.contextKey || 'portfolio:research'}
+              title="AI Assistant"
+              showHeader={true}
+              height="100%"
+            />
+          </div>
+        )}
+
+        {/* Mobile FAB — New content */}
+        <button
+          onClick={() => setIsCreateOpen(true)}
+          className="fixed bottom-20 right-4 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-white shadow-lg active:scale-95 transition-transform"
+          aria-label="Create new content"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+
+        {/* Mobile bottom tab bar */}
+        <div className="fixed bottom-0 left-0 right-0 z-30 flex h-14 border-t border-border bg-card safe-area-inset-bottom">
+          <button
+            onClick={() => setMobileTab('portfolio')}
+            className={cn(
+              'flex flex-1 flex-col items-center justify-center gap-1 transition-colors',
+              mobileTab === 'portfolio' ? 'text-primary' : 'text-muted-foreground'
+            )}
+          >
+            <LayoutGrid className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Portfolio</span>
+          </button>
+          <button
+            onClick={() => {
+              setMobileTab('assistant')
+              if (!isChatOpen) openChat({ contextKey: 'portfolio:research', title: 'Content Research' })
+            }}
+            className={cn(
+              'flex flex-1 flex-col items-center justify-center gap-1 transition-colors',
+              mobileTab === 'assistant' ? 'text-primary' : 'text-muted-foreground'
+            )}
+          >
+            <Bot className="h-5 w-5" />
+            <span className="text-[10px] font-medium">Assistant</span>
+          </button>
+        </div>
+
+        {/* Create Dialog */}
+        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+          <DialogContent className="max-w-2xl" data-portal-ignore-click-outside data-testid="create-artifact-dialog">
+            <DialogHeader>
+              <DialogTitle>Create New Content</DialogTitle>
+            </DialogHeader>
+            <ArtifactForm
+              onSaveDraft={handleSaveDraft}
+              onCreateContent={handleCreateContent}
+              onCancel={() => setIsCreateOpen(false)}
+              isLoading={createArtifact.isPending}
+              loadingAction={loadingAction}
+            />
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>
+          <AlertDialogContent data-portal-ignore-click-outside>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Artifact</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete this artifact and all its research, writing characteristics, and generated images. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteConfirm}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                {deleteArtifact.isPending ? 'Deleting...' : 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
+    )
+  }
+
+  // Desktop layout
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -188,7 +375,7 @@ export function PortfolioPage() {
             {isChatOpen ? <PanelLeftClose className="h-5 w-5" /> : <PanelLeftOpen className="h-5 w-5" />}
           </Button>
           <div className="h-6 w-px bg-border" />
-          <h1 className="text-display-md font-semibold text-foreground">
+          <h1 className="text-xl font-semibold text-foreground">
             Portfolio
           </h1>
         </div>
@@ -199,6 +386,31 @@ export function PortfolioPage() {
           </Button>
         </div>
       </div>
+
+      {/* Onboarding resume card */}
+      {showResumeCard && (
+        <div className="onboarding-animate-fade-up" style={{ animationDelay: '100ms' }}>
+          <div className="rounded-lg border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Complete your profile</p>
+                <p className="text-xs text-muted-foreground">
+                  Help the AI create better content for you
+                </p>
+              </div>
+            </div>
+            <Button asChild variant="outline" size="sm" className="flex-shrink-0">
+              <Link to="/onboarding">
+                Resume setup
+                <ArrowRight className="h-3.5 w-3.5 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-4">
@@ -291,23 +503,6 @@ export function PortfolioPage() {
           />
         </DialogContent>
       </Dialog>
-
-      {/* Mobile-only: AI Research Sheet overlay (desktop uses AppShell split view) */}
-      {isMobile && isChatOpen && chatConfig && (
-        <Sheet open onOpenChange={(open) => { if (!open) closeChat() }}>
-          <SheetContent side="right" className="w-full p-0" data-portal-ignore-click-outside data-testid="ai-research-sheet">
-            <div className="h-full">
-              <ChatPanel
-                key={configVersion}
-                contextKey={chatConfig.contextKey}
-                title={chatConfig.title || 'Content Research'}
-                showHeader={true}
-                height="100%"
-              />
-            </div>
-          </SheetContent>
-        </Sheet>
-      )}
 
       {/* Delete Confirmation Dialog */}
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null) }}>

@@ -81,10 +81,12 @@ export function ProjectsTab({ customerId }: ProjectsTabProps) {
         <h3 className="text-sm font-medium text-muted-foreground">
           {projects.length} {projects.length === 1 ? 'Project' : 'Projects'}
         </h3>
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="h-3.5 w-3.5 mr-1.5" />
-          New Project
-        </Button>
+        {projects.length > 0 && (
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="h-3.5 w-3.5 mr-1.5" />
+            New Project
+          </Button>
+        )}
       </div>
 
       {/* Project list or empty state */}

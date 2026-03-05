@@ -43,6 +43,8 @@ import { SettingsPage } from '@/features/portfolio/pages/SettingsPage'
 import { CustomerListPage } from '@/features/customers/pages/CustomerListPage'
 import { CustomerDetailPage } from '@/features/customers/pages/CustomerDetailPage'
 import { FeatureGate } from '@/components/auth/FeatureGate'
+import { OnboardingGate } from '@/components/auth/OnboardingGate'
+import { OnboardingPage } from '@/features/onboarding/pages/OnboardingPage'
 
 // Create React Query client with default options
 const queryClient = new QueryClient({
@@ -82,11 +84,23 @@ function App() {
                 <Route path="/auth/reset-password" element={<PasswordResetPage />} />
                 <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-                {/* Protected app routes — wrapped in AppShell */}
+                {/* Onboarding wizard — protected but outside AppShell */}
+                <Route
+                  path="/onboarding"
+                  element={
+                    <ProtectedRoute>
+                      <OnboardingPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                {/* Protected app routes — wrapped in OnboardingGate + AppShell */}
                 <Route
                   element={
                     <ProtectedRoute>
-                      <AppShell />
+                      <OnboardingGate>
+                        <AppShell />
+                      </OnboardingGate>
                     </ProtectedRoute>
                   }
                 >

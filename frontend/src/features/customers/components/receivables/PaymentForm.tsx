@@ -11,6 +11,7 @@ import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { DatePicker } from '@/components/ui/date-picker'
 import { Label } from '@/components/ui/label'
 import {
   Dialog,
@@ -142,11 +143,10 @@ export function PaymentForm({ customerId, receivable, open, onOpenChange }: Paym
           {/* Date */}
           <div>
             <Label htmlFor="payment-date">Date *</Label>
-            <Input
-              id="payment-date"
-              type="date"
-              {...form.register('date')}
-              className="mt-1"
+            <DatePicker
+              value={form.watch('date')}
+              onChange={(date) => form.setValue('date', date || '', { shouldValidate: true })}
+              placeholder="Pick a date"
             />
             {form.formState.errors.date && (
               <p className="text-xs text-destructive mt-1">{form.formState.errors.date.message}</p>

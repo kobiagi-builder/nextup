@@ -34,6 +34,13 @@ import {
   ACTION_ITEM_STATUS_COLORS,
 } from '../../types'
 
+const STATUS_DOT_COLORS: Record<ActionItemStatus, string> = {
+  todo: 'bg-gray-500',
+  in_progress: 'bg-blue-500',
+  done: 'bg-green-500',
+  cancelled: 'bg-red-500',
+}
+
 interface ActionItemRowProps {
   item: ActionItem
   onEdit: (item: ActionItem) => void
@@ -99,7 +106,7 @@ export function ActionItemRow({ item, onEdit, onDelete, onStatusChange, isDeleti
                     onClick={() => onStatusChange(item.id, s)}
                     disabled={s === item.status}
                   >
-                    <span className={cn('inline-block w-2 h-2 rounded-full mr-2', ACTION_ITEM_STATUS_COLORS[s].replace(/text-\S+/, '').replace(/border-\S+/, '').replace('/10', ''))} />
+                    <span className={cn('inline-block w-2 h-2 rounded-full mr-2', STATUS_DOT_COLORS[s])} />
                     {ACTION_ITEM_STATUS_LABELS[s]}
                   </DropdownMenuItem>
                 ))}

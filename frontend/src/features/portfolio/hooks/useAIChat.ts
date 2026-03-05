@@ -23,6 +23,7 @@ import {
 } from '../stores/chatStore'
 import { getSelectionContext } from '../stores/editorSelectionStore'
 import { supabase } from '@/lib/supabase'
+import type { ProcessedAttachment } from '../types/attachment'
 
 // =============================================================================
 // Types
@@ -72,8 +73,8 @@ export interface UseAIChatReturn {
   input: string
   /** Set input value */
   setInput: (value: string) => void
-  /** Send a message */
-  sendMessage: (content?: string) => void
+  /** Send a message (optionally with file attachments) */
+  sendMessage: (content?: string, attachments?: ProcessedAttachment[]) => void
   /** Stop generation */
   stop: () => void
   /** Clear messages */
@@ -99,6 +100,8 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // render and read at send-time inside prepareSendMessagesRequest.
 const _screenContextMap = new Map<string, UseAIChatOptions['screenContext']>()
 const _extraBodyMap = new Map<string, Record<string, unknown> | undefined>()
+// Transient attachment data — set before send, read in prepareSendMessagesRequest, cleared after
+const _pendingAttachmentsMap = new Map<string, ProcessedAttachment[] | undefined>()
 
 // =============================================================================
 // Hook
@@ -167,6 +170,9 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
         const currentScreenContext = _screenContextMap.get(contextKey)
         // Read extraBody from module-level map (e.g., customerId for customer chat)
         const currentExtraBody = _extraBodyMap.get(contextKey)
+        // Read and consume pending attachments (one-shot per send)
+        const pendingAttachments = _pendingAttachmentsMap.get(contextKey)
+        _pendingAttachmentsMap.delete(contextKey)
 
         console.log('[useAIChat] prepareSendMessagesRequest:', {
           messageCount: messages.length,
@@ -175,6 +181,7 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
           hasSelectionContext: !!selectionContext,
           selectionType: selectionContext?.type,
           hasExtraBody: !!currentExtraBody,
+          attachmentCount: pendingAttachments?.length ?? 0,
         })
 
         return {
@@ -186,6 +193,8 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
             ...(selectionContext && { selectionContext }),
             // Pass extra body fields (e.g., customerId for customer chat)
             ...(currentExtraBody || {}),
+            // Pass file attachments for this message only
+            ...(pendingAttachments && pendingAttachments.length > 0 && { attachments: pendingAttachments }),
           },
         }
       },
@@ -315,19 +324,36 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
 
   // Send message handler
   const sendMessage = useCallback(
-    (content?: string) => {
+    (content?: string, attachments?: ProcessedAttachment[]) => {
       const messageContent = content ?? input
-      if (!messageContent.trim()) return
+      const hasAttachments = attachments && attachments.length > 0
+      if (!messageContent.trim() && !hasAttachments) return
 
       // Clear input immediately
       setInput('')
 
+      // Build display text — append attachment file names for the UI message
+      let displayText = messageContent.trim()
+      if (hasAttachments) {
+        const fileNames = attachments.map((a) => a.fileName).join(', ')
+        if (displayText) {
+          displayText += `\n\n[Attached: ${fileNames}]`
+        } else {
+          displayText = `[Attached: ${fileNames}]`
+        }
+      }
+
       // Add user message to store immediately for optimistic UI
-      addMessage(contextKey, createChatMessage('user', messageContent))
+      addMessage(contextKey, createChatMessage('user', displayText))
+
+      // Store pending attachments so prepareSendMessagesRequest can include them
+      if (hasAttachments) {
+        _pendingAttachmentsMap.set(contextKey, attachments)
+      }
 
       // Send to AI using v6 sendMessage API (accepts { text } format)
       aiSendMessage({
-        text: messageContent,
+        text: messageContent || 'Please analyze the attached file(s).',
       })
     },
     [input, contextKey, addMessage, aiSendMessage]

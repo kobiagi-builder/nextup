@@ -5,7 +5,7 @@
  */
 
 import type { LucideIcon } from 'lucide-react'
-import { FileX, Plus } from 'lucide-react'
+import { PenLine, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 
@@ -24,7 +24,7 @@ interface EmptyStateProps {
  * Empty state display with optional action button
  */
 export function EmptyState({
-  icon: Icon = FileX,
+  icon: Icon = PenLine,
   title,
   description,
   action,
@@ -37,8 +37,8 @@ export function EmptyState({
         className
       )}
     >
-      <div className="rounded-full bg-muted p-4">
-        <Icon className="h-8 w-8 text-muted-foreground" />
+      <div className="rounded-full bg-primary/10 p-5">
+        <Icon className="h-8 w-8 text-primary" />
       </div>
 
       <h3 className="mt-4 text-lg font-medium text-foreground">{title}</h3>
@@ -63,10 +63,10 @@ export function EmptyState({
 export function EmptyArtifacts({ onCreate }: { onCreate: () => void }) {
   return (
     <EmptyState
-      title="No artifacts yet"
-      description="Create your first piece of content to get started with your portfolio."
+      title="Your portfolio is ready"
+      description="Create your first piece of content and it will appear here."
       action={{
-        label: 'Create Artifact',
+        label: 'Create Content',
         onClick: onCreate,
       }}
     />
