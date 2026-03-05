@@ -12,11 +12,17 @@ import { supabaseAdmin } from './lib/supabase.js'
 const app = express()
 const PORT = process.env.PORT || 3001
 
-// Debug: Log environment variables at startup
+// Warn if NODE_ENV not set — defaults to production-safe behavior
+if (!process.env.NODE_ENV) {
+  console.warn('[STARTUP] WARNING: NODE_ENV is not set. Defaulting to production behavior.')
+}
+
+// Log environment variable presence (never log values)
 console.log('[STARTUP] Environment check:', {
   cwd: process.cwd(),
-  MOCK_ALL_AI_TOOLS: process.env.MOCK_ALL_AI_TOOLS,
-  MOCK_CONTENT_WRITING_TOOLS: process.env.MOCK_CONTENT_WRITING_TOOLS,
+  NODE_ENV: process.env.NODE_ENV || 'NOT SET',
+  MOCK_ALL_AI_TOOLS: process.env.MOCK_ALL_AI_TOOLS ? 'SET' : 'MISSING',
+  MOCK_CONTENT_WRITING_TOOLS: process.env.MOCK_CONTENT_WRITING_TOOLS ? 'SET' : 'MISSING',
   SUPABASE_URL: process.env.SUPABASE_URL ? 'SET' : 'MISSING',
 })
 

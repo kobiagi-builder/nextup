@@ -6,6 +6,11 @@
       "sourceType": "github",
       "computedHash": "d004c5e5e2e7132e1d64e9c2a339db7f7aaa69053a5c19cddc210dd35dd6fff5"
     },
+    "security-requirement-extraction": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "computedHash": "c796bd74b38588245666c83913784929bb3c57ea876fcb981fc9a42d4a113dff"
+    },
     "skill-creator": {
       "source": "anthropics/skills",
       "sourceType": "github",

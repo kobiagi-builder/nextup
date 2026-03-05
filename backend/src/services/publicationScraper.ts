@@ -11,6 +11,7 @@
 import { createHash } from 'crypto';
 import TurndownService from 'turndown';
 import { logger } from '../lib/logger.js';
+import { assertPublicUrl } from '../lib/urlSecurity.js';
 
 // =============================================================================
 // Types
@@ -75,6 +76,7 @@ function htmlToMarkdown(html: string): string {
 }
 
 async function fetchHtml(url: string): Promise<string> {
+  assertPublicUrl(url)
   const response = await fetch(url, {
     signal: AbortSignal.timeout(30_000),
     headers: {

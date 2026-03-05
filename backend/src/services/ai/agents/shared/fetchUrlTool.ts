@@ -9,6 +9,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import { logToFile } from '../../../../lib/logger.js'
+import { assertPublicUrl } from '../../../../lib/urlSecurity.js'
 
 /**
  * Detect Google Docs URL and convert to plain-text export URL.
@@ -66,6 +67,7 @@ export function createFetchUrlTool() {
             fetchUrl: fetchUrl.substring(0, 80),
           })
 
+          assertPublicUrl(fetchUrl)
           const response = await fetch(fetchUrl, {
             headers: {
               'User-Agent': 'Mozilla/5.0 (compatible; NextUp/1.0)',

@@ -11,15 +11,25 @@ import { attachmentRouter } from './attachments.js'
 import { authRouter } from './auth.routes.js'
 import { requireAuth } from '../middleware/auth.js'
 import { requireFeature } from '../middleware/requireFeature.js'
+import { createRateLimiter } from '../middleware/rateLimiter.js'
 import { logFrontend } from '../lib/logger.js'
+import { z } from 'zod'
 
 export const router = Router()
 
+// Log entry validation schema
+const logSchema = z.object({
+  level: z.enum(['log', 'info', 'warn', 'error', 'debug']).optional(),
+  message: z.string().max(1000).optional(),
+  data: z.record(z.unknown()).optional(),
+})
+
 // Public routes (no auth)
 router.use('/health', healthRouter)
-router.post('/log', (req, res) => {
-  const { level, message, data } = req.body
-  logFrontend(level || 'log', message || 'No message', data)
+router.post('/log', requireAuth, createRateLimiter({ windowMs: 60000, maxRequests: 30 }), (req, res) => {
+  const parsed = logSchema.safeParse(req.body)
+  if (!parsed.success) return res.status(400).json({ error: 'Invalid log entry' })
+  logFrontend(parsed.data.level || 'log', parsed.data.message || 'No message', parsed.data.data)
   res.status(200).json({ ok: true })
 })
 

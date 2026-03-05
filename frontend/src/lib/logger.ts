@@ -11,13 +11,29 @@ const isProduction = import.meta.env.PROD
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 // =============================================================================
-// Send ALL frontend logs to backend for file capture
+// Send ALL frontend logs to backend for file capture (requires auth)
 // =============================================================================
+async function getAuthToken(): Promise<string | null> {
+  try {
+    const { supabase } = await import('./supabase')
+    const { data: { session } } = await supabase.auth.getSession()
+    return session?.access_token ?? null
+  } catch {
+    return null
+  }
+}
+
 async function sendToBackend(level: string, message: string, data?: unknown) {
   try {
+    const token = await getAuthToken()
+    if (!token) return // Skip if not authenticated — backend requires auth
+
     await fetch(`${API_URL}/api/log`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
       body: JSON.stringify({ level, message, data }),
     })
   } catch {

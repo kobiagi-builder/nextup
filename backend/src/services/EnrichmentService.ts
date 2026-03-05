@@ -13,6 +13,7 @@ import { generateText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import * as cheerio from 'cheerio'
 import { logger } from '../lib/logger.js'
+import { assertPublicUrl } from '../lib/urlSecurity.js'
 import { tavilyClient } from '../lib/tavily.js'
 import type { EnrichmentSource, TeamRoleFilter } from '../types/customer.js'
 
@@ -732,6 +733,7 @@ export class EnrichmentService {
    */
   private async fetchWebContent(url: string): Promise<string> {
     try {
+      assertPublicUrl(url)
       const response = await fetch(url, {
         signal: AbortSignal.timeout(WEB_FETCH_TIMEOUT_MS),
         redirect: 'follow',

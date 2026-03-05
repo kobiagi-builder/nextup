@@ -26,13 +26,15 @@ if (!fs.existsSync(logsDir)) {
 // Clear log file on startup
 fs.writeFileSync(LOG_FILE, `=== Debug Log Started: ${new Date().toISOString()} ===\n\n`)
 
+// Append-mode write stream for non-blocking log output
+const logStream = fs.createWriteStream(LOG_FILE, { flags: 'a' })
+
 /**
  * Write to debug log file (always, regardless of environment)
  */
 function writeToFile(message: string) {
   const timestamp = new Date().toISOString()
-  const line = `[${timestamp}] ${message}\n`
-  fs.appendFileSync(LOG_FILE, line)
+  logStream.write(`[${timestamp}] ${message}\n`)
 }
 
 /**

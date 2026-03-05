@@ -11,6 +11,7 @@
 import { generateText } from 'ai'
 import { anthropic } from '@ai-sdk/anthropic'
 import { logger } from '../lib/logger.js'
+import { assertPublicUrl } from '../lib/urlSecurity.js'
 
 // =============================================================================
 // Types
@@ -134,6 +135,7 @@ function extractMetaTags($: ReturnType<typeof import('cheerio').load>): string {
  * Fetch text content from a URL using cheerio for HTML parsing.
  */
 async function fetchText(url: string): Promise<string> {
+  assertPublicUrl(url)
   const response = await fetch(url, {
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     redirect: 'follow',

@@ -10,6 +10,7 @@ import multer from 'multer';
 import { getSupabase } from '../lib/requestContext.js';
 import { createClientWithAuth } from '../lib/supabase.js';
 import { logger } from '../lib/logger.js';
+import { isPrivateUrl as isPrivateUrlCheck } from '../lib/urlSecurity.js';
 import { extractFromBuffer } from '../services/contentExtractor.js';
 import { scrapePublication, detectPlatform } from '../services/publicationScraper.js';
 import type { ArtifactType } from '../types/portfolio.js';
@@ -54,21 +55,8 @@ function validateArtifactType(artifactType: unknown): artifactType is ArtifactTy
 }
 
 function isPrivateUrl(hostname: string): boolean {
-  return (
-    hostname === 'localhost' ||
-    hostname.startsWith('127.') ||
-    hostname.startsWith('10.') ||
-    hostname.startsWith('192.168.') ||
-    hostname.startsWith('172.16.') ||
-    hostname.startsWith('172.17.') ||
-    hostname.startsWith('172.18.') ||
-    hostname.startsWith('172.19.') ||
-    hostname.startsWith('172.2') ||
-    hostname.startsWith('172.3') ||
-    hostname === '0.0.0.0' ||
-    hostname === '[::]' ||
-    hostname === '[::1]'
-  );
+  // Delegate to shared utility (accepts full URL, so construct one)
+  return isPrivateUrlCheck(`https://${hostname}`)
 }
 
 // =============================================================================

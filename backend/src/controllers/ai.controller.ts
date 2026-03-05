@@ -174,11 +174,10 @@ export async function streamChat(req: Request, res: Response) {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error)
     logger.error('Chat stream error', { error: errorMessage })
-    console.error('Chat stream error:', error)
 
     // If headers haven't been sent, return JSON error
     if (!res.headersSent) {
-      res.status(500).json({ error: 'Failed to process chat', details: errorMessage })
+      res.status(500).json({ error: 'Failed to process chat' })
     } else {
       res.end()
     }
@@ -265,18 +264,8 @@ export async function generateContent(req: Request, res: Response) {
  */
 export async function healthCheck(_req: Request, res: Response) {
   try {
-    // Simple check that AI service is initialized
-    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY
-    const hasOpenAIKey = !!process.env.OPENAI_API_KEY
-
-    res.json({
-      status: 'ok',
-      providers: {
-        anthropic: hasAnthropicKey ? 'configured' : 'missing',
-        openai: hasOpenAIKey ? 'configured' : 'missing',
-      },
-    })
+    res.json({ status: 'ok' })
   } catch (error) {
-    res.status(500).json({ status: 'error', error: String(error) })
+    res.status(500).json({ status: 'error' })
   }
 }
