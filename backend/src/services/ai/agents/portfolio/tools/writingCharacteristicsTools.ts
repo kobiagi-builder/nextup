@@ -369,7 +369,7 @@ export const analyzeWritingCharacteristics = tool({
       // 1. Fetch artifact data
       const { data: artifact, error: artifactError } = await getSupabase()
         .from('artifacts')
-        .select('id, user_id, title, content, tone')
+        .select('id, user_id, title, content, tone, metadata')
         .eq('id', artifactId)
         .single();
 
@@ -418,14 +418,28 @@ export const analyzeWritingCharacteristics = tool({
         researchCount: researchResults?.length || 0,
       });
 
-      // 3. Fetch user's active writing examples (filtered by artifact type)
-      const { data: writingExamples } = await getSupabase()
+      // 3. Fetch user's active writing examples
+      // Check for user-selected reference IDs from artifact metadata (already fetched in step 1)
+      const artMetadata = artifact.metadata as Record<string, unknown> | null;
+      const selectedReferenceIds = Array.isArray(artMetadata?.selectedReferenceIds)
+        ? (artMetadata.selectedReferenceIds as string[]).filter(id => typeof id === 'string')
+        : [];
+
+      // When user selected specific references, use those; otherwise fall back to type-based filter
+      let writingExamplesQuery = getSupabase()
         .from('user_writing_examples')
         .select('name, content, analyzed_characteristics')
         .eq('user_id', artifact.user_id)
         .eq('is_active', true)
-        .eq('artifact_type', artifactType)
-        .limit(5);
+        .eq('extraction_status', 'success');
+
+      if (selectedReferenceIds.length > 0) {
+        writingExamplesQuery = writingExamplesQuery.in('id', selectedReferenceIds).limit(10);
+      } else {
+        writingExamplesQuery = writingExamplesQuery.eq('artifact_type', artifactType).limit(5);
+      }
+
+      const { data: writingExamples } = await writingExamplesQuery;
 
       const writingExamplesContext = writingExamples && writingExamples.length > 0
         ? writingExamples
@@ -435,6 +449,8 @@ export const analyzeWritingCharacteristics = tool({
 
       logger.debug('[AnalyzeWritingCharacteristics] Writing examples fetched', {
         examplesCount: writingExamples?.length || 0,
+        hasSelectedReferenceIds: selectedReferenceIds.length > 0,
+        selectedCount: selectedReferenceIds.length,
       });
 
       // 4. Fetch user context + ICP description
@@ -466,22 +482,13 @@ export const analyzeWritingCharacteristics = tool({
         hasContext: !!userContext,
       });
 
-      // 4.5. Fetch author's brief from artifact metadata
+      // 4.5. Read author's brief from artifact metadata (already fetched in step 1)
       let authorBrief: string | undefined;
-      {
-        const { data: artifactMeta } = await getSupabase()
-          .from('artifacts')
-          .select('metadata')
-          .eq('id', artifactId)
-          .single();
-
-        const metadata = artifactMeta?.metadata as Record<string, unknown> | null;
-        if (metadata?.author_brief && typeof metadata.author_brief === 'string') {
-          authorBrief = metadata.author_brief;
-          logger.debug('[AnalyzeWritingCharacteristics] Author brief loaded from metadata', {
-            briefLength: authorBrief.length,
-          });
-        }
+      if (artMetadata?.author_brief && typeof artMetadata.author_brief === 'string') {
+        authorBrief = artMetadata.author_brief;
+        logger.debug('[AnalyzeWritingCharacteristics] Author brief loaded from metadata', {
+          briefLength: authorBrief.length,
+        });
       }
 
       // 5. Build and execute Claude prompt

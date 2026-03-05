@@ -36,7 +36,10 @@ export interface StructuredChatMessageProps {
   /** Callback when an artifact is created (draft only) */
   onCreateArtifact: (suggestion: ArtifactSuggestion) => Promise<void>
   /** Callback when content creation is triggered (Phase 1: research + skeleton) */
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>
+  onCreateContent?: (
+    suggestion: ArtifactSuggestion,
+    metadata?: { selectedReferenceIds?: string[] },
+  ) => Promise<void>
   /** Additional class name */
   className?: string
 }
@@ -50,7 +53,10 @@ interface ActionableCardsGridProps {
   artifactSuggestions?: ArtifactSuggestion[]
   addedItemIds: Set<string>
   onCreateArtifact: (suggestion: ArtifactSuggestion) => Promise<void>
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>
+  onCreateContent?: (
+    suggestion: ArtifactSuggestion,
+    metadata?: { selectedReferenceIds?: string[] },
+  ) => Promise<void>
 }
 
 const TOPIC_TYPE_ICONS: Record<TopicType, React.ComponentType<{ className?: string }>> = {

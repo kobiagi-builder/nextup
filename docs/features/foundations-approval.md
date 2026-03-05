@@ -1,8 +1,8 @@
 # Foundations Approval
 
 **Created:** 2026-02-20
-**Last Updated:** 2026-02-20
-**Version:** 1.0.0
+**Last Updated:** 2026-03-05
+**Version:** 1.2.0
 **Status:** Complete
 
 ## Overview
@@ -45,7 +45,8 @@ research → foundations → skeleton → foundations_approval → writing
 | Component | File | Purpose |
 |-----------|------|---------|
 | `FoundationsSection` | `frontend/src/features/portfolio/components/artifact/FoundationsSection.tsx` | Collapsible section with skeleton editor + characteristics display |
-| `FoundationsApprovedButton` | `frontend/src/features/portfolio/components/artifact/FoundationsApprovedButton.tsx` | Approval CTA button |
+| `FoundationsReferences` | `frontend/src/features/portfolio/components/artifact/FoundationsReferences.tsx` | Compact/expanded reference picker with re-analyze capability |
+| `FoundationsApprovedButton` | `frontend/src/features/portfolio/components/artifact/FoundationsApprovedButton.tsx` | Approval CTA button (disabled during re-analyze) |
 | `WritingCharacteristicsDisplay` | `frontend/src/features/portfolio/components/artifact/WritingCharacteristicsDisplay.tsx` | Renders analyzed writing traits |
 | `RichTextEditor` | `frontend/src/features/portfolio/components/editor/RichTextEditor.tsx` | Embedded editor for skeleton editing |
 
@@ -117,8 +118,48 @@ Returns analyzed characteristics (tone, sentence structure, vocabulary patterns,
 
 ---
 
+### Re-analyze Foundations
+
+Users can change their writing reference selection and re-run the foundations pipeline without losing their current progress.
+
+**Component:** `FoundationsReferences` — displayed above WritingCharacteristicsDisplay in FoundationsSection
+
+**Behavior:**
+1. Compact mode shows selected references (or "Using default voice matching")
+2. "Change" button expands to full `ReferencePicker`
+3. When selection differs from original, "Re-analyze with new references" button appears
+4. Re-analyze calls `POST /api/artifacts/:id/re-analyze-foundations`
+5. Backend re-runs steps 1-3 (analyzeWritingCharacteristics → analyzeStorytellingStructure → generateContentSkeleton)
+6. Pipeline pauses again at `foundations_approval` with new results
+7. FoundationsReferences auto-collapses back to compact mode
+
+**Endpoint:** `POST /api/artifacts/:id/re-analyze-foundations`
+**Controller:** `backend/src/controllers/foundationsReanalyze.controller.ts`
+**Pipeline Method:** `PipelineExecutor.reanalyzeFoundations(artifactId)`
+
+**Guards:** Allowed when status is `skeleton`, `foundations_approval`, `ready`, or `published`. Approval button is disabled during re-analyze.
+
+---
+
+### Post-Creation Reference Change (Phase 3)
+
+When an artifact is in `ready` or `published` status, users can change references and trigger a full content regeneration.
+
+**Differences from re-analyze:**
+- Button text: "Regenerate with new references" (instead of "Re-analyze...")
+- **Confirmation modal** shown before proceeding (warns content will be replaced)
+- Calls `PipelineExecutor.regenerateContent()` — runs steps 1-5 (all except research), does NOT pause
+- On failure, rolls back to original status (ready/published)
+
+**Pipeline Method:** `PipelineExecutor.regenerateContent(artifactId)`
+
+See [Reference Picker Phase 3](reference-picker.md#phase-3-post-creation-reference-change-with-content-regeneration) for full details.
+
+---
+
 ## Related Features
 
 - [Content Creation Agent](content-creation-agent.md) — The pipeline that includes foundations approval
 - [Writing Style Analysis](writing-style-analysis.md) — How writing characteristics are generated
 - [Rich Text Editor](rich-text-editor.md) — The editor used for skeleton editing
+- [Reference Picker](reference-picker.md) — Writing reference selection (Phase 1 + 2 + 3)

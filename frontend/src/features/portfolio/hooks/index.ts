@@ -88,5 +88,8 @@ export {
 // Phase 4: Foundations Approval
 export { useFoundationsApproval } from './useFoundationsApproval'
 
+// Foundations Re-analysis
+export { useReanalyzeFoundations } from './useReanalyzeFoundations'
+
 // File Attachments
 export { useFileAttachment, type UseFileAttachmentReturn } from './useFileAttachment'

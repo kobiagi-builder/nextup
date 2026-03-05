@@ -10,6 +10,16 @@ import { markdownToHTML, isMarkdown } from '@/lib/markdown'
 import { ArrowLeft, CheckCircle, Loader2, MessageSquare, Sparkles, Share2, PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent } from '@/components/ui/sheet'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { useIsMobile } from '@/hooks/use-media-query'
 import { useChatLayoutStore } from '@/stores/chatLayoutStore'
 import { useArtifact, useUpdateArtifact, useCreateArtifact, artifactKeys } from '../hooks/useArtifacts'
@@ -22,6 +32,7 @@ import { ChatPanel } from '../components'
 import { useResearch } from '../hooks/useResearch'
 import { useWritingCharacteristics } from '../hooks/useWritingCharacteristics'
 import { useFoundationsApproval } from '../hooks/useFoundationsApproval'
+import { useReanalyzeFoundations } from '../hooks/useReanalyzeFoundations'
 import { useCallback, useState, useEffect, useRef, useMemo } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import type { Editor } from '@tiptap/react'
@@ -48,6 +59,9 @@ export function ArtifactPage() {
   // Must be declared before useArtifact which uses it
   const [isContentCreationTriggered, setIsContentCreationTriggered] = useState(false)
 
+  // Post-creation reference change: pending IDs for confirmation modal
+  const [pendingRegenerateIds, setPendingRegenerateIds] = useState<string[] | null>(null)
+
   // Data hooks - enable draft polling when content creation is triggered
   const { data: artifact, isLoading, error } = useArtifact(id!, isContentCreationTriggered)
   const updateArtifact = useUpdateArtifact()
@@ -65,6 +79,9 @@ export function ArtifactPage() {
 
   // Phase 4: Foundations approval mutation
   const foundationsApproval = useFoundationsApproval()
+
+  // Phase 4.2: Foundations re-analyze mutation
+  const reanalyzeFoundations = useReanalyzeFoundations()
 
   // Phase 6: Screen context for Content Agent
   // IMPORTANT: Use fresh artifact data from useArtifact (which polls during processing)
@@ -560,6 +577,53 @@ Source Artifact ID: ${sourceId}`
     }
   }, [artifact, localSkeletonContent, foundationsApproval, toast])
 
+  // Whether the artifact already has generated content (ready/published)
+  const isPostCreation = ['ready', 'published'].includes(artifact?.status ?? '')
+
+  // Phase 4.2: Handle re-analyze foundations with new reference selection
+  const executeReanalyze = useCallback(async (selectedIds: string[]) => {
+    if (!artifact?.id) return
+
+    try {
+      await reanalyzeFoundations.mutateAsync({
+        artifactId: artifact.id,
+        selectedReferenceIds: selectedIds,
+      })
+      toast({
+        title: isPostCreation ? 'Content regeneration started' : 'Foundations re-analyzed',
+        description: isPostCreation
+          ? 'Your content is being regenerated with the new references. This may take a few minutes.'
+          : 'Writing characteristics and skeleton updated with new references.',
+      })
+    } catch (err) {
+      toast({
+        variant: 'destructive',
+        title: isPostCreation ? 'Regeneration failed' : 'Re-analysis failed',
+        description: err instanceof Error ? err.message : 'Failed to process foundations',
+      })
+    }
+  }, [artifact, isPostCreation, reanalyzeFoundations, toast])
+
+  // Route: show confirmation for ready/published, execute directly otherwise
+  const handleReanalyze = useCallback(async (selectedIds: string[]) => {
+    if (!artifact?.id) return
+
+    if (isPostCreation) {
+      setPendingRegenerateIds(selectedIds)
+      return
+    }
+
+    await executeReanalyze(selectedIds)
+  }, [artifact, isPostCreation, executeReanalyze])
+
+  // Confirm regeneration from modal
+  const handleRegenerateConfirm = useCallback(async () => {
+    if (!pendingRegenerateIds) return
+    const ids = pendingRegenerateIds
+    setPendingRegenerateIds(null)
+    await executeReanalyze(ids)
+  }, [pendingRegenerateIds, executeReanalyze])
+
   // Handle content improvement tool results (Phase 8: apply AI changes to editor)
   const clearSelection = useEditorSelectionStore((s) => s.clearSelection)
   const handleContentImproved = useCallback((toolName: string, result: unknown) => {
@@ -923,6 +987,13 @@ Source Artifact ID: ${sourceId}`
             approvalLoading={foundationsApproval.isPending}
             isCollapsed={isFoundationsCollapsed}
             onCollapsedChange={setIsFoundationsCollapsed}
+            artifactType={artifact.type}
+            selectedReferenceIds={(artifact.metadata as { selectedReferenceIds?: string[] })?.selectedReferenceIds ?? []}
+            onReanalyze={handleReanalyze}
+            reanalyzeLoading={reanalyzeFoundations.isPending}
+            reanalyzeButtonLabel={
+              isPostCreation ? 'Regenerate with new references' : undefined
+            }
           />
         </div>
 
@@ -1011,6 +1082,32 @@ Source Artifact ID: ${sourceId}`
           </SheetContent>
         </Sheet>
       )}
+
+      {/* Confirmation modal for post-creation reference change */}
+      <AlertDialog
+        open={!!pendingRegenerateIds}
+        onOpenChange={(open) => { if (!open) setPendingRegenerateIds(null) }}
+      >
+        <AlertDialogContent data-portal-ignore-click-outside>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Regenerate Content?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Changing writing references will regenerate all content for this artifact.
+              Your current text and images will be replaced with new content based on the
+              updated writing style. This process may take a few minutes.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRegenerateConfirm}
+              className="bg-amber-600 text-white hover:bg-amber-700"
+            >
+              Regenerate Content
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

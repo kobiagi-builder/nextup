@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import type { ArtifactSuggestion, ContinuationType } from "../../types/chat";
+import { useWritingExamples } from "../../hooks/useWritingExamples";
+import { ReferenceSelectionDialog } from "../writing-references/ReferenceSelectionDialog";
 
 // =============================================================================
 // Types
@@ -30,7 +32,10 @@ export interface ArtifactSuggestionCardProps {
   suggestion: ArtifactSuggestion;
   isAdded?: boolean;
   onCreate: (suggestion: ArtifactSuggestion) => Promise<void>;
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>;
+  onCreateContent?: (
+    suggestion: ArtifactSuggestion,
+    metadata?: { selectedReferenceIds?: string[] }
+  ) => Promise<void>;
 }
 
 const CONTINUATION_TYPE_LABELS: Record<ContinuationType, string> = {
@@ -62,6 +67,13 @@ export function ArtifactSuggestionCard({
   const [isCreating, setIsCreating] = useState(false);
   const [isCreatingContent, setIsCreatingContent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showRefDialog, setShowRefDialog] = useState(false);
+
+  // Check if user has any successfully extracted references
+  const { data: writingExamples = [] } = useWritingExamples();
+  const hasReferences = writingExamples.some(
+    (r) => r.extraction_status === "success",
+  );
 
   const config = ARTIFACT_TYPE_CONFIG[suggestion.type];
   const Icon = config.icon;
@@ -86,11 +98,55 @@ export function ArtifactSuggestionCard({
   const handleCreateContent = async () => {
     if (isAdded || isCreatingContent || !onCreateContent) return;
 
+    // If user has references, show selection dialog first
+    if (hasReferences) {
+      setShowRefDialog(true);
+      return;
+    }
+
+    // No references — proceed with existing behavior
     setIsCreatingContent(true);
     setError(null);
 
     try {
       await onCreateContent(suggestion);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create content");
+    } finally {
+      setIsCreatingContent(false);
+    }
+  };
+
+  const handleSkipRefs = async () => {
+    setShowRefDialog(false);
+    if (!onCreateContent) return;
+
+    setIsCreatingContent(true);
+    setError(null);
+
+    try {
+      await onCreateContent(suggestion);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create content");
+    } finally {
+      setIsCreatingContent(false);
+    }
+  };
+
+  const handleCreateWithRefs = async (selectedIds: string[]) => {
+    setShowRefDialog(false);
+    if (!onCreateContent) return;
+
+    setIsCreatingContent(true);
+    setError(null);
+
+    try {
+      await onCreateContent(
+        suggestion,
+        selectedIds.length > 0
+          ? { selectedReferenceIds: selectedIds }
+          : undefined,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create content");
     } finally {
@@ -220,6 +276,18 @@ export function ArtifactSuggestionCard({
         <div className="mt-3 text-xs text-destructive bg-destructive/10 p-2 rounded">
           {error}
         </div>
+      )}
+
+      {/* Reference selection dialog for topic suggestions */}
+      {onCreateContent && (
+        <ReferenceSelectionDialog
+          open={showRefDialog}
+          onOpenChange={setShowRefDialog}
+          contentType={suggestion.type}
+          onSkip={handleSkipRefs}
+          onCreateWithReferences={handleCreateWithRefs}
+          isCreating={isCreatingContent}
+        />
       )}
     </Card>
   );

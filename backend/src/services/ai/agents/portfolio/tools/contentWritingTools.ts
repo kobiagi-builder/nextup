@@ -95,6 +95,58 @@ function logPhase2(
 }
 
 // =============================================================================
+// Post-Processing
+// =============================================================================
+
+/**
+ * Strip skeleton structural markers from generated content.
+ * Removes labels like "Hook:", "Point 1:", "Call to Action:", etc.
+ * that should have been replaced with natural content but slipped through.
+ */
+function stripSkeletonMarkers(content: string): string {
+  // Match bold markdown markers: **Hook:** , **Point 1:** , **Call to Action:** etc.
+  // Also match plain markers: Hook: , Point 1: , Call to Action: etc.
+  // Captures the text after the marker on the same line to preserve it
+  const markerPatterns = [
+    // Bold markers: **Hook:** text → text
+    /\*\*Hook:\*\*\s*/gi,
+    /\*\*Point\s*\d+:\*\*\s*/gi,
+    /\*\*Call to Action:\*\*\s*/gi,
+    /\*\*Closing:\*\*\s*/gi,
+    /\*\*Setup section[^:]*:\*\*\s*/gi,
+    /\*\*Central argument[^:]*:\*\*\s*/gi,
+    /\*\*Evidence[^:]*:\*\*\s*/gi,
+    /\*\*Implications[^:]*:\*\*\s*/gi,
+    /\*\*Hashtags:\*\*\s*/gi,
+    /\*\*Post Image:\*\*\s*/gi,
+    // HTML bold markers: <strong>Hook:</strong> text → text
+    /<strong>Hook:<\/strong>\s*/gi,
+    /<strong>Point\s*\d+:<\/strong>\s*/gi,
+    /<strong>Call to Action:<\/strong>\s*/gi,
+    /<strong>Closing:<\/strong>\s*/gi,
+    /<strong>Hashtags:<\/strong>\s*/gi,
+    /<strong>Post Image:<\/strong>\s*/gi,
+    // Numbered skeleton markers at start of line: 1. Hook: , 2. Point 1: etc.
+    /^\d+\.\s*Hook:\s*/gim,
+    /^\d+\.\s*Point\s*\d+:\s*/gim,
+    /^\d+\.\s*Call to Action:\s*/gim,
+    /^\d+\.\s*Closing:\s*/gim,
+    /^\d+\.\s*Post Image:\s*/gim,
+    /^\d+\.\s*Hashtags:\s*/gim,
+  ];
+
+  let cleaned = content;
+  for (const pattern of markerPatterns) {
+    cleaned = cleaned.replace(pattern, '');
+  }
+
+  // Clean up any resulting empty lines (more than 2 consecutive newlines)
+  cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
+
+  return cleaned.trim();
+}
+
+// =============================================================================
 // Prompt Building
 // =============================================================================
 
@@ -435,6 +487,17 @@ BAD examples (NEVER USE - will produce broken images):
 
 Example: ${imageExample}
 
+## Skeleton Markers (CRITICAL - MUST REMOVE)
+The placeholder/notes above contain SKELETON MARKERS like "Hook:", "Point 1:", "Point 2:", "Point 3:", "Call to Action:", "Setup section:", "Central argument:", "Closing:", etc.
+These are STRUCTURAL GUIDES for you — they tell you WHAT to write, not text to include.
+You MUST:
+- NEVER include these marker labels in your output (no "Hook:", "Point 1:", etc.)
+- NEVER use bold marker labels like "**Hook:**" or "**Point 1:**"
+- Instead, write NATURAL, FLOWING content that fulfills each marker's intent WITHOUT labeling it
+- The hook should just BE a compelling opening line, not "Hook: [compelling line]"
+- Each point should flow naturally into the next, not be labeled "Point 1:", "Point 2:"
+- The call to action should be a natural closing invitation, not labeled "Call to Action:"
+
 ## Output Format (CRITICAL)
 You MUST use proper HTML formatting:
 - Paragraphs: Wrap text in <p> tags
@@ -443,7 +506,7 @@ You MUST use proper HTML formatting:
 - Bold: <strong>text</strong>
 - Italic: <em>text</em>
 
-Write ONLY the content for this section (plus the image placeholder at the end). Do not include section headings or meta-commentary.`;
+Write ONLY the content for this section (plus the image placeholder at the end). Do not include section headings, meta-commentary, or skeleton marker labels.`;
 }
 
 // =============================================================================
@@ -683,17 +746,22 @@ export const writeContentSection = tool({
       });
 
       // =======================================================================
+      // Post-processing: Strip skeleton markers
+      // =======================================================================
+      const cleanedContent = stripSkeletonMarkers(generatedContent);
+
+      // =======================================================================
       // TRACE: Exit Point - Success
       // =======================================================================
       const totalDuration = Date.now() - startTime;
-      const wordCount = Math.round(generatedContent.split(/\s+/).length);
+      const wordCount = Math.round(cleanedContent.split(/\s+/).length);
 
       logPhase2('SECTION_COMPLETE', 'Section content generation completed', {
         traceId,
         artifactId,
         sectionHeading,
         success: true,
-        contentLength: generatedContent.length,
+        contentLength: cleanedContent.length,
         wordCount,
         researchSourcesUsed: researchResults?.length || 0,
         totalDuration,
@@ -715,7 +783,7 @@ export const writeContentSection = tool({
         traceId,
         duration: totalDuration,
         data: {
-          content: generatedContent,
+          content: cleanedContent,
           sectionHeading,
           researchSourcesUsed: researchResults?.length || 0,
           wordCount,
@@ -1226,6 +1294,11 @@ export const writeFullContent = tool({
               error: humanizeError instanceof Error ? humanizeError.message : String(humanizeError),
             });
           }
+
+          // =================================================================
+          // Post-processing: Strip skeleton markers that slipped through
+          // =================================================================
+          finalContent = stripSkeletonMarkers(finalContent);
 
           const sectionDuration = Date.now() - sectionStartTime;
           const wordCount = Math.round(finalContent.split(/\s+/).length);

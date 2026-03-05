@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-04
-**Version:** 21.0.0
-**Total Documentation Files:** 69+
-**Status:** Complete (LinkedIn Team Extraction Phase 11 — Auto-Triggers)
+**Last Updated:** 2026-03-05
+**Version:** 23.0.0
+**Total Documentation Files:** 70+
+**Status:** Complete (Reference Picker Phase 2: Topic Suggestions + Foundations Re-analyze)
 
 ## Overview
 
@@ -81,7 +81,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 5: Features (15 files)
+## Layer 5: Features (16 files)
 
 **Location:** `docs/features/`
 
@@ -102,6 +102,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, LinkedIn team extraction (Tavily scrape + AI role filter + merge + frontend sync UI + auto-triggers on creation/update), per-user role filters, URL validation error icons, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 11) |
 | [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 25 tools, structured response cards (Phase 4) |
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
+| [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
 
 ---
 
@@ -128,7 +129,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 | File | Description |
 |------|-------------|
-| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | **21 endpoints** across AI chat (`/api/ai/*`), artifacts, writing examples, onboarding, logging, auth (v5.0.0) |
+| [content-agent-endpoints.md](./api/content-agent-endpoints.md) | **22 endpoints** across AI chat (`/api/ai/*`), artifacts (incl. re-analyze-foundations), writing examples, onboarding, logging, auth (v5.1.0) |
 | [authentication-and-security.md](./api/authentication-and-security.md) | Bearer token auth, rate limits (10/min, 100/hr, 20 pipelines/day) |
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
@@ -264,7 +265,7 @@ Social Post:    draft → ready
 | AI tools | 60+ across 37 tool files (35 content + 25 customer) |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 59 (21 AI/content/onboarding + 37 customer + 1 customer AI) |
+| API endpoints | 60 (22 AI/content/onboarding + 37 customer + 1 customer AI) |
 | Database tables | 21 (11 content + 7 customer + 1 ICP settings + 1 onboarding + 1 team role filters) + 5 functions |
 | Error categories | 13 |
 | Documentation files | 69+ |
@@ -305,6 +306,8 @@ Social Post:    draft → ready
 ---
 
 **Version History:**
+- **23.0.0** (2026-03-05) — Reference Picker Phase 2 (Topic Suggestions + Foundations Re-analyze): updated reference-picker.md (v2.0.0, ReferenceSelectionDialog for topic suggestions, FoundationsReferences compact/expanded, re-analyze API endpoint, PipelineExecutor.reanalyzeFoundations), artifact-creation-flow.md (v1.2.0, topic suggestion reference dialog sequence, re-analyze optional step in foundations approval), content-agent-endpoints.md (v5.1.0, +1 endpoint: POST /api/artifacts/:id/re-analyze-foundations with full spec), artifact-page.md (v1.1.0, FoundationsReferences in component hierarchy, useReanalyzeFoundations hook, updated foundations approval interaction), foundations-approval.md (v1.1.0, re-analyze section with FoundationsReferences component). 0 new doc files, 6 updated.
+- **22.0.0** (2026-03-05) — Reference Picker Phase 1: Added reference-picker.md feature doc. 1 new doc file, 0 updated.
 - **21.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 11 (Auto-Triggers): updated customer-management.md (v10.0.0, `syncTeamForCustomer` reusable helper, auto-trigger on creation via `enrichAndScoreNewCustomer`, auto-trigger on update via fire-and-forget, 5s delayed invalidation on `useUpdateCustomer`, 15 new tests across 3 test files), customer-management-flow.md (v5.0.0, updated Flow 1 with background pipeline, added Flow 24: Automatic Team Extraction with sequence diagram). 0 new doc files, 4 updated.
 - **20.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 10 (Frontend UI): updated customer-management.md (v9.0.0, sync button, source badges, URL error icons, hidden member filtering, 23 new frontend tests). 0 new doc files, 2 updated.
 - **19.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 9 (backend pipeline): updated customer-management.md (v8.0.0, LinkedIn team extraction via Tavily scrape + AI role filter + merge, TeamMember source/hidden fields, enrichment_errors, per-user role filters), customer-endpoints.md (v7.0.0, +3 endpoints: sync-team-from-linkedin, enrich-from-linkedin, enrich-from-website), database-schema-reference.md (v7.0.0, +1 table: team_role_filters). 0 new doc files, 4 updated.

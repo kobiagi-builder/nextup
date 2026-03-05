@@ -91,6 +91,15 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
     }
   }
 
+  const handleDueDateChange = async (id: string, date: string | null) => {
+    try {
+      await updateActionItem.mutateAsync({ id, due_date: date })
+      toast({ title: date ? 'Due date updated' : 'Due date removed' })
+    } catch {
+      toast({ title: 'Failed to update due date', variant: 'destructive' })
+    }
+  }
+
   const handleFormClose = (open: boolean) => {
     setFormOpen(open)
     if (!open) setEditingItem(null)
@@ -198,6 +207,7 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
               onEdit={handleEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
+              onDueDateChange={handleDueDateChange}
               isDeleting={deleteActionItem.isPending}
             />
           ))}

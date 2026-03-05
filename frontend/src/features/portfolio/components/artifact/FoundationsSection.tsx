@@ -24,8 +24,10 @@ import { Card } from '@/components/ui/card'
 import { RichTextEditor } from '../editor/RichTextEditor'
 import { WritingCharacteristicsDisplay } from './WritingCharacteristicsDisplay'
 import { FoundationsApprovedButton } from './FoundationsApprovedButton'
+import { FoundationsReferences } from './FoundationsReferences'
 import type {
   ArtifactStatus,
+  ArtifactType,
   ArtifactWritingCharacteristics,
 } from '../../types/portfolio'
 
@@ -45,7 +47,19 @@ export interface FoundationsSectionProps {
   approvalLoading?: boolean
   isCollapsed?: boolean
   onCollapsedChange?: (collapsed: boolean) => void
+  /** Artifact type for reference picker filtering */
+  artifactType?: ArtifactType
+  /** Currently selected writing reference IDs from artifact metadata */
+  selectedReferenceIds?: string[]
+  /** Callback to re-analyze foundations with new reference selection */
+  onReanalyze?: (selectedIds: string[]) => void
+  /** Whether re-analysis is currently in progress */
+  reanalyzeLoading?: boolean
+  /** Custom label for the re-analyze button (e.g. "Regenerate with new references") */
+  reanalyzeButtonLabel?: string
 }
+
+const NOOP = () => {}
 
 // Statuses where foundations section should show content
 const FOUNDATIONS_VISIBLE_STATUSES: ArtifactStatus[] = [
@@ -89,6 +103,11 @@ export function FoundationsSection({
   approvalLoading = false,
   isCollapsed: externalIsCollapsed,
   onCollapsedChange,
+  artifactType,
+  selectedReferenceIds,
+  onReanalyze,
+  reanalyzeLoading = false,
+  reanalyzeButtonLabel,
 }: FoundationsSectionProps) {
   // Use external state if provided, otherwise use internal state
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(true)
@@ -236,6 +255,18 @@ export function FoundationsSection({
           </Card>
         )}
 
+        {/* Writing References */}
+        {artifactType && (
+          <FoundationsReferences
+            artifactType={artifactType}
+            selectedReferenceIds={selectedReferenceIds ?? []}
+            onReanalyze={onReanalyze ?? NOOP}
+            reanalyzeLoading={reanalyzeLoading}
+            editable={isSkeletonEditable}
+            reanalyzeButtonLabel={reanalyzeButtonLabel}
+          />
+        )}
+
         {/* Writing Characteristics Display */}
         {characteristics && (
           <WritingCharacteristicsDisplay
@@ -300,6 +331,7 @@ export function FoundationsSection({
           <FoundationsApprovedButton
             onClick={handleApproveWithCelebration}
             loading={approvalLoading}
+            disabled={reanalyzeLoading}
             data-testid="foundations-approved-button"
           />
         </div>

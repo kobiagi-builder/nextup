@@ -24,7 +24,7 @@ import {
 import type { CustomerStatus, CustomerWithSummary, IcpScore } from '../../types'
 import { CustomerStatusPill } from './CustomerStatusPill'
 import { IcpScorePill } from './IcpScorePill'
-import { formatCurrency } from '../../utils'
+import { formatCurrency, getDueDateUrgency, formatDueDateShort } from '../../utils'
 
 interface CustomerCardProps {
   customer: CustomerWithSummary
@@ -183,12 +183,15 @@ export function CustomerCard({
         <div className="mt-4 flex items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2">
           <CircleArrowRight className="h-3.5 w-3.5 shrink-0 text-brand-400" aria-hidden="true" />
           <p className="text-xs text-foreground/80 min-w-0 flex-1 line-clamp-2">{customer.next_action_description}</p>
-          {customer.next_action_due_date && (
-            <span className="flex items-center gap-1 shrink-0 text-[11px] text-muted-foreground">
-              <CalendarDays className="h-3 w-3" aria-hidden="true" />
-              {new Date(customer.next_action_due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-          )}
+          {customer.next_action_due_date && (() => {
+            const { className: urgencyClass, urgency } = getDueDateUrgency(customer.next_action_due_date)
+            return (
+              <span className={cn('flex items-center gap-1 shrink-0 text-[11px]', urgencyClass, urgency !== 'normal' && urgency !== 'done' && 'font-medium')}>
+                <CalendarDays className="h-3 w-3" aria-hidden="true" />
+                {formatDueDateShort(customer.next_action_due_date)}
+              </span>
+            )
+          })()}
         </div>
       )}
     </div>

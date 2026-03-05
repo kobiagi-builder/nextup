@@ -53,7 +53,7 @@ const TYPE_OPTIONS: { value: ArtifactType; label: string }[] = [
 // Helpers
 // ---------------------------------------------------------------------------
 
-const STATUS_CONFIG: Record<
+export const STATUS_CONFIG: Record<
   ExtractionStatus,
   { icon: React.ElementType; color: string; stripe: string; label: string }
 > = {
@@ -83,7 +83,7 @@ const STATUS_CONFIG: Record<
   },
 }
 
-function getSourceIcon(sourceType: WritingExampleSourceType, sourceUrl?: string | null) {
+export function getSourceIcon(sourceType: WritingExampleSourceType, sourceUrl?: string | null) {
   if (sourceType === 'url' && sourceUrl) {
     const platform = detectPlatform(sourceUrl)
     return { Icon: Link2, ...PLATFORM_META[platform] }
@@ -95,7 +95,7 @@ function getSourceIcon(sourceType: WritingExampleSourceType, sourceUrl?: string 
 }
 
 /** Strip markdown syntax for plain-text preview display. */
-function stripMarkdown(text: string): string {
+export function stripMarkdown(text: string): string {
   return text
     .replace(/^#{1,6}\s+/gm, '')       // headings
     .replace(/\*\*([^*]+)\*\*/g, '$1')  // bold

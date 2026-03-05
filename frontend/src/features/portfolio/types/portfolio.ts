@@ -89,6 +89,7 @@ export interface SocialPostMetadata {
   character_count?: number
   scheduled_for?: DateString
   engagement_hook?: string
+  selectedReferenceIds?: string[]
 }
 
 /** Blog Post metadata */
@@ -101,6 +102,7 @@ export interface BlogMetadata {
   seo_title?: string
   seo_description?: string
   featured_image_url?: string
+  selectedReferenceIds?: string[]
 }
 
 /** Case Study / Showcase metadata */
@@ -113,6 +115,7 @@ export interface ShowcaseMetadata {
   results?: string
   learnings?: string
   metrics?: ShowcaseMetric[]
+  selectedReferenceIds?: string[]
 }
 
 /** Individual metric for showcases */

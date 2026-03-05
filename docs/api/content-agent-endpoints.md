@@ -78,6 +78,7 @@ curl -X POST http://localhost:3001/api/auth/login \
 | `POST` | `/api/ai/chat/stream` | Yes | Streaming AI chat with tools (streamText) |
 | `POST` | `/api/ai/generate` | Yes | Content generation |
 | `POST` | `/api/artifacts/:id/approve-foundations` | Yes | Resume pipeline after approval |
+| `POST` | `/api/artifacts/:id/re-analyze-foundations` | Yes | Re-run foundations or regenerate content with new references |
 | `GET` | `/api/artifacts/:id/writing-characteristics` | Yes | Get writing analysis |
 | `GET` | `/api/user/writing-examples` | Yes | List writing examples |
 | `GET` | `/api/user/writing-examples/:id` | Yes | Get single example |
@@ -297,6 +298,144 @@ curl -X POST http://localhost:3001/api/artifacts/abc-123/approve-foundations \
   "message": "Artifact with ID abc-123 not found"
 }
 ```
+
+---
+
+### 4b. Re-analyze Foundations / Regenerate Content
+
+Re-run the foundations pipeline with new writing references. Behavior depends on artifact status:
+- **skeleton/foundations_approval**: Re-analyzes foundations only (steps 1-3), pauses for approval
+- **ready/published**: Regenerates all content (steps 1-5), runs straight through without pause
+
+**Endpoint**: `POST /api/artifacts/:id/re-analyze-foundations`
+
+**Authentication**: Required
+
+**Controller**: `backend/src/controllers/foundationsReanalyze.controller.ts`
+
+#### Path Parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `id` | UUID | Artifact ID |
+
+#### Request Body
+
+```typescript
+{
+  selectedReferenceIds: string[];  // Array of writing example UUIDs (can be empty for default voice)
+}
+```
+
+#### Response Body (Success)
+
+**Status Code**: `200 OK`
+
+```typescript
+{
+  success: boolean;
+  message: string;            // "Re-analysis complete" or "Content regeneration started"
+  traceId: string;            // Pipeline trace ID
+  stepsCompleted: number;     // 3 (re-analyze) or 5 (regenerate)
+  totalSteps: number;         // 3 or 5
+  duration: number;           // Milliseconds
+}
+```
+
+#### Example Request
+
+```bash
+curl -X POST http://localhost:3001/api/artifacts/abc-123/re-analyze-foundations \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "selectedReferenceIds": ["ref-uuid-1", "ref-uuid-2"]
+  }'
+```
+
+#### Example Response
+
+```json
+{
+  "success": true,
+  "message": "Re-analysis complete",
+  "traceId": "trace-abc123",
+  "stepsCompleted": 3,
+  "totalSteps": 3,
+  "duration": 12500
+}
+```
+
+#### Preconditions
+
+- Artifact must be in `skeleton`, `foundations_approval`, `ready`, or `published` status
+- User must own the artifact
+- `selectedReferenceIds` must be an array of non-empty strings
+
+#### Error Responses
+
+**400 Bad Request** - Missing artifact ID
+
+```json
+{ "error": "Missing artifact ID" }
+```
+
+**400 Bad Request** - Invalid request body
+
+```json
+{
+  "error": "Invalid request body",
+  "message": "selectedReferenceIds must be an array of non-empty strings"
+}
+```
+
+**400 Bad Request** - Invalid status
+
+```json
+{
+  "error": "Invalid status",
+  "message": "Cannot re-analyze foundations: artifact is in 'writing' status, expected one of: skeleton, foundations_approval, ready, published"
+}
+```
+
+**401 Unauthorized** - Not authenticated
+
+```json
+{
+  "error": "Unauthorized",
+  "message": "Authentication required"
+}
+```
+
+**403 Forbidden** - Not the artifact owner
+
+```json
+{ "error": "Forbidden", "message": "You do not own this artifact" }
+```
+
+**404 Not Found** - Artifact not found
+
+```json
+{ "error": "Artifact not found" }
+```
+
+**500 Internal Server Error** - Pipeline execution failure
+
+```json
+{
+  "error": "Re-analysis failed",
+  "message": "Pipeline step analyzeWritingCharacteristics failed"
+}
+```
+
+#### Behavior
+
+1. Validates request (auth, body, artifact existence, ownership, status)
+2. Merges `selectedReferenceIds` into artifact's existing metadata JSONB
+3. Calls `pipelineExecutor.reanalyzeFoundations(artifactId)`
+4. Pipeline runs steps: analyzeWritingCharacteristics → analyzeStorytellingStructure → generateContentSkeleton
+5. Pipeline pauses at `foundations_approval` (due to `pauseForApproval` on skeleton step)
+6. Frontend React Query caches invalidated on success
 
 ---
 

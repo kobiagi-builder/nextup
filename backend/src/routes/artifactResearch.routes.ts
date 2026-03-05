@@ -8,6 +8,7 @@ import { Router } from 'express';
 import * as researchController from '../controllers/artifactResearch.controller.js';
 import * as imageController from '../controllers/imageGeneration.controller.js';
 import * as foundationsController from '../controllers/foundations.controller.js';
+import * as foundationsReanalyzeController from '../controllers/foundationsReanalyze.controller.js';
 import { getSupabase } from '../lib/requestContext.js';
 import { logger } from '../lib/logger.js';
 
@@ -115,5 +116,8 @@ router.get('/:id/writing-characteristics', foundationsController.getWritingChara
 
 // Approve foundations and resume pipeline
 router.post('/:id/approve-foundations', foundationsController.approveFoundations);
+
+// Re-analyze foundations with new reference selection
+router.post('/:id/re-analyze-foundations', foundationsReanalyzeController.reanalyzeFoundations);
 
 export default router;

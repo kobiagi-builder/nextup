@@ -1,8 +1,8 @@
 # Artifact Page (ArtifactPage)
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-19
-**Version:** 1.0.0
+**Last Updated:** 2026-03-05
+**Version:** 1.1.0
 **Status:** Complete
 
 ## Overview
@@ -51,9 +51,12 @@ ArtifactPage
 ├── Header (title, back button, status badge, action buttons)
 ├── ContentGenerationLoader (shimmer during writing/humanity_checking)
 ├── FoundationsSection
+│   ├── FoundationsReferences (compact/expanded reference picker)
+│   │   ├── Compact: reference names, icons, word counts, "Change" button
+│   │   └── Expanded: ReferencePicker + "Re-analyze" / "Cancel"
 │   ├── WritingCharacteristicsDisplay
 │   ├── TipTap skeleton editor (editable during foundations_approval)
-│   └── FoundationsApprovedButton
+│   └── FoundationsApprovedButton (disabled during re-analyze)
 ├── ArtifactEditor
 │   ├── RichTextEditor (TipTap)
 │   │   ├── Formatting toolbar
@@ -88,6 +91,7 @@ ArtifactPage
 | `useResearch(id)` | Fetch research data, polls during research status |
 | `useWritingCharacteristics(id)` | Fetch writing characteristics, polls during foundations |
 | `useFoundationsApproval(id)` | Approve foundations and resume pipeline |
+| `useReanalyzeFoundations(id)` | Re-run foundations with new reference selection |
 | `useImageGeneration(id)` | Approve/reject/regenerate images |
 | `useChatLayoutStore` | Desktop chat panel state (open/close, panel size) |
 
@@ -121,11 +125,14 @@ ArtifactPage
 
 ### Foundations Approval
 1. FoundationsSection auto-expands when status reaches `skeleton`
-2. User reviews writing characteristics display
-3. User optionally edits skeleton in embedded TipTap editor
-4. User clicks "Foundations Approved" button
-5. `POST /api/artifacts/:id/approve-foundations` with optional `skeleton_content`
-6. Pipeline resumes: writing → humanity_checking → creating_visuals → ready
+2. User reviews writing characteristics display and selected references
+3. User optionally clicks "Change" on FoundationsReferences to re-select references
+4. If references changed: "Re-analyze with new references" button appears (amber)
+5. Clicking re-analyze: `POST /api/artifacts/:id/re-analyze-foundations` → re-runs foundations steps
+6. User optionally edits skeleton in embedded TipTap editor
+7. User clicks "Foundations Approved" button (disabled during re-analyze)
+8. `POST /api/artifacts/:id/approve-foundations` with optional `skeleton_content`
+9. Pipeline resumes: writing → humanity_checking → creating_visuals → ready
 
 ### Content Editing (ready/published)
 1. Editor is unlocked with full TipTap formatting toolbar

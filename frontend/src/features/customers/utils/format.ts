@@ -69,6 +69,54 @@ export function getBalanceDirection(balance: string): 'positive' | 'negative' | 
  * Format event date for timeline display.
  * Shows relative time for recent events, full date for older ones.
  */
+/**
+ * Due date urgency levels for color coding.
+ */
+export type DueDateUrgency = 'overdue' | 'urgent' | 'soon' | 'normal' | 'done'
+
+const URGENCY_CLASSES: Record<DueDateUrgency, string> = {
+  overdue: 'text-red-600',
+  urgent: 'text-orange-500',
+  soon: 'text-yellow-600',
+  normal: 'text-muted-foreground',
+  done: 'text-muted-foreground',
+}
+
+export function getDueDateUrgency(
+  dateStr: string,
+  status?: string
+): { urgency: DueDateUrgency; className: string } {
+  if (status === 'done' || status === 'cancelled') {
+    return { urgency: 'done', className: URGENCY_CLASSES.done }
+  }
+
+  const today = new Date(new Date().toDateString())
+  const due = new Date(dateStr + 'T00:00:00')
+  const diffMs = due.getTime() - today.getTime()
+  const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+  if (diffDays < 0) return { urgency: 'overdue', className: URGENCY_CLASSES.overdue }
+  if (diffDays <= 1) return { urgency: 'urgent', className: URGENCY_CLASSES.urgent }
+  if (diffDays <= 3) return { urgency: 'soon', className: URGENCY_CLASSES.soon }
+  return { urgency: 'normal', className: URGENCY_CLASSES.normal }
+}
+
+/**
+ * Format a YYYY-MM-DD due date for display.
+ */
+export function formatDueDate(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+/**
+ * Format a YYYY-MM-DD due date for short display (no year).
+ */
+export function formatDueDateShort(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00')
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+}
+
 export function formatEventDate(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date()

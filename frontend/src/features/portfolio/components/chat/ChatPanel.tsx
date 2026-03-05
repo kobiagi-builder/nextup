@@ -124,7 +124,10 @@ export function ChatPanel({
 
   // Handle creating artifact with AI content generation (Phase 1)
   const handleCreateContent = useCallback(
-    async (suggestion: ArtifactSuggestion) => {
+    async (
+      suggestion: ArtifactSuggestion,
+      metadata?: { selectedReferenceIds?: string[] },
+    ) => {
       try {
         // 1. Create draft artifact
         const artifact = await createArtifactMutation.mutateAsync({
@@ -132,6 +135,9 @@ export function ChatPanel({
           title: suggestion.title,
           content: '', // Empty content - will be filled by AI
           tags: suggestion.tags || [],
+          metadata: metadata?.selectedReferenceIds?.length
+            ? { selectedReferenceIds: metadata.selectedReferenceIds }
+            : undefined,
         });
 
         markItemAdded(suggestion.id);
@@ -360,7 +366,10 @@ interface ChatMessageRendererProps {
   messageHistory: ParsedChatMessage[];
   addedItemIds: Set<string>;
   onCreateArtifact: (suggestion: ArtifactSuggestion) => Promise<void>;
-  onCreateContent?: (suggestion: ArtifactSuggestion) => Promise<void>;
+  onCreateContent?: (
+    suggestion: ArtifactSuggestion,
+    metadata?: { selectedReferenceIds?: string[] },
+  ) => Promise<void>;
 }
 
 function ChatMessageRenderer({

@@ -988,6 +988,500 @@ export class PipelineExecutor {
       };
     }
   }
+
+  /**
+   * Re-analyze foundations with updated reference selection.
+   *
+   * Runs PIPELINE_STEPS[1-3] (analyzeWritingCharacteristics, analyzeStorytellingStructure,
+   * generateContentSkeleton) sequentially. The skeleton step has pauseForApproval=true,
+   * so the pipeline will pause at foundations_approval for user review.
+   *
+   * Each tool reads selectedReferenceIds from artifact.metadata internally.
+   */
+  async reanalyzeFoundations(
+    artifactId: string,
+    options: PipelineOptions = {}
+  ): Promise<PipelineResult> {
+    const startTime = Date.now();
+    const traceId = generateTraceId('pipeline-reanalyze');
+    const toolResults: Record<string, any> = {};
+
+    logger.info('[PipelineExecutor] Re-analyzing foundations', {
+      artifactId,
+      traceId,
+    });
+
+    // Verify artifact exists
+    const { data: artifact, error: fetchError } = await getSupabase()
+      .from('artifacts')
+      .select('status')
+      .eq('id', artifactId)
+      .single();
+
+    if (fetchError || !artifact) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.ARTIFACT_NOT_FOUND,
+          message: 'Artifact not found',
+          failedStep: 0,
+          failedTool: 'reanalyzeFoundations',
+          recoverable: false,
+        },
+      };
+    }
+
+    // Status guard
+    const eligibleStatuses = ['skeleton', 'foundations_approval'];
+    if (!eligibleStatuses.includes(artifact.status)) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.INVALID_STATUS,
+          message: `Cannot re-analyze: artifact status is '${artifact.status}', expected one of: ${eligibleStatuses.join(', ')}`,
+          failedStep: 0,
+          failedTool: 'reanalyzeFoundations',
+          recoverable: false,
+        },
+      };
+    }
+
+    // Set status to 'foundations' before starting re-analysis
+    await getSupabase()
+      .from('artifacts')
+      .update({ status: 'foundations', updated_at: new Date().toISOString() })
+      .eq('id', artifactId);
+
+    // Foundations steps: indices 1-3 (analyzeWritingCharacteristics, analyzeStorytellingStructure, generateContentSkeleton)
+    const foundationsSteps = PIPELINE_STEPS.slice(1, 4);
+    let currentStep = 0;
+
+    try {
+      return await withTracing(
+        traceId,
+        'reanalyzeFoundations',
+        async () => {
+          for (let i = 0; i < foundationsSteps.length; i++) {
+            const step = foundationsSteps[i];
+            currentStep = i;
+
+            // Notify progress
+            if (options.onProgress) {
+              options.onProgress({
+                currentStep: 1 + i,
+                totalSteps: foundationsSteps.length,
+                completedTools: Object.keys(toolResults),
+                currentTool: step.toolName,
+                traceId,
+              });
+            }
+
+            // Create checkpoint
+            await checkpointManager.createCheckpoint(artifactId, 1 + i, {
+              toolName: step.toolName,
+            });
+
+            logger.info(`[PipelineExecutor] Re-analyze step ${i + 1}/${foundationsSteps.length}`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+            });
+
+            // Execute tool with backoff
+            const toolResult = await withExponentialBackoff(
+              async () => step.execute(artifactId),
+              options.retryOptions
+            );
+
+            toolResults[step.toolName] = toolResult;
+
+            metricsCollector.recordToolExecution(
+              step.toolName,
+              toolResult.duration || 0,
+              toolResult.success
+            );
+
+            if (!toolResult.success) {
+              if (!step.required) {
+                logger.warn(`[PipelineExecutor] Optional re-analyze step ${step.toolName} failed, skipping`, {
+                  artifactId,
+                  traceId,
+                  error: toolResult.error?.message,
+                });
+                continue;
+              }
+              throw createToolError(
+                toolResult.error?.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+                `Tool ${step.toolName} failed: ${toolResult.error?.message}`,
+                toolResult.error?.recoverable ?? true
+              );
+            }
+
+            logger.info(`[PipelineExecutor] Re-analyze step ${i + 1}/${foundationsSteps.length} completed`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+              duration: toolResult.duration,
+            });
+
+            // Log status transition
+            if (toolResult.statusTransition) {
+              const { data: artifactData } = await getSupabase()
+                .from('artifacts')
+                .select('title')
+                .eq('id', artifactId)
+                .single();
+
+              logger.info('[Artifact status] status changed', {
+                artifactId,
+                title: artifactData?.title || 'Untitled',
+                previousStatus: toolResult.statusTransition.from || step.expectedStatusBefore,
+                newStatus: toolResult.statusTransition.to || step.expectedStatusAfter,
+              });
+            }
+
+            // If step pauses for approval, stop here
+            if (step.pauseForApproval) {
+              const duration = Date.now() - startTime;
+              checkpointManager.clearCheckpoints(artifactId);
+
+              logger.info('[PipelineExecutor] Re-analysis paused for approval', {
+                artifactId,
+                traceId,
+                duration,
+                pausedAtStep: step.toolName,
+              });
+
+              return {
+                success: true,
+                artifactId,
+                traceId,
+                duration,
+                stepsCompleted: i + 1,
+                totalSteps: foundationsSteps.length,
+                toolResults,
+                pausedForApproval: true,
+                pausedAtStep: step.toolName,
+              };
+            }
+          }
+
+          // All steps completed (shouldn't reach here since skeleton pauses)
+          const duration = Date.now() - startTime;
+          metricsCollector.recordPipelineExecution(duration, true);
+          checkpointManager.clearCheckpoints(artifactId);
+
+          return {
+            success: true,
+            artifactId,
+            traceId,
+            duration,
+            stepsCompleted: foundationsSteps.length,
+            totalSteps: foundationsSteps.length,
+            toolResults,
+          };
+        },
+        { artifactId }
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      metricsCollector.recordPipelineExecution(duration, false);
+
+      const toolError = error as any;
+      const failedStep = foundationsSteps[currentStep];
+
+      logger.error(`[PipelineExecutor] ${error instanceof Error ? error.message : String(error)}`, {
+        artifactId,
+        traceId,
+        failedStep: currentStep,
+        failedTool: failedStep?.toolName,
+        duration,
+      });
+
+      // Attempt rollback to foundations_approval
+      try {
+        await getSupabase()
+          .from('artifacts')
+          .update({ status: 'foundations_approval', updated_at: new Date().toISOString() })
+          .eq('id', artifactId);
+      } catch (rollbackError) {
+        logger.error(`[PipelineExecutor] ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, {
+          artifactId,
+          traceId,
+          context: 'reanalyze_rollback_failed',
+        });
+      }
+
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration,
+        stepsCompleted: currentStep,
+        totalSteps: foundationsSteps.length,
+        toolResults,
+        error: {
+          category: toolError.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+          message: toolError.message || 'Unknown error',
+          failedStep: currentStep,
+          failedTool: failedStep?.toolName || 'unknown',
+          recoverable: toolError.recoverable ?? true,
+        },
+      };
+    }
+  }
+
+  /**
+   * Regenerate content with new writing references.
+   * Used when artifact is in 'ready' or 'published' status.
+   * Runs the full pipeline (minus research) without pausing for approval.
+   *
+   * Note: During regeneration the artifact briefly passes through intermediate statuses
+   * (foundations → foundations_approval → writing → humanity_checking → creating_visuals → ready)
+   * as each tool manages its own status transitions. The UI polling will see these intermediate
+   * states, which is expected — the editor locks during processing statuses.
+   */
+  async regenerateContent(
+    artifactId: string,
+    options: PipelineOptions = {}
+  ): Promise<PipelineResult> {
+    const startTime = Date.now();
+    const traceId = generateTraceId('pipeline-regenerate');
+    const toolResults: Record<string, any> = {};
+
+    logger.info('[PipelineExecutor] Regenerating content with new references', {
+      artifactId,
+      traceId,
+    });
+
+    // Verify artifact exists and is in ready/published status
+    const { data: artifact, error: fetchError } = await getSupabase()
+      .from('artifacts')
+      .select('status')
+      .eq('id', artifactId)
+      .single();
+
+    if (fetchError || !artifact) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.ARTIFACT_NOT_FOUND,
+          message: 'Artifact not found',
+          failedStep: 0,
+          failedTool: 'regenerateContent',
+          recoverable: false,
+        },
+      };
+    }
+
+    const eligibleStatuses = ['ready', 'published'];
+    if (!eligibleStatuses.includes(artifact.status)) {
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration: Date.now() - startTime,
+        stepsCompleted: 0,
+        totalSteps: 0,
+        toolResults: {},
+        error: {
+          category: ErrorCategory.INVALID_STATUS,
+          message: `Cannot regenerate: artifact status is '${artifact.status}', expected one of: ${eligibleStatuses.join(', ')}`,
+          failedStep: 0,
+          failedTool: 'regenerateContent',
+          recoverable: false,
+        },
+      };
+    }
+
+    const originalStatus = artifact.status;
+
+    // Set status to 'foundations' before starting regeneration
+    await getSupabase()
+      .from('artifacts')
+      .update({ status: 'foundations', updated_at: new Date().toISOString() })
+      .eq('id', artifactId);
+
+    // All steps except conductDeepResearch (index 0)
+    const regenerationSteps = PIPELINE_STEPS.slice(1);
+    let currentStep = 0;
+
+    try {
+      return await withTracing(
+        traceId,
+        'regenerateContent',
+        async () => {
+          for (let i = 0; i < regenerationSteps.length; i++) {
+            const step = regenerationSteps[i];
+            currentStep = i;
+
+            // Notify progress
+            if (options.onProgress) {
+              options.onProgress({
+                currentStep: 1 + i,
+                totalSteps: regenerationSteps.length,
+                completedTools: Object.keys(toolResults),
+                currentTool: step.toolName,
+                traceId,
+              });
+            }
+
+            // Create checkpoint
+            await checkpointManager.createCheckpoint(artifactId, 1 + i, {
+              toolName: step.toolName,
+            });
+
+            logger.info(`[PipelineExecutor] Regenerate step ${i + 1}/${regenerationSteps.length}`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+            });
+
+            // Execute tool with backoff
+            const toolResult = await withExponentialBackoff(
+              async () => step.execute(artifactId),
+              options.retryOptions
+            );
+
+            toolResults[step.toolName] = toolResult;
+
+            metricsCollector.recordToolExecution(
+              step.toolName,
+              toolResult.duration || 0,
+              toolResult.success
+            );
+
+            if (!toolResult.success) {
+              if (!step.required) {
+                logger.warn(`[PipelineExecutor] Optional regenerate step ${step.toolName} failed, skipping`, {
+                  artifactId,
+                  traceId,
+                  error: toolResult.error?.message,
+                });
+                continue;
+              }
+              throw createToolError(
+                toolResult.error?.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+                `Tool ${step.toolName} failed: ${toolResult.error?.message}`,
+                toolResult.error?.recoverable ?? true
+              );
+            }
+
+            logger.info(`[PipelineExecutor] Regenerate step ${i + 1}/${regenerationSteps.length} completed`, {
+              artifactId,
+              traceId,
+              toolName: step.toolName,
+              duration: toolResult.duration,
+            });
+
+            // Log status transition
+            if (toolResult.statusTransition) {
+              const { data: artifactData } = await getSupabase()
+                .from('artifacts')
+                .select('title')
+                .eq('id', artifactId)
+                .single();
+
+              logger.info('[Artifact status] status changed', {
+                artifactId,
+                title: artifactData?.title || 'Untitled',
+                previousStatus: toolResult.statusTransition.from || step.expectedStatusBefore,
+                newStatus: toolResult.statusTransition.to || step.expectedStatusAfter,
+              });
+            }
+
+            // NOTE: Intentionally skip pauseForApproval — regeneration runs straight through
+          }
+
+          // All steps completed
+          const duration = Date.now() - startTime;
+          metricsCollector.recordPipelineExecution(duration, true);
+          checkpointManager.clearCheckpoints(artifactId);
+
+          logger.info('[PipelineExecutor] Content regeneration completed', {
+            artifactId,
+            traceId,
+            duration,
+            stepsCompleted: regenerationSteps.length,
+          });
+
+          return {
+            success: true,
+            artifactId,
+            traceId,
+            duration,
+            stepsCompleted: regenerationSteps.length,
+            totalSteps: regenerationSteps.length,
+            toolResults,
+          };
+        },
+        { artifactId }
+      );
+    } catch (error) {
+      const duration = Date.now() - startTime;
+      metricsCollector.recordPipelineExecution(duration, false);
+
+      const toolError = error as any;
+      const failedStep = regenerationSteps[currentStep];
+
+      logger.error(`[PipelineExecutor] ${error instanceof Error ? error.message : String(error)}`, {
+        artifactId,
+        traceId,
+        failedStep: currentStep,
+        failedTool: failedStep?.toolName,
+        duration,
+      });
+
+      // Rollback to original status (ready or published)
+      try {
+        await getSupabase()
+          .from('artifacts')
+          .update({ status: originalStatus, updated_at: new Date().toISOString() })
+          .eq('id', artifactId);
+      } catch (rollbackError) {
+        logger.error(`[PipelineExecutor] ${rollbackError instanceof Error ? rollbackError.message : String(rollbackError)}`, {
+          artifactId,
+          traceId,
+          context: 'regenerate_rollback_failed',
+        });
+      }
+
+      return {
+        success: false,
+        artifactId,
+        traceId,
+        duration,
+        stepsCompleted: currentStep,
+        totalSteps: regenerationSteps.length,
+        toolResults,
+        error: {
+          category: toolError.category || ErrorCategory.TOOL_EXECUTION_FAILED,
+          message: toolError.message || 'Unknown error',
+          failedStep: currentStep,
+          failedTool: failedStep?.toolName || 'unknown',
+          recoverable: toolError.recoverable ?? true,
+        },
+      };
+    }
+  }
 }
 
 // =============================================================================

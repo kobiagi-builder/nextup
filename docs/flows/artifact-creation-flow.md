@@ -1,8 +1,8 @@
 # Artifact Creation Flow
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-19
-**Version:** 1.0.0
+**Last Updated:** 2026-03-05
+**Version:** 1.3.0
 **Status:** Complete
 
 ## Overview
@@ -16,7 +16,7 @@ The artifact creation flow is the primary user journey — from creating a new c
 | Entry | Screen | Action |
 |-------|--------|--------|
 | Portfolio page "+" button | PortfolioPage | Opens ArtifactForm dialog |
-| Chat suggestion card | PortfolioPage/ArtifactPage | "Create Artifact" CTA in chat response |
+| Chat suggestion card | PortfolioPage/ArtifactPage | "Create Content" CTA → reference dialog (if refs exist) → create artifact |
 | "Create Social Post" action | ArtifactPage (ready/published) | Creates social_post from existing blog/showcase |
 
 ---
@@ -38,6 +38,7 @@ sequenceDiagram
     User->>Portfolio: Click "+" button
     Portfolio->>Form: Open create dialog
     User->>Form: Select type, enter title, set tone
+    User->>Form: (Optional) Expand "Writing References", select references
     User->>Form: Click "Save as Draft" or "Create Content"
 
     alt Save as Draft
@@ -59,7 +60,7 @@ sequenceDiagram
         Backend->>Backend: conductDeepResearch (Tavily API)
         Backend->>DB: Store research in artifact_research
         Backend->>DB: status → foundations (30%)
-        Backend->>Backend: analyzeWritingCharacteristics
+        Backend->>Backend: analyzeWritingCharacteristics (uses selected references if any)
         Backend->>DB: Store in artifact_writing_characteristics
         Backend->>DB: status → skeleton (45%)
         Backend->>Backend: generateContentSkeleton (Claude)
@@ -68,9 +69,19 @@ sequenceDiagram
 
     Note over Editor: PIPELINE PAUSES — foundations_approval (50%)
     Editor->>Editor: FoundationsSection auto-expands
-    Editor->>Editor: Show characteristics + editable skeleton
+    Editor->>Editor: Show characteristics + editable skeleton + selected references
 
     User->>Editor: Review/edit skeleton
+    opt Change writing references
+        User->>Editor: Click "Change" on FoundationsReferences
+        User->>Editor: Select different references
+        User->>Editor: Click "Re-analyze with new references"
+        Editor->>Backend: POST /api/artifacts/:id/re-analyze-foundations
+        Backend->>DB: Update metadata.selectedReferenceIds
+        Backend->>Backend: Re-run foundations pipeline (steps 1-3)
+        Backend->>DB: status → foundations → foundations_approval
+        Note over Editor: New characteristics + skeleton generated
+    end
     User->>Editor: Click "Foundations Approved"
     Editor->>Backend: POST /api/artifacts/:id/approve-foundations
 
@@ -97,12 +108,16 @@ sequenceDiagram
 |---|--------|-------------|---------------|----------|
 | 1 | — | Click "+" on Portfolio | Open ArtifactForm | Form dialog |
 | 2 | — | Fill type, title, tone | — | Form inputs |
-| 3 | `draft` | Click "Save as Draft" / "Create Content" | Create artifact in DB | Navigate to ArtifactPage |
+| 2b | — | (Optional) Expand "Writing References" | Show reference picker | Collapsible section |
+| 2c | — | (Optional) Select writing references | Store IDs in form state | Cards toggle selection |
+| 3 | `draft` | Click "Save as Draft" / "Create Content" | Create artifact in DB (metadata includes selectedReferenceIds) | Navigate to ArtifactPage |
 | 4 | `draft` | Click "Create Content" (if draft) | Open ChatPanel, send initial message | Chat opens |
 | 5 | `research` | Wait | AI researches via Tavily (6 sources) | Editor locked, progress 15% |
-| 6 | `foundations` | Wait | AI analyzes writing characteristics | Progress 30% |
+| 6 | `foundations` | Wait | AI analyzes writing characteristics (using selected references if provided, else all active) | Progress 30% |
 | 7 | `skeleton` | Wait | AI generates H1 + H2 skeleton | Progress 45% |
-| 8 | `foundations_approval` | Review skeleton + characteristics | Pipeline paused | FoundationsSection expanded |
+| 8 | `foundations_approval` | Review skeleton + characteristics + references | Pipeline paused | FoundationsSection expanded |
+| 8b | `foundations_approval` | (Optional) Click "Change" on references | Expand ReferencePicker | Reference selection UI |
+| 8c | `foundations_approval` | (Optional) Click "Re-analyze with new references" | Re-run foundations steps 1-3 | Loading state, approval button disabled |
 | 9 | `foundations_approval` | Edit skeleton (optional) | — | Skeleton editable in TipTap |
 | 10 | `foundations_approval` | Click "Foundations Approved" | Resume pipeline | Brief transition |
 | 11 | `writing` | Wait | AI writes full content per section | Progress 70% |
@@ -110,6 +125,43 @@ sequenceDiagram
 | 13 | `creating_visuals` | Wait | AI generates images for placeholders | Progress 90% |
 | 14 | `ready` | Review content, edit as needed | — | Editor unlocked, full content |
 | 15 | `published` | Click "Mark as Published" | Set published_at timestamp | Published badge |
+
+---
+
+## Flow: Topic Suggestion with Reference Selection
+
+When the AI suggests topics in the chat, clicking "Create Content" on a suggestion card triggers a reference selection step.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Chat as ChatPanel
+    participant Dialog as ReferenceSelectionDialog
+    participant DB as Supabase
+    participant Editor as ArtifactPage
+
+    User->>Chat: Click "Create Content" on suggestion card
+
+    alt User has writing references
+        Chat->>Dialog: Open ReferenceSelectionDialog
+        User->>Dialog: Select references (or click "Skip")
+        alt Skip references
+            Dialog->>DB: POST /artifacts (no selectedReferenceIds)
+        else Create with references
+            Dialog->>DB: POST /artifacts (metadata.selectedReferenceIds)
+        end
+    else No references exist
+        Chat->>DB: POST /artifacts (no dialog shown)
+    end
+
+    DB-->>Editor: Navigate to /portfolio/artifacts/:id?autoResearch=true
+    Note over Editor: Pipeline starts automatically
+```
+
+**Components involved:**
+- `ArtifactSuggestionCard` — triggers dialog or direct creation
+- `ReferenceSelectionDialog` — wraps `ReferencePicker` in a dialog
+- `ChatPanel.handleCreateContent` — passes metadata to `createArtifactMutation`
 
 ---
 
@@ -194,6 +246,52 @@ canCreateSocialPost(artifact) =
 
 ---
 
+## Flow: Post-Creation Content Regeneration
+
+Available when a blog, social_post, or showcase artifact is in `ready` or `published` status. Allows users to change writing references and regenerate all content.
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant Editor as ArtifactPage (ready/published)
+    participant Modal as AlertDialog
+    participant Backend as Content Agent
+    participant DB as Supabase
+
+    User->>Editor: Expand FoundationsSection
+    User->>Editor: Click "Change" on references
+    User->>Editor: Select different references
+    User->>Editor: Click "Regenerate with new references"
+    Editor->>Modal: Show confirmation modal
+    User->>Modal: Click "Regenerate Content"
+    Modal->>Backend: POST /api/artifacts/:id/re-analyze-foundations
+    Backend->>DB: Update metadata.selectedReferenceIds
+    Backend->>DB: status → foundations
+
+    rect rgb(200, 220, 255)
+        Note over Backend,DB: REGENERATION PIPELINE (editor locked)
+        Backend->>Backend: analyzeWritingCharacteristics
+        Backend->>Backend: analyzeStorytellingStructure
+        Backend->>Backend: generateContentSkeleton (no pause)
+        Backend->>Backend: writeFullContent + humanization
+        Backend->>Backend: identifyImageNeeds + generateImages
+        Backend->>DB: status → ready
+    end
+
+    Note over Editor: Editor unlocked, content regenerated
+```
+
+### Key Differences from Initial Creation
+
+| Aspect | Initial Creation | Regeneration |
+|--------|-----------------|--------------|
+| Research | Runs (Tavily) | Skipped (reuses existing) |
+| Skeleton approval | Pauses for user review | Runs straight through |
+| Confirmation | None | AlertDialog modal |
+| Failure rollback | → last stable status | → original status (ready/published) |
+
+---
+
 ## Error Paths
 
 | Error | When | Recovery |
@@ -229,3 +327,4 @@ canCreateSocialPost(artifact) =
 - [STATUS_VALUES_REFERENCE.md](../artifact-statuses/STATUS_VALUES_REFERENCE.md) - Status reference
 - [pipeline-execution-flow.md](../ai-agents-and-prompts/pipeline-execution-flow.md) - Pipeline details
 - [artifact-page.md](../screens/artifact-page.md) - ArtifactPage screen doc
+- [reference-picker.md](../features/reference-picker.md) - Reference picker feature doc

@@ -4,10 +4,11 @@
  * Form for creating and editing artifacts.
  */
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { FileText, MessageSquare, Trophy, Sparkles, Save } from 'lucide-react'
+import { FileText, MessageSquare, Trophy, Sparkles, Save, PenLine, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -19,9 +20,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible'
+import { cn } from '@/lib/utils'
 import type { Artifact, ArtifactType, CreateArtifactInput, ToneOption } from '../../types/portfolio'
 import { ToneSelector } from '../artifact/ToneSelector'
 import { TagsInput } from '../artifact/TagsInput'
+import { ReferencePicker } from '../writing-references/ReferencePicker'
 
 // Form validation schema
 const artifactSchema = z.object({
@@ -85,6 +93,10 @@ export function ArtifactForm({
   const selectedTone = watch('tone')
   const tags = watch('tags') ?? []
 
+  // Reference picker state
+  const [selectedReferenceIds, setSelectedReferenceIds] = useState<string[]>([])
+  const [refsOpen, setRefsOpen] = useState(false)
+
   const handleSaveDraft = handleSubmit((data: ArtifactFormData) => {
     onSaveDraft({
       type: data.type,
@@ -92,6 +104,9 @@ export function ArtifactForm({
       content: data.content,
       tone: data.tone,
       tags: data.tags,
+      metadata: selectedReferenceIds.length > 0
+        ? { selectedReferenceIds }
+        : undefined,
     })
   })
 
@@ -102,6 +117,9 @@ export function ArtifactForm({
       content: data.content,
       tone: data.tone,
       tags: data.tags,
+      metadata: selectedReferenceIds.length > 0
+        ? { selectedReferenceIds }
+        : undefined,
     })
   })
 
@@ -143,6 +161,43 @@ export function ArtifactForm({
 
       {/* Visual separator between configuration and content sections */}
       <div className="border-t border-border" />
+
+      {/* Writing References — collapsible picker */}
+      {!isEditing && (
+        <Collapsible open={refsOpen} onOpenChange={setRefsOpen}>
+          <CollapsibleTrigger className="flex w-full items-center justify-between py-1 group">
+            <div className="flex items-center gap-2">
+              <PenLine className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">
+                Writing References
+              </span>
+              {selectedReferenceIds.length > 0 && (
+                <span className="text-[10px] font-medium text-brand-300 bg-brand-300/10 px-1.5 py-0.5 rounded-full tabular-nums">
+                  {selectedReferenceIds.length} selected
+                </span>
+              )}
+              {selectedReferenceIds.length === 0 && (
+                <span className="text-[11px] text-muted-foreground/60">(optional)</span>
+              )}
+            </div>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-muted-foreground transition-transform duration-200',
+                refsOpen && 'rotate-180'
+              )}
+            />
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <ReferencePicker
+              contentType={selectedType}
+              selectedIds={selectedReferenceIds}
+              onSelectionChange={setSelectedReferenceIds}
+              previewLines={2}
+              maxHeightClass="max-h-[240px]"
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      )}
 
       {/* Title */}
       <div className="space-y-2">
