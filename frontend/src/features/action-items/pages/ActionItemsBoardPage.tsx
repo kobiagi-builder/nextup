@@ -30,7 +30,7 @@ export function ActionItemsBoardPage() {
   )
 
   const { data: items, isLoading } = useActionItemsBoard(filters)
-  const updateMutation = useUpdateBoardActionItem()
+  const updateMutation = useUpdateBoardActionItem(filters)
 
   function handleStatusChange(id: string, status: ActionItemStatus) {
     updateMutation.mutate({ id, status })

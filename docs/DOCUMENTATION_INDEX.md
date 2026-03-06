@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-05
-**Version:** 23.0.0
+**Last Updated:** 2026-03-06
+**Version:** 24.0.0
 **Total Documentation Files:** 70+
-**Status:** Complete (Reference Picker Phase 2: Topic Suggestions + Foundations Re-analyze)
+**Status:** Complete (Action Items Kanban Board)
 
 ## Overview
 
@@ -81,7 +81,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 5: Features (16 files)
+## Layer 5: Features (17 files)
 
 **Location:** `docs/features/`
 
@@ -103,6 +103,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 25 tools, structured response cards (Phase 4) |
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 | [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
+| [action-items-kanban.md](./features/action-items-kanban.md) | Cross-customer Kanban board: 4-column drag-and-drop (dnd-kit), customer filter, inline create/edit, optimistic updates, feature-flagged (`action_items_kanban`), symmetric RLS (v1.0.0) |
 
 ---
 
@@ -116,7 +117,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend AI architecture: AIService.ts, Vercel AI SDK v6, tool orchestration (v3.0.0) |
 | [backend/security-architecture.md](./Architecture/backend/security-architecture.md) | Multi-layered security (prompt injection, PII, rate limiting) |
 | [backend/observability-architecture.md](./Architecture/backend/observability-architecture.md) | Distributed tracing, metrics, circuit breaker |
-| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 21 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v7.0.0) |
+| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 22 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v8.0.0) |
 | [database/artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) | Table relationships and data flow diagrams |
 | [database/artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) | Artifacts table schema with status workflow |
 | [frontend/screen-context-integration.md](./Architecture/frontend/screen-context-integration.md) | useScreenContext hook, React Query caching |

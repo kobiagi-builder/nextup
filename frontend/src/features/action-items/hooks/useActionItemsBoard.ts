@@ -68,7 +68,7 @@ export function useCreateBoardActionItem() {
   })
 }
 
-export function useUpdateBoardActionItem() {
+export function useUpdateBoardActionItem(filters?: BoardFilters) {
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -76,20 +76,21 @@ export function useUpdateBoardActionItem() {
       api.put<ActionItemWithCustomer>(`/api/action-items/${id}`, data),
 
     onMutate: async ({ id, ...data }) => {
+      const queryKey = boardActionItemKeys.list(filters)
       await queryClient.cancelQueries({ queryKey: boardActionItemKeys.all })
-      const previousData = queryClient.getQueryData<ActionItemWithCustomer[]>(boardActionItemKeys.list())
+      const previousData = queryClient.getQueryData<ActionItemWithCustomer[]>(queryKey)
 
-      queryClient.setQueryData<ActionItemWithCustomer[]>(boardActionItemKeys.list(), (old) => {
+      queryClient.setQueryData<ActionItemWithCustomer[]>(queryKey, (old) => {
         if (!old) return old
         return old.map((item) => item.id === id ? { ...item, ...data } as ActionItemWithCustomer : item)
       })
 
-      return { previousData }
+      return { previousData, queryKey }
     },
 
     onError: (_err, _vars, context) => {
-      if (context?.previousData) {
-        queryClient.setQueryData(boardActionItemKeys.list(), context.previousData)
+      if (context?.previousData && context?.queryKey) {
+        queryClient.setQueryData(context.queryKey, context.previousData)
       }
       toast({ title: 'Failed to update action item', variant: 'destructive' })
     },

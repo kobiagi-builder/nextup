@@ -2,12 +2,12 @@
 
 **Created:** 2026-02-19
 **Last Updated:** 2026-03-04
-**Version:** 7.0.0
+**Version:** 8.0.0
 **Status:** Complete
 
 ## Overview
 
-Product Consultant Helper uses Supabase (PostgreSQL) with 21 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
+Product Consultant Helper uses Supabase (PostgreSQL) with 22 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
 
 **Supabase Project ID:** `ohwubfmipnpguunryopl`
 
@@ -38,6 +38,7 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 21 tables in the `publ
 | 19 | `icp_settings` | ICP criteria for automated scoring | One-to-one per user | Yes |
 | 20 | `onboarding_progress` | Onboarding wizard state and extraction results | One-to-one per user | Yes |
 | 21 | `team_role_filters` | Per-user role filter config for LinkedIn team extraction | One-to-one per user | Yes |
+| 22 | `customer_action_items` | Action items (tasks) per user, optionally linked to customer | Many-to-one → users, optional many-to-one → customers | Yes |
 
 ---
 
@@ -67,6 +68,8 @@ erDiagram
     customer_projects ||--o{ customer_artifacts : "has many"
     customers ||--o{ customer_events : "has many"
     customers ||--o{ customer_chat_messages : "has many"
+    users ||--o{ customer_action_items : "owns many"
+    customers ||--o{ customer_action_items : "has many (optional)"
 ```
 
 ---
@@ -751,6 +754,46 @@ Array of role patterns to explicitly exclude:
 
 ---
 
+## 22. customer_action_items
+
+Action items (tasks) owned by a user, optionally linked to a customer. Supports cross-customer Kanban board view and customer-scoped action items tab.
+
+### Schema
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | NO | `gen_random_uuid()` | Primary key |
+| `customer_id` | UUID | YES | - | FK → customers(id) CASCADE; NULL = general (no customer) |
+| `user_id` | UUID | NO | `auth.uid()` | FK → auth.users(id); direct ownership for cross-customer queries |
+| `type` | VARCHAR | NO | `'follow_up'` | Action type: follow_up, proposal, meeting, delivery, review, custom |
+| `description` | TEXT | NO | - | Action item description |
+| `due_date` | DATE | YES | - | Optional due date |
+| `status` | VARCHAR | NO | `'todo'` | Status: todo, in_progress, done, cancelled |
+| `created_at` | TIMESTAMPTZ | NO | `now()` | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NO | `now()` | Last update |
+
+### Indexes
+
+| Index | Column(s) | Purpose |
+|-------|-----------|---------|
+| `customer_action_items_pkey` | `id` | Primary key |
+| `idx_customer_action_items_customer_id` | `customer_id` | Lookup by customer |
+| `idx_customer_action_items_user_status` | `user_id, status` | Kanban board queries (cross-customer) |
+
+### RLS Policies
+
+| Policy | Command | Condition |
+|--------|---------|-----------|
+| Users can manage their own action items | ALL | `user_id = auth.uid() AND (customer_id IS NULL OR is_customer_owner(customer_id))` — symmetric USING and WITH CHECK |
+
+### Notes
+
+- `customer_id` was originally NOT NULL (before migration 015); made nullable to support "General" action items without a customer
+- `user_id` added in migration 015 with `DEFAULT auth.uid()`, backfilled from `customers.user_id`
+- RLS uses symmetric USING/WITH CHECK to prevent showing items the user cannot modify (e.g., after customer ownership changes)
+
+---
+
 ## Database Functions
 
 ### `get_receivables_summary(cid UUID)`
@@ -995,6 +1038,7 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **8.0.0** (2026-03-06) - Added `customer_action_items` table (#22) with `user_id` column, nullable `customer_id`, composite index, symmetric RLS policy. Updated table count to 22, ER diagram
 - **7.0.0** (2026-03-04) - Added `team_role_filters` table (#21) for per-user LinkedIn team extraction role configuration. Updated table count to 21, ER diagram, table summary
 - **5.0.0** (2026-02-28) - Added `icp_settings` table (#19) for ICP scoring criteria. Updated table count to 19, ER diagram, table summary
 - **3.2.0** (2026-02-25) - Added `merge_customer_info(cid, new_info)` function for Customer AI Agent atomic JSONB merge

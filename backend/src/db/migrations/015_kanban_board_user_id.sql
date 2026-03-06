@@ -35,13 +35,13 @@ DROP POLICY IF EXISTS "Users can manage their own customer action items" ON cust
 CREATE POLICY "Users can manage their own action items"
   ON customer_action_items
   FOR ALL
-  USING (user_id = auth.uid())
+  USING (
+    user_id = auth.uid()
+    AND (customer_id IS NULL OR is_customer_owner(customer_id))
+  )
   WITH CHECK (
     user_id = auth.uid()
-    AND (
-      customer_id IS NULL
-      OR is_customer_owner(customer_id)
-    )
+    AND (customer_id IS NULL OR is_customer_owner(customer_id))
   );
 
 -- =============================================================================
