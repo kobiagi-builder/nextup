@@ -59,8 +59,17 @@ export function useCreateBoardActionItem() {
       customer_id?: string | null
     }) => api.post<ActionItemWithCustomer>('/api/action-items', data),
 
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: boardActionItemKeys.all })
+      // Cross-view cache invalidation for customer detail tab
+      if (variables.customer_id) {
+        queryClient.invalidateQueries({
+          queryKey: actionItemKeys.all(variables.customer_id),
+        })
+        queryClient.invalidateQueries({
+          queryKey: customerKeys.detail(variables.customer_id),
+        })
+      }
     },
     onError: () => {
       toast({ title: 'Failed to create action item', variant: 'destructive' })
@@ -119,10 +128,20 @@ export function useDeleteBoardActionItem() {
   const queryClient = useQueryClient()
 
   return useMutation({
-    mutationFn: (id: string) => api.delete(`/api/action-items/${id}`),
+    mutationFn: ({ id }: { id: string; customer_id?: string | null }) =>
+      api.delete(`/api/action-items/${id}`),
 
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: boardActionItemKeys.all })
+      // Cross-view cache invalidation for customer detail tab
+      if (variables.customer_id) {
+        queryClient.invalidateQueries({
+          queryKey: actionItemKeys.all(variables.customer_id),
+        })
+        queryClient.invalidateQueries({
+          queryKey: customerKeys.detail(variables.customer_id),
+        })
+      }
     },
     onError: () => {
       toast({ title: 'Failed to delete action item', variant: 'destructive' })
