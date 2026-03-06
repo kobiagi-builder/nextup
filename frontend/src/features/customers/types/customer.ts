@@ -564,13 +564,18 @@ export const ACTION_ITEM_STATUS_COLORS: Record<ActionItemStatus, string> = {
 
 export interface ActionItem {
   id: string
-  customer_id: string
+  customer_id: string | null
+  user_id: string
   type: ActionItemType
   description: string
   due_date: string | null
   status: ActionItemStatus
   created_at: string
   updated_at: string
+}
+
+export interface ActionItemWithCustomer extends ActionItem {
+  customer_name: string | null
 }
 
 export interface CreateActionItemInput {

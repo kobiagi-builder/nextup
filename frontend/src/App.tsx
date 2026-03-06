@@ -42,6 +42,7 @@ import { ProfilePage } from '@/features/portfolio/pages/ProfilePage'
 import { SettingsPage } from '@/features/portfolio/pages/SettingsPage'
 import { CustomerListPage } from '@/features/customers/pages/CustomerListPage'
 import { CustomerDetailPage } from '@/features/customers/pages/CustomerDetailPage'
+import { ActionItemsBoardPage } from '@/features/action-items/pages/ActionItemsBoardPage'
 import { FeatureGate } from '@/components/auth/FeatureGate'
 import { OnboardingGate } from '@/components/auth/OnboardingGate'
 import { OnboardingPage } from '@/features/onboarding/pages/OnboardingPage'
@@ -112,6 +113,7 @@ function App() {
                   <Route path="/settings/style" element={<Navigate to="/settings" replace />} />
                   <Route path="/customers" element={<FeatureGate feature="customer_management"><CustomerListPage /></FeatureGate>} />
                   <Route path="/customers/:id" element={<FeatureGate feature="customer_management"><CustomerDetailPage /></FeatureGate>} />
+                  <Route path="/action-items" element={<FeatureGate feature="action_items_kanban"><ActionItemsBoardPage /></FeatureGate>} />
                 </Route>
               </Routes>
             </BrowserRouter>

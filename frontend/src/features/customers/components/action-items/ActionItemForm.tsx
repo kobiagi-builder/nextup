@@ -2,6 +2,9 @@
  * Action Item Form (Dialog)
  *
  * Create or edit an action item. Uses React Hook Form + Zod validation.
+ * Supports two modes:
+ * - Customer-scoped: customerId prop provided, uses customer-scoped mutations
+ * - Board mode: customerId undefined, shows customer selector, uses board mutations
  */
 
 import { useEffect } from 'react'
@@ -27,6 +30,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useCreateActionItem, useUpdateActionItem } from '../../hooks'
+import { useFeatureFlag } from '@/hooks/use-feature-flag'
+import { useCustomers } from '../../hooks/useCustomers'
+import {
+  useCreateBoardActionItem,
+  useUpdateBoardActionItem,
+  boardActionItemKeys,
+} from '@/features/action-items/hooks/useActionItemsBoard'
 import {
   ACTION_ITEM_TYPES,
   ACTION_ITEM_TYPE_LABELS,
@@ -34,27 +44,42 @@ import {
   ACTION_ITEM_STATUS_LABELS,
 } from '../../types'
 import type { ActionItem } from '../../types'
+import { useQueryClient } from '@tanstack/react-query'
 
 const actionItemFormSchema = z.object({
   type: z.string().min(1),
   description: z.string().min(1, 'Description is required'),
   due_date: z.string().optional(),
   status: z.string().optional(),
+  customer_id: z.string().nullable().optional(),
 })
 
 type ActionItemFormData = z.infer<typeof actionItemFormSchema>
 
 interface ActionItemFormProps {
-  customerId: string
+  customerId?: string
   actionItem?: ActionItem | null
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: ActionItemFormProps) {
-  const createActionItem = useCreateActionItem(customerId)
-  const updateActionItem = useUpdateActionItem(customerId)
+  const isBoardMode = customerId === undefined
+  const queryClient = useQueryClient()
+
+  // Customer-scoped mutations (used when customerId is provided)
+  const createActionItem = useCreateActionItem(customerId || '')
+  const updateActionItem = useUpdateActionItem(customerId || '')
+
+  // Board mutations (used when customerId is undefined)
+  const createBoardItem = useCreateBoardActionItem()
+  const updateBoardItem = useUpdateBoardActionItem()
+
   const isEditing = !!actionItem
+
+  // Customer list for board mode selector
+  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management')
+  const { data: customers } = useCustomers()
 
   const form = useForm<ActionItemFormData>({
     resolver: zodResolver(actionItemFormSchema),
@@ -63,6 +88,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
       description: '',
       due_date: '',
       status: 'todo',
+      customer_id: null,
     },
   })
 
@@ -74,6 +100,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
         description: actionItem.description,
         due_date: actionItem.due_date || '',
         status: actionItem.status,
+        customer_id: actionItem.customer_id || null,
       })
     } else if (!actionItem && open) {
       form.reset({
@@ -81,12 +108,13 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
         description: '',
         due_date: '',
         status: 'todo',
+        customer_id: null,
       })
     }
   }, [actionItem, open, form])
 
   const handleSubmit = async (data: ActionItemFormData) => {
-    const payload = {
+    const basePayload = {
       type: data.type as ActionItem['type'],
       description: data.description,
       due_date: data.due_date || null,
@@ -94,12 +122,24 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
     }
 
     try {
-      if (isEditing) {
-        await updateActionItem.mutateAsync({ id: actionItem!.id, ...payload })
-        toast({ title: 'Action item updated' })
+      if (isBoardMode) {
+        const boardPayload = { ...basePayload, customer_id: data.customer_id || null }
+        if (isEditing) {
+          await updateBoardItem.mutateAsync({ id: actionItem!.id, ...boardPayload })
+          toast({ title: 'Action item updated' })
+        } else {
+          await createBoardItem.mutateAsync(boardPayload)
+          toast({ title: 'Action item created' })
+        }
+        queryClient.invalidateQueries({ queryKey: boardActionItemKeys.all })
       } else {
-        await createActionItem.mutateAsync(payload)
-        toast({ title: 'Action item created' })
+        if (isEditing) {
+          await updateActionItem.mutateAsync({ id: actionItem!.id, ...basePayload })
+          toast({ title: 'Action item updated' })
+        } else {
+          await createActionItem.mutateAsync(basePayload)
+          toast({ title: 'Action item created' })
+        }
       }
       onOpenChange(false)
     } catch {
@@ -110,7 +150,9 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
     }
   }
 
-  const isPending = createActionItem.isPending || updateActionItem.isPending
+  const isPending = isBoardMode
+    ? createBoardItem.isPending || updateBoardItem.isPending
+    : createActionItem.isPending || updateActionItem.isPending
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -154,6 +196,27 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
               <p className="text-xs text-destructive mt-1">{form.formState.errors.description.message}</p>
             )}
           </div>
+
+          {/* Customer selector (board mode only) */}
+          {isBoardMode && hasCustomers && (
+            <div>
+              <Label>Customer</Label>
+              <Select
+                value={form.watch('customer_id') || '__none__'}
+                onValueChange={(val) => form.setValue('customer_id', val === '__none__' ? null : val)}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select customer (optional)" />
+                </SelectTrigger>
+                <SelectContent data-portal-ignore-click-outside>
+                  <SelectItem value="__none__">General (no customer)</SelectItem>
+                  {(customers || []).map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {/* Due Date */}
           <div>

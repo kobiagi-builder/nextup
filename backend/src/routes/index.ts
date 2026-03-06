@@ -5,6 +5,7 @@ import { customerAiRouter } from './customer-ai.js'
 import artifactResearchRouter from './artifactResearch.routes.js'
 import writingExamplesRouter from './writingExamples.routes.js'
 import customersRouter from './customers.js'
+import { actionItemsBoardRouter } from './action-items-board.js'
 import icpSettingsRouter from './icp-settings.js'
 import onboardingRouter from './onboarding.js'
 import { attachmentRouter } from './attachments.js'
@@ -40,6 +41,7 @@ router.use('/ai/customer/chat', requireAuth, requireFeature('customer_management
 router.use('/artifacts', requireAuth, artifactResearchRouter)
 router.use('/user/writing-examples', requireAuth, writingExamplesRouter)
 router.use('/customers', requireAuth, requireFeature('customer_management'), customersRouter)
+router.use('/action-items', requireAuth, requireFeature('action_items_kanban'), actionItemsBoardRouter)
 router.use('/icp-settings', requireAuth, requireFeature('customer_management'), icpSettingsRouter)
 router.use('/onboarding', requireAuth, onboardingRouter)
 router.use('/ai/attachments', requireAuth, attachmentRouter)

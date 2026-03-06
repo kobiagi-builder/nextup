@@ -14,6 +14,7 @@ import { Link, useLocation } from 'react-router-dom'
 import {
   FileText,
   Users,
+  ListChecks,
   User,
   Settings,
   Moon,
@@ -48,6 +49,7 @@ const baseNavItems: NavItem[] = [
 
 // Feature-gated navigation items
 const customerNavItem: NavItem = { icon: Users, label: 'Customers', href: '/customers' }
+const actionItemsNavItem: NavItem = { icon: ListChecks, label: 'Action Items', href: '/action-items' }
 
 // Footer navigation items
 const footerNavItems: NavItem[] = [
@@ -172,10 +174,12 @@ export function Sidebar() {
   const isCollapsed = !isHovered
   const { signOut } = useAuth()
   const { isEnabled: hasCustomers } = useFeatureFlag('customer_management')
+  const { isEnabled: hasActionItemsKanban } = useFeatureFlag('action_items_kanban')
 
   const mainNavItems: NavItem[] = [
     ...baseNavItems,
     ...(hasCustomers ? [customerNavItem] : []),
+    ...(hasActionItemsKanban ? [actionItemsNavItem] : []),
   ]
 
   return (
