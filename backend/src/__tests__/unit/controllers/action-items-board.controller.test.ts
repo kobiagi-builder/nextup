@@ -48,12 +48,21 @@ vi.mock('../../../lib/logger.js', () => ({
 }))
 
 // =============================================================================
+// Test UUIDs
+// =============================================================================
+
+const TEST_USER_ID = 'a0000000-0000-0000-0000-000000000001'
+const TEST_ITEM_ID = 'b0000000-0000-0000-0000-000000000001'
+const TEST_CUSTOMER_ID = '550e8400-e29b-41d4-a716-446655440000'
+const TEST_FILTER_CUSTOMER_ID = 'c0000000-0000-0000-0000-000000000001'
+
+// =============================================================================
 // Helpers
 // =============================================================================
 
 function createMockReq(overrides: Partial<Request> = {}): Request {
   return {
-    user: { id: 'test-user-id' },
+    user: { id: TEST_USER_ID },
     params: {},
     query: {},
     body: {},
@@ -97,7 +106,7 @@ describe('listBoardActionItems', () => {
 
     await listBoardActionItems(req, res)
 
-    expect(mockServiceInstance.listAll).toHaveBeenCalledWith('test-user-id', {})
+    expect(mockServiceInstance.listAll).toHaveBeenCalledWith(TEST_USER_ID, {})
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ data: mockItems, count: 1 })
   })
@@ -105,12 +114,12 @@ describe('listBoardActionItems', () => {
   it('passes customer_id filter to service', async () => {
     mockServiceInstance.listAll.mockResolvedValue([])
 
-    const req = createMockReq({ query: { customer_id: 'cust-123' } as any })
+    const req = createMockReq({ query: { customer_id: TEST_FILTER_CUSTOMER_ID } as any })
     const res = createMockRes()
 
     await listBoardActionItems(req, res)
 
-    expect(mockServiceInstance.listAll).toHaveBeenCalledWith('test-user-id', { customer_id: 'cust-123' })
+    expect(mockServiceInstance.listAll).toHaveBeenCalledWith(TEST_USER_ID, { customer_id: TEST_FILTER_CUSTOMER_ID })
   })
 
   it('passes status filter as array to service', async () => {
@@ -121,7 +130,7 @@ describe('listBoardActionItems', () => {
 
     await listBoardActionItems(req, res)
 
-    expect(mockServiceInstance.listAll).toHaveBeenCalledWith('test-user-id', { status: ['todo', 'in_progress'] })
+    expect(mockServiceInstance.listAll).toHaveBeenCalledWith(TEST_USER_ID, { status: ['todo', 'in_progress'] })
   })
 
   it('returns 500 on service error', async () => {
@@ -169,7 +178,7 @@ describe('createBoardActionItem', () => {
 
     await createBoardActionItem(req, res)
 
-    expect(mockServiceInstance.createForBoard).toHaveBeenCalledWith('test-user-id', expect.objectContaining({
+    expect(mockServiceInstance.createForBoard).toHaveBeenCalledWith(TEST_USER_ID, expect.objectContaining({
       description: 'Test task',
     }))
     expect(res.status).toHaveBeenCalledWith(201)
@@ -191,7 +200,7 @@ describe('createBoardActionItem', () => {
 
     await createBoardActionItem(req, res)
 
-    expect(mockServiceInstance.createForBoard).toHaveBeenCalledWith('test-user-id', expect.objectContaining({
+    expect(mockServiceInstance.createForBoard).toHaveBeenCalledWith(TEST_USER_ID, expect.objectContaining({
       description: 'Customer task',
       customer_id: '550e8400-e29b-41d4-a716-446655440000',
       type: 'meeting',
@@ -220,7 +229,7 @@ describe('updateBoardActionItem', () => {
   })
 
   it('returns 400 when no updates provided (empty body)', async () => {
-    const req = createMockReq({ params: { id: 'item-1' } as any, body: {} })
+    const req = createMockReq({ params: { id: TEST_ITEM_ID } as any, body: {} })
     const res = createMockRes()
 
     await updateBoardActionItem(req, res)
@@ -232,35 +241,35 @@ describe('updateBoardActionItem', () => {
   })
 
   it('updates status (drag-and-drop simulation)', async () => {
-    const updated = { id: 'item-1', status: 'in_progress' }
+    const updated = { id: TEST_ITEM_ID, status: 'in_progress' }
     mockServiceInstance.updateForBoard.mockResolvedValue(updated)
 
     const req = createMockReq({
-      params: { id: 'item-1' } as any,
+      params: { id: TEST_ITEM_ID } as any,
       body: { status: 'in_progress' },
     })
     const res = createMockRes()
 
     await updateBoardActionItem(req, res)
 
-    expect(mockServiceInstance.updateForBoard).toHaveBeenCalledWith('item-1', { status: 'in_progress' })
+    expect(mockServiceInstance.updateForBoard).toHaveBeenCalledWith(TEST_ITEM_ID, { status: 'in_progress' })
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith(updated)
   })
 
   it('updates customer_id (reassignment)', async () => {
-    const updated = { id: 'item-1', customer_id: '550e8400-e29b-41d4-a716-446655440000' }
+    const updated = { id: TEST_ITEM_ID, customer_id: '550e8400-e29b-41d4-a716-446655440000' }
     mockServiceInstance.updateForBoard.mockResolvedValue(updated)
 
     const req = createMockReq({
-      params: { id: 'item-1' } as any,
+      params: { id: TEST_ITEM_ID } as any,
       body: { customer_id: '550e8400-e29b-41d4-a716-446655440000' },
     })
     const res = createMockRes()
 
     await updateBoardActionItem(req, res)
 
-    expect(mockServiceInstance.updateForBoard).toHaveBeenCalledWith('item-1', {
+    expect(mockServiceInstance.updateForBoard).toHaveBeenCalledWith(TEST_ITEM_ID, {
       customer_id: '550e8400-e29b-41d4-a716-446655440000',
     })
     expect(res.status).toHaveBeenCalledWith(200)
@@ -289,12 +298,12 @@ describe('deleteBoardActionItem', () => {
   it('deletes item and returns 200', async () => {
     mockServiceInstance.delete.mockResolvedValue(undefined)
 
-    const req = createMockReq({ params: { id: 'item-1' } as any })
+    const req = createMockReq({ params: { id: TEST_ITEM_ID } as any })
     const res = createMockRes()
 
     await deleteBoardActionItem(req, res)
 
-    expect(mockServiceInstance.delete).toHaveBeenCalledWith('item-1')
+    expect(mockServiceInstance.delete).toHaveBeenCalledWith(TEST_ITEM_ID)
     expect(res.status).toHaveBeenCalledWith(200)
     expect(res.json).toHaveBeenCalledWith({ message: 'Action item deleted successfully' })
   })
@@ -302,7 +311,7 @@ describe('deleteBoardActionItem', () => {
   it('returns 500 on service error', async () => {
     mockServiceInstance.delete.mockRejectedValue(new Error('DB error'))
 
-    const req = createMockReq({ params: { id: 'item-1' } as any })
+    const req = createMockReq({ params: { id: TEST_ITEM_ID } as any })
     const res = createMockRes()
 
     await deleteBoardActionItem(req, res)

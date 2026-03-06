@@ -80,12 +80,15 @@ export function useUpdateBoardActionItem(filters?: BoardFilters) {
       await queryClient.cancelQueries({ queryKey: boardActionItemKeys.all })
       const previousData = queryClient.getQueryData<ActionItemWithCustomer[]>(queryKey)
 
+      // Capture the affected item's customer_id for cross-view invalidation
+      const affectedCustomerId = previousData?.find(item => item.id === id)?.customer_id
+
       queryClient.setQueryData<ActionItemWithCustomer[]>(queryKey, (old) => {
         if (!old) return old
         return old.map((item) => item.id === id ? { ...item, ...data } as ActionItemWithCustomer : item)
       })
 
-      return { previousData, queryKey }
+      return { previousData, queryKey, affectedCustomerId }
     },
 
     onError: (_err, _vars, context) => {
@@ -95,19 +98,18 @@ export function useUpdateBoardActionItem(filters?: BoardFilters) {
       toast({ title: 'Failed to update action item', variant: 'destructive' })
     },
 
-    onSettled: (_data, _err, variables) => {
+    onSettled: (_data, _err, variables, context) => {
       queryClient.invalidateQueries({ queryKey: boardActionItemKeys.all })
       // Cross-view cache invalidation for customer detail tab
-      if (variables && typeof variables === 'object') {
-        const customerId = (variables as Record<string, unknown>).customer_id as string | undefined
-        if (customerId) {
-          queryClient.invalidateQueries({
-            queryKey: actionItemKeys.all(customerId),
-          })
-          queryClient.invalidateQueries({
-            queryKey: customerKeys.detail(customerId),
-          })
-        }
+      const customerId = context?.affectedCustomerId
+        || (variables && typeof variables === 'object' ? (variables as Record<string, unknown>).customer_id as string | undefined : undefined)
+      if (customerId) {
+        queryClient.invalidateQueries({
+          queryKey: actionItemKeys.all(customerId),
+        })
+        queryClient.invalidateQueries({
+          queryKey: customerKeys.detail(customerId),
+        })
       }
     },
   })

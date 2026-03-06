@@ -25,6 +25,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
       execute: async ({ type, description, due_date, status }) => {
         logToFile('TOOL EXECUTED: createActionItem', { hasCustomerId: !!customerId, type })
 
+        // user_id is auto-set by DEFAULT auth.uid() — requires user-scoped Supabase client
         const { data, error } = await supabase
           .from('customer_action_items')
           .insert({

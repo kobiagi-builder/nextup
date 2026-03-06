@@ -54,7 +54,12 @@ export const listBoardActionItems = async (req: Request, res: Response): Promise
     const filters: { customer_id?: string; status?: string[] } = {}
 
     if (req.query.customer_id) {
-      filters.customer_id = req.query.customer_id as string
+      const parsed = z.string().uuid().safeParse(req.query.customer_id)
+      if (!parsed.success) {
+        res.status(400).json({ error: 'Validation error', message: 'Invalid customer_id format' })
+        return
+      }
+      filters.customer_id = parsed.data
     }
     if (req.query.status) {
       filters.status = (req.query.status as string).split(',')
@@ -117,11 +122,12 @@ export const updateBoardActionItem = async (req: Request, res: Response): Promis
       return
     }
 
-    const actionItemId = req.params.id as string
-    if (!actionItemId) {
-      res.status(400).json({ error: 'Missing ID', message: 'Action item ID is required' })
+    const idParsed = z.string().uuid().safeParse(req.params.id)
+    if (!idParsed.success) {
+      res.status(400).json({ error: 'Validation error', message: 'Invalid action item ID format' })
       return
     }
+    const actionItemId = idParsed.data
 
     const parsed = updateBoardActionItemSchema.safeParse(req.body)
     if (!parsed.success) {
@@ -161,11 +167,12 @@ export const deleteBoardActionItem = async (req: Request, res: Response): Promis
       return
     }
 
-    const actionItemId = req.params.id as string
-    if (!actionItemId) {
-      res.status(400).json({ error: 'Missing ID', message: 'Action item ID is required' })
+    const idParsed = z.string().uuid().safeParse(req.params.id)
+    if (!idParsed.success) {
+      res.status(400).json({ error: 'Validation error', message: 'Invalid action item ID format' })
       return
     }
+    const actionItemId = idParsed.data
 
     const service = getService()
     await service.delete(actionItemId)
