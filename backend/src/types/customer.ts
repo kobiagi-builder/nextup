@@ -21,9 +21,22 @@ export const VALID_CUSTOMER_STATUSES: CustomerStatus[] = [
 export type IcpScore = 'low' | 'medium' | 'high' | 'very_high'
 
 // =============================================================================
-// ICP Settings (User-Level)
+// Customer ICP Criteria (stored in user_context.customers JSONB)
 // =============================================================================
 
+export interface CustomerIcp {
+  ideal_client?: string
+  company_stage?: string[]
+  target_employee_min?: number | null
+  target_employee_max?: number | null
+  industry_verticals?: string[]
+}
+
+// =============================================================================
+// ICP Settings (User-Level) — @deprecated: Use CustomerIcp instead
+// =============================================================================
+
+/** @deprecated Use CustomerIcp instead. Data has been migrated to user_context.customers JSONB. */
 export interface IcpSettings {
   id: string
   user_id: string
@@ -37,6 +50,7 @@ export interface IcpSettings {
   updated_at: string
 }
 
+/** @deprecated Use CustomerIcp instead. */
 export type IcpSettingsInput = Partial<Pick<IcpSettings,
   'target_employee_min' | 'target_employee_max' | 'target_industries' |
   'target_specialties' | 'description' | 'weight_quantitative'

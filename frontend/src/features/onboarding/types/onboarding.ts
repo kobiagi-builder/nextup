@@ -35,8 +35,8 @@ export interface ExtractedProfileFields {
     methodologies?: string
   }
   customers?: {
-    target_audience?: string
     ideal_client?: string
+    industry_verticals?: string[]
   }
   goals?: {
     content_goals?: string
@@ -64,7 +64,10 @@ export interface OnboardingFormData {
   }
   customers: {
     ideal_client: string
-    industries_served: string[]
+    company_stage: string[]
+    target_employee_min: number | null
+    target_employee_max: number | null
+    industry_verticals: string[]
   }
   goals: {
     content_goals: string
@@ -88,7 +91,10 @@ export const EMPTY_FORM_DATA: OnboardingFormData = {
   },
   customers: {
     ideal_client: '',
-    industries_served: [],
+    company_stage: [],
+    target_employee_min: null,
+    target_employee_max: null,
+    industry_verticals: [],
   },
   goals: {
     content_goals: '',

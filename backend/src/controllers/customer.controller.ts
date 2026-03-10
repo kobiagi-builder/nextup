@@ -14,7 +14,7 @@ import { EnrichmentService } from '../services/EnrichmentService.js'
 import { IcpScoringService } from '../services/IcpScoringService.js'
 import { VALID_CUSTOMER_STATUSES } from '../types/customer.js'
 import { DEFAULT_ROLE_FILTERS, DEFAULT_ROLE_EXCLUSIONS } from '../services/EnrichmentService.js'
-import type { Customer, IcpSettings, TeamMember, TeamRoleFilter } from '../types/customer.js'
+import type { Customer, CustomerIcp, TeamMember, TeamRoleFilter } from '../types/customer.js'
 
 // =============================================================================
 // Validation Schemas
@@ -91,13 +91,14 @@ async function rescoreIcpIfNeeded(customer: Customer): Promise<void> {
     if (!enrichment?.employee_count && !enrichment?.industry) return
 
     const supabase = getSupabase()
-    const { data: icpSettings } = await supabase
-      .from('icp_settings')
-      .select('*')
+    const { data: userCtx } = await supabase
+      .from('user_context')
+      .select('customers')
       .limit(1)
       .maybeSingle()
 
-    if (!icpSettings) return
+    const icpCriteria = userCtx?.customers as CustomerIcp | null
+    if (!icpCriteria) return
 
     const scorer = new IcpScoringService()
     const newScore = await scorer.scoreCustomer({
@@ -107,7 +108,7 @@ async function rescoreIcpIfNeeded(customer: Customer): Promise<void> {
         industry: enrichment.industry || '',
         specialties: enrichment.specialties || [],
       },
-      icpSettings,
+      icpCriteria,
       companyName: customer.name,
     })
 
@@ -265,13 +266,14 @@ async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
 
     if (!enrichResult.data.industry) return
 
-    const { data: icpSettings } = await supabase
-      .from('icp_settings')
-      .select('*')
+    const { data: userCtxRow } = await supabase
+      .from('user_context')
+      .select('customers')
       .limit(1)
       .maybeSingle()
 
-    if (!icpSettings) return
+    const icpCriteria = userCtxRow?.customers as CustomerIcp | null
+    if (!icpCriteria) return
 
     const scorer = new IcpScoringService()
     const score = await scorer.scoreCustomer({
@@ -281,7 +283,7 @@ async function enrichAndScoreNewCustomer(customer: Customer): Promise<void> {
         industry: enrichResult.data.industry || '',
         specialties: enrichResult.data.specialties || [],
       },
-      icpSettings: icpSettings as IcpSettings,
+      icpCriteria,
       companyName: customer.name,
     })
 

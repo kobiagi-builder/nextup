@@ -1,8 +1,8 @@
 # Database Schema Reference
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-03-08
-**Version:** 9.0.0
+**Last Updated:** 2026-03-10
+**Version:** 10.0.0
 **Status:** Complete
 
 ## Overview
@@ -35,7 +35,7 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 23 tables in the `publ
 | 16 | `customer_documents` | Documents per initiative | Many-to-one → customer_initiatives | Yes |
 | 17 | `customer_events` | Timeline events per customer | Many-to-one → customers | Yes |
 | 18 | `customer_chat_messages` | AI chat messages per customer | Many-to-one → customers | Yes |
-| 19 | `icp_settings` | ICP criteria for automated scoring | One-to-one per user | Yes |
+| 19 | `icp_settings` | **[DEPRECATED]** ICP criteria (replaced by `user_context.customers` JSONB) | One-to-one per user | Yes |
 | 20 | `onboarding_progress` | Onboarding wizard state and extraction results | One-to-one per user | Yes |
 | 21 | `team_role_filters` | Per-user role filter config for LinkedIn team extraction | One-to-one per user | Yes |
 | 22 | `customer_action_items` | Action items (tasks) per user, optionally linked to customer | Many-to-one → users, optional many-to-one → customers | Yes |
@@ -60,7 +60,6 @@ erDiagram
     users ||--o| user_preferences : "has one"
     users ||--o{ user_writing_examples : "has many"
 
-    users ||--o| icp_settings : "has one"
     users ||--o| team_role_filters : "has one"
     users ||--o{ customers : "owns many"
     customers ||--o{ customer_agreements : "has many"
@@ -373,7 +372,7 @@ User professional profile with 4 JSONB sections. One row per user.
 | `account_id` | UUID | NO | `'00000000-...-000001'` | Multi-tenancy |
 | `about_me` | JSONB | YES | `'{}'` | Bio, background, years, value prop |
 | `profession` | JSONB | YES | `'{}'` | Expertise, industries, methods, certs |
-| `customers` | JSONB | YES | `'{}'` | Target audience, ideal client |
+| `customers` | JSONB | YES | `'{}'` | ICP criteria: ideal client, company stage, employee range, industry verticals |
 | `goals` | JSONB | YES | `'{}'` | Content goals, business goals |
 | `created_at` | TIMESTAMPTZ | YES | `now()` | Creation timestamp |
 | `updated_at` | TIMESTAMPTZ | YES | `now()` | Last update |
@@ -392,8 +391,20 @@ User professional profile with 4 JSONB sections. One row per user.
 
 **customers:**
 ```json
-{ "target_audience": "...", "ideal_client": "...", "industries_served": ["SaaS", "FinTech"] }
+{
+  "ideal_client": "...",
+  "company_stage": ["Seed Stage", "Early Stage (Series A & B)"],
+  "employee_min": 50,
+  "employee_max": 500,
+  "industry_verticals": ["SaaS", "FinTech"]
+}
 ```
+
+`company_stage` valid values: `Pre-Seed`, `Seed Stage`, `Early Stage (Series A & B)`, `Growth Stage (Series C+)`, `Maturity & Exit`.
+
+`industry_verticals` is a free text tag array. `ideal_client` is a free text description used for qualitative LLM scoring. `employee_min` / `employee_max` define the target company headcount range.
+
+> **Migration note:** The `consolidate_icp_into_user_context_customers` migration merged data from the `icp_settings` table into this JSONB column. The `icp_settings` table is retained for rollback and will be dropped in a future migration.
 
 **goals:**
 ```json
@@ -667,9 +678,11 @@ AI-generated storytelling guidance per artifact. One-to-one relationship with ar
 
 ---
 
-## 19. icp_settings
+## 19. icp_settings (Deprecated)
 
-User-defined Ideal Customer Profile criteria for automated ICP scoring during LinkedIn import. One row per user.
+> **Deprecated as of 2026-03-10.** ICP criteria have been consolidated into `user_context.customers` JSONB via the `consolidate_icp_into_user_context_customers` migration. This table is retained for rollback and will be dropped in a future migration. All reads and writes now go through `user_context.customers`.
+
+~~User-defined Ideal Customer Profile criteria for automated ICP scoring during LinkedIn import. One row per user.~~
 
 ### Schema
 
@@ -1089,6 +1102,7 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **10.0.0** (2026-03-10) - ICP consolidation: merged `icp_settings` data into `user_context.customers` JSONB via `consolidate_icp_into_user_context_customers` migration. Updated `customers` JSONB structure to document 4 ICP fields (ideal_client, company_stage, employee_min/max, industry_verticals). Marked `icp_settings` table (#19) as deprecated. Removed `icp_settings` from ER diagram active relationships.
 - **9.0.0** (2026-03-08) - Renamed `customer_projects` → `customer_initiatives` (#15) and `customer_artifacts` → `customer_documents` (#16). Added `document_folders` table (#23) with global/customer-scoped folder support, slug uniqueness index, and five RLS policies. Changed `initiative_id` FK on `customer_documents` from CASCADE to RESTRICT. Added `folder_id` column to `customer_documents`. Updated `get_customer_list_summary` return column from `active_projects_count` to `active_initiatives_count` (queries `customer_initiatives`). Updated table count to 23, ER diagram
 - **8.0.0** (2026-03-06) - Added `customer_action_items` table (#22) with `user_id` column, nullable `customer_id`, composite index, symmetric RLS policy. Updated table count to 22, ER diagram
 - **7.0.0** (2026-03-04) - Added `team_role_filters` table (#21) for per-user LinkedIn team extraction role configuration. Updated table count to 21, ER diagram, table summary

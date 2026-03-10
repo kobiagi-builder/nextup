@@ -381,8 +381,14 @@ export interface Profession {
 
 /** Customers section */
 export interface Customers {
-  target_audience?: string
   ideal_client?: string
+  company_stage?: string[]
+  target_employee_min?: number | null
+  target_employee_max?: number | null
+  industry_verticals?: string[]
+  /** @deprecated Use ideal_client instead */
+  target_audience?: string
+  /** @deprecated Use industry_verticals instead */
   industries_served?: string[]
 }
 

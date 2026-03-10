@@ -346,18 +346,8 @@ export class AIService {
     // Fetch user context for personalization
     const userContext = await fetchUserContext()
 
-    // Fetch ICP description from icp_settings for prompt personalization
-    let icpDescription: string | null = null
-    try {
-      const { data: icpRow } = await getSupabase()
-        .from('icp_settings')
-        .select('description')
-        .limit(1)
-        .single()
-      icpDescription = icpRow?.description ?? null
-    } catch {
-      // No ICP settings configured — that's fine
-    }
+    // Use ideal_client from user_context.customers as ICP description
+    const icpDescription = userContext?.customers?.ideal_client || null
 
     // Fetch interview context for resume scenarios (showcase interview Phase 2)
     let interviewContext: { pairs: Array<{ question_number: number; dimension: string; question: string; answer: string; coverage_scores: Record<string, number> }>; lastCoverageScores: Record<string, number>; questionCount: number } | null = null;
@@ -580,18 +570,8 @@ export class AIService {
 
     const userContext = await fetchUserContext()
 
-    // Fetch ICP description for prompt personalization
-    let icpDescription: string | null = null
-    try {
-      const { data: icpRow } = await getSupabase()
-        .from('icp_settings')
-        .select('description')
-        .limit(1)
-        .single()
-      icpDescription = icpRow?.description ?? null
-    } catch {
-      // No ICP settings configured
-    }
+    // Use ideal_client from user_context.customers as ICP description
+    const icpDescription = userContext?.customers?.ideal_client || null
 
     const finalSystemPrompt = systemPrompt ?? getBaseSystemPrompt(userContext, undefined, undefined, undefined, icpDescription)
 

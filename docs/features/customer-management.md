@@ -1,9 +1,9 @@
 # Customer Management
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-08
-**Version:** 12.0.0
-**Status:** Active (Phase 13 — Initiative & Document Restructure Frontend)
+**Last Updated:** 2026-03-10
+**Version:** 13.0.0
+**Status:** Active (Phase 14 — ICP Consolidation into user_context.customers)
 
 ## Overview
 
@@ -112,7 +112,7 @@ Team member matching: by email (exact) then by name (case-insensitive). Update L
 
 Runs automatically after Phase 1. For each unique company:
 - **Enrichment**: If no data or >30 days stale, call `EnrichmentService.enrichCompany(name)` (claude-haiku). Extracts `{ employee_count, about, industry, specialties }`. Rate-limited ~2 req/sec.
-- **ICP Scoring**: If ICP settings exist AND enrichment has industry data, call `IcpScoringService.scoreCustomer()`. Hybrid: quantitative formula + qualitative LLM. Maps to Low/Medium/High/Very High.
+- **ICP Scoring**: If ICP criteria exist in `user_context.customers` AND enrichment has industry data, call `IcpScoringService.scoreCustomer()`. Hybrid: quantitative formula + qualitative LLM. Maps to Low/Medium/High/Very High. Scoring weights: employee count 55%, industry verticals 45% (specialties field removed).
 - **Auto-status upgrade**: New customers with medium+ ICP score are upgraded to `lead` status — **except** low-confidence customers (Layer 3) which stay `not_relevant`.
 
 **Results returned:** total rows, classification stats (layer0/layer1/layer2/layer3/total), companies created/matched, team members created/updated, skipped rows with reasons, errors, enrichment stats (enriched/skippedFresh/failed), ICP score distribution (low/medium/high/very_high/not_scored)
@@ -362,11 +362,8 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Service | `backend/src/services/CompanyClassificationService.ts` | 4-layer company name classification pipeline (deterministic → Tavily → LLM → fail-open) |
 | Service | `backend/src/services/LinkedInImportService.ts` | CSV parsing, classify-first flow, company matching, team upsert, post-import enrichment + ICP scoring |
 | Service | `backend/src/services/EnrichmentService.ts` | LLM-powered company enrichment (claude-haiku): employee count, about, industry, specialties; LinkedIn People page scraping + AI role filtering (Phase 9) |
-| Service | `backend/src/services/IcpScoringService.ts` | Hybrid ICP scoring: quantitative formula + qualitative LLM |
-| Service | `backend/src/services/IcpSettingsService.ts` | ICP settings CRUD (upsert with `ON CONFLICT user_id`) |
+| Service | `backend/src/services/IcpScoringService.ts` | Hybrid ICP scoring: quantitative formula + qualitative LLM. Reads `CustomerIcp` from `user_context.customers`. Weights: employee 55%, industry 45%. |
 | Controller | `backend/src/controllers/linkedinImport.controller.ts` | Multer CSV upload + import handler |
-| Controller | `backend/src/controllers/icpSettings.controller.ts` | ICP settings GET/PUT with Zod validation |
-| Routes | `backend/src/routes/icp-settings.ts` | GET / PUT for ICP settings (requires `customer_management` feature flag) |
 | Controller | `backend/src/controllers/customer.controller.ts` | Customer Zod validation + handlers |
 | Controller | `backend/src/controllers/agreement.controller.ts` | Agreement Zod validation + handlers (list, create, update, delete) |
 | Controller | `backend/src/controllers/receivable.controller.ts` | Receivable Zod validation + handlers (list, getSummary, create, update, delete) |
@@ -391,8 +388,6 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Hooks | `frontend/src/features/customers/hooks/useReceivables.ts` | TanStack Query receivable hooks + receivableKeys factory + useReceivableSummary |
 | Hooks | `frontend/src/features/customers/hooks/useInitiatives.ts` | TanStack Query initiative CRUD hooks + initiativeKeys factory (Supabase direct reads, API mutations) |
 | Hooks | `frontend/src/features/customers/hooks/useCustomerDocuments.ts` | TanStack Query document CRUD hooks + customerDocumentKeys factory + useReassignDocument |
-| ICP Settings UI | `frontend/src/features/customers/components/settings/IcpSettingsSection.tsx` | ICP settings form (employee range, industries, specialties, description, weights) |
-| ICP Hooks | `frontend/src/features/customers/hooks/useIcpSettings.ts` | TanStack Query GET/PUT for ICP settings |
 | Skeleton | `frontend/src/features/customers/components/shared/CustomerCardSkeleton.tsx` | Structured loading skeleton matching card layout |
 | References | `frontend/src/features/portfolio/components/editor/ArtifactReferences.tsx` | Collapsible cross-module references section in portfolio editor |
 | List Page | `frontend/src/features/customers/pages/CustomerListPage.tsx` | List with filters, enriched cards, AlertDialog, responsive grid |
@@ -583,11 +578,6 @@ initiativeKeys = {
   detail: (customerId, initiativeId) => [...initiativeKeys.all(customerId), 'detail', initiativeId],
 }
 
-icpSettingsKeys = {
-  all: ['icp-settings'],
-  mine: () => ['icp-settings', 'mine'],
-}
-
 customerDocumentKeys = {
   allByInitiative: (customerId, initiativeId) => [...initiativeKeys.detail(customerId, initiativeId), 'documents'],
   listByInitiative: (customerId, initiativeId) => [...customerDocumentKeys.allByInitiative(customerId, initiativeId), 'list'],
@@ -620,7 +610,7 @@ PAYMENT_METHOD_LABELS: Record<string, string>
 
 - **No bulk actions** (multi-select, bulk status change)
 - **Enrichment** uses LLM (claude-haiku) for company data — accuracy depends on public knowledge of the company. Unknown/small companies may return empty results
-- **ICP Scoring** qualitative component only runs if both ICP description and company about text exist; otherwise 100% quantitative
+- **ICP Scoring** reads criteria from `user_context.customers` (ideal client description, company stage, employee range, industry verticals). The qualitative component only runs if both ICP description and company about text exist; otherwise 100% quantitative.
 - **Rate limiting** between enrichment calls is 500ms delay — large imports (~200+ companies) may take several minutes
 - **Auto-save** uses 1.5s debounce; very fast close may trigger a delayed save
 - **Cross-module linking** requires portfolio editor to pass link/unlink handlers (parent must provide mutation)

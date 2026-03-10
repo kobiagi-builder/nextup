@@ -76,28 +76,6 @@ export const ICP_SCORE_DOT_COLORS: Record<IcpScore, string> = {
 }
 
 // =============================================================================
-// ICP Settings (User-Level)
-// =============================================================================
-
-export interface IcpSettings {
-  id: string
-  user_id: string
-  target_employee_min: number | null
-  target_employee_max: number | null
-  target_industries: string[]
-  target_specialties: string[]
-  description: string
-  weight_quantitative: number
-  created_at: string
-  updated_at: string
-}
-
-export type IcpSettingsInput = Partial<Pick<IcpSettings,
-  'target_employee_min' | 'target_employee_max' | 'target_industries' |
-  'target_specialties' | 'description' | 'weight_quantitative'
->>
-
-// =============================================================================
 // Customer Info (JSONB)
 // =============================================================================
 

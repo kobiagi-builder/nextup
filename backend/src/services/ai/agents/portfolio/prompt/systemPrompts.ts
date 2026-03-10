@@ -885,8 +885,6 @@ CORRECT - Example 2 (SUPPORTED request with data gathering):
     }
     if (icpDescription) {
       prompt += `ICP Description: ${icpDescription}\n`;
-    } else if (userContext.customers?.target_audience) {
-      prompt += `Target Audience: ${userContext.customers.target_audience}\n`;
     }
     if (userContext.goals?.content_goals) {
       prompt += `Content Goals: ${userContext.goals.content_goals}\n`;

@@ -16,7 +16,7 @@ import type {
   ImportResult,
   TeamMember,
   Customer,
-  IcpSettings,
+  CustomerIcp,
 } from '../types/customer.js'
 import { CompanyClassificationService, type ClassificationInput, type ClassificationResult } from './CompanyClassificationService.js'
 import { EnrichmentService } from './EnrichmentService.js'
@@ -393,12 +393,13 @@ export class LinkedInImportService {
     result.enrichment = { enriched: 0, skippedFresh: 0, failed: 0 }
     result.icpScores = { low: 0, medium: 0, high: 0, very_high: 0, not_scored: 0, skipped_unchanged: 0 }
 
-    // Load user's ICP settings
-    const { data: icpSettings } = await this.supabase
-      .from('icp_settings')
-      .select('*')
+    // Load user's ICP criteria from user_context.customers
+    const { data: userCtx } = await this.supabase
+      .from('user_context')
+      .select('customers')
       .limit(1)
       .maybeSingle()
+    const icpCriteria = userCtx?.customers as CustomerIcp | null
 
     const uniqueCustomers = Array.from(companyCache.values())
     const enrichableCustomers = uniqueCustomers.filter(c => c.name !== 'Enclosed company')
@@ -480,7 +481,7 @@ export class LinkedInImportService {
       try {
         const hasExistingScore = !!customer.info?.icp_score
 
-        if (icpSettings && enrichmentData?.industry && (enrichmentChanged || !hasExistingScore)) {
+        if (icpCriteria && enrichmentData?.industry && (enrichmentChanged || !hasExistingScore)) {
           const score = await icpScoringService.scoreCustomer({
             enrichment: {
               employee_count: enrichmentData.employee_count || '',
@@ -488,7 +489,7 @@ export class LinkedInImportService {
               industry: enrichmentData.industry || '',
               specialties: enrichmentData.specialties || [],
             },
-            icpSettings: icpSettings as IcpSettings,
+            icpCriteria,
             companyName: customer.name,
           })
 

@@ -1,8 +1,8 @@
 # Profile Page (ProfilePage)
 
 **Created:** 2026-02-20
-**Last Updated:** 2026-02-20
-**Version:** 1.0.0
+**Last Updated:** 2026-03-10
+**Version:** 2.0.0
 **Status:** Complete
 
 ## Overview
@@ -36,7 +36,7 @@ The Profile Page lets users set up personal and professional information that th
 |  +--------------------------------------------------------+  |
 |  +--------------------------------------------------------+  |
 |  | Customers section                         [Edit]        |  |
-|  | Target Audience, Ideal Client                           |  |
+|  | Ideal Client, Company Stage, Employees, Industry        |  |
 |  +--------------------------------------------------------+  |
 |  +--------------------------------------------------------+  |
 |  | Goals section                             [Edit]        |  |
@@ -62,7 +62,7 @@ ProfilePage
 │   │   └── Fields: expertise_areas, industries, methodologies, certifications
 │   ├── SkillsSection (inserted after Profession, index === 1)
 │   ├── Customers (Target icon)
-│   │   └── Fields: target_audience, ideal_client
+│   │   └── Fields: ideal_client, company_stage (multi-select), employee_min/employee_max, industry_verticals (tags)
 │   └── Goals (Star icon)
 │       └── Fields: content_goals, business_goals
 └── Edit Dialog (shadcn Dialog)
@@ -107,6 +107,7 @@ ProfilePage
 - Renders `UserContextForm` scoped to the editing section
 - Success toast on save, destructive toast on error
 - Form closes automatically after successful save
+- **Single save path**: the Customers section saves all 4 ICP fields directly to `user_context.customers` via `PUT /api/user-context`. There is no separate ICP Settings save — the former `IcpSettingsSection` component and `useIcpSettings` hook have been removed.
 
 ---
 
@@ -118,7 +119,7 @@ ProfilePage
 |--------|------|-------------|
 | about_me | JSONB | `{ bio, background, value_proposition }` |
 | profession | JSONB | `{ expertise_areas[], industries[], methodologies[], certifications[] }` |
-| customers | JSONB | `{ target_audience, ideal_client }` |
+| customers | JSONB | `{ ideal_client, company_stage[], employee_min, employee_max, industry_verticals[] }` |
 | goals | JSONB | `{ content_goals, business_goals }` |
 
 ---

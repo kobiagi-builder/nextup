@@ -29,8 +29,8 @@ export interface ExtractedProfileFields {
     methodologies?: string
   }
   customers?: {
-    target_audience?: string
     ideal_client?: string
+    industry_verticals?: string[]
   }
   goals?: {
     content_goals?: string
@@ -67,8 +67,8 @@ Return ONLY a JSON object with these sections (include only fields you can confi
     "methodologies": "Bullet list of methodologies/frameworks, one per line with • prefix"
   },
   "customers": {
-    "target_audience": "Description of who they serve",
-    "ideal_client": "Description of ideal client profile"
+    "ideal_client": "Description of ideal client profile and who they serve",
+    "industry_verticals": ["Array of industry verticals they target, e.g. Fintech, Cyber, SaaS"]
   },
   "goals": {
     "content_goals": "What they want to communicate through content"

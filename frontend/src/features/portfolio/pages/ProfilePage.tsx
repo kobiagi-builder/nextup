@@ -24,10 +24,9 @@ import {
   User,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { UserContextForm } from "../components/forms";
 import { useUpdateUserContext, useUserContext } from "../hooks/useUserContext";
-import { useIcpSettings } from "@/features/customers/hooks/useIcpSettings";
-import { useFeatureFlag } from "@/hooks/use-feature-flag";
 import type { UpdateUserContextInput, UserContext } from "../types/portfolio";
 
 /** Profile section configuration */
@@ -91,8 +90,20 @@ const SECTIONS = [
         "What they care about",
       ],
     },
-    getContent: () => ({}),
-    isEmpty: () => false, // Emptiness checked inline via icpSettings
+    getContent: (ctx: UserContext | null) => ({
+      ideal_client: ctx?.customers?.ideal_client,
+      company_stage: ctx?.customers?.company_stage,
+      target_employees: (ctx?.customers?.target_employee_min != null || ctx?.customers?.target_employee_max != null)
+        ? `${ctx?.customers?.target_employee_min ?? '0'} – ${ctx?.customers?.target_employee_max ?? '∞'}`
+        : undefined,
+      industry_verticals: ctx?.customers?.industry_verticals,
+    }),
+    isEmpty: (ctx: UserContext | null) =>
+      !ctx?.customers?.ideal_client
+      && (!ctx?.customers?.company_stage || ctx.customers.company_stage.length === 0)
+      && ctx?.customers?.target_employee_min == null
+      && ctx?.customers?.target_employee_max == null
+      && (!ctx?.customers?.industry_verticals || ctx.customers.industry_verticals.length === 0),
   },
   {
     id: "goals" as const,
@@ -123,23 +134,21 @@ export function ProfilePage() {
     null,
   );
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Data hooks
   const { data: userContext, isLoading } = useUserContext();
   const updateUserContext = useUpdateUserContext();
-  const { isEnabled: hasCustomers } = useFeatureFlag('customer_management');
-  const { data: icpSettings } = useIcpSettings();
 
   // Calculate completion percentage
   const completion = useMemo(() => {
     if (!userContext) return 0;
     const totalSections = SECTIONS.length;
-    const completedSections = SECTIONS.filter((section) => {
-      if (section.id === 'customers') return !!icpSettings;
-      return !section.isEmpty(userContext);
-    }).length;
+    const completedSections = SECTIONS.filter(
+      (section) => !section.isEmpty(userContext),
+    ).length;
     return Math.round((completedSections / totalSections) * 100);
-  }, [userContext, icpSettings]);
+  }, [userContext]);
 
   // Handle save
   const handleSave = async (data: UpdateUserContextInput) => {
@@ -211,7 +220,7 @@ export function ProfilePage() {
             Help us know you better to create your personalized content.
           </p>
         </div>
-        <Button onClick={() => setEditingSection("about_me")}>
+        <Button onClick={() => navigate('/onboarding?edit=true')}>
           Edit Profile
         </Button>
       </div>
@@ -246,9 +255,7 @@ export function ProfilePage() {
         <div className="space-y-4">
           {SECTIONS.map((section) => {
             const Icon = section.icon;
-            const isEmpty = section.id === 'customers'
-              ? !(hasCustomers && icpSettings)
-              : section.isEmpty(userContext ?? null);
+            const isEmpty = section.isEmpty(userContext ?? null);
             const content = section.getContent(userContext ?? null);
 
             return (
@@ -350,62 +357,6 @@ export function ProfilePage() {
                     )}
                   </div>
 
-                  {/* ICP Profile — inside Customers card */}
-                  {section.id === 'customers' && hasCustomers && icpSettings && (
-                    <div className="border-t border-border p-4 space-y-3">
-                      <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                        ICP Profile
-                      </h4>
-                      {(icpSettings.target_employee_min != null || icpSettings.target_employee_max != null) && (
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                            Target Employees
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {icpSettings.target_employee_min ?? '0'} – {icpSettings.target_employee_max ?? '∞'}
-                          </p>
-                        </div>
-                      )}
-                      {icpSettings.target_industries.length > 0 && (
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                            Target Industries
-                          </h4>
-                          <div className="flex flex-wrap gap-1.5">
-                            {icpSettings.target_industries.map((ind) => (
-                              <span key={ind} className="px-2 py-0.5 bg-secondary rounded text-sm text-muted-foreground">
-                                {ind}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {icpSettings.target_specialties.length > 0 && (
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                            Target Specialties
-                          </h4>
-                          <div className="flex flex-wrap gap-1.5">
-                            {icpSettings.target_specialties.map((spec) => (
-                              <span key={spec} className="px-2 py-0.5 bg-secondary rounded text-sm text-muted-foreground">
-                                {spec}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {icpSettings.description && (
-                        <div>
-                          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                            ICP Description
-                          </h4>
-                          <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {icpSettings.description}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
               </div>
             );
@@ -436,7 +387,6 @@ export function ProfilePage() {
               onSubmit={handleSave}
               onCancel={() => setEditingSection(null)}
               isLoading={updateUserContext.isPending}
-              showIcp={hasCustomers}
             />
           )}
         </DialogContent>

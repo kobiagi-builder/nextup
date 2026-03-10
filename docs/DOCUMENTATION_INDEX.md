@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-09
-**Version:** 29.2.0
+**Last Updated:** 2026-03-10
+**Version:** 29.3.0
 **Total Documentation Files:** 70+
-**Status:** Complete (Analytical Integrity Directive)
+**Status:** Complete (ICP Consolidation into user_context.customers)
 
 ## Overview
 
@@ -99,7 +99,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [storytelling-analysis.md](./features/storytelling-analysis.md) | Storytelling framework selection, narrative arc design, emotional journey |
 | [topic-creation.md](./features/topic-creation.md) | Topic suggestion flow, entry points, tools, data model, known limitations |
 | [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing references system + characteristics extraction (per artifact type) |
-| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, LinkedIn team extraction (Tavily scrape + AI role filter + merge + frontend sync UI + auto-triggers on creation/update), per-user role filters, URL validation error icons, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 11) |
+| [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring (criteria from `user_context.customers`, weights 55%/45% employee/industry), LinkedIn team extraction (Tavily scrape + AI role filter + merge + frontend sync UI + auto-triggers on creation/update), per-user role filters, URL validation error icons, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 14) |
 | [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 27 tools, structured response cards, Clarification Gate, anti-duplication, step budget, interaction logging, initiative inference, meeting notes analysis, analytical integrity (Phase 4) |
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 | [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
@@ -135,7 +135,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
 | [MOCK_CONFIGURATION_GUIDE.md](./api/MOCK_CONFIGURATION_GUIDE.md) | Mock toggle configuration for development/testing |
-| [customer-endpoints.md](./api/customer-endpoints.md) | 41 endpoints (8 customer + 1 LinkedIn import + 3 enrichment/sync + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 initiative + 6 document + 4 document folder): full CRUD + search + dashboard + import + enrichment + team sync + ICP config + folders (v8.0.0) |
+| [customer-endpoints.md](./api/customer-endpoints.md) | 39 endpoints (8 customer + 1 LinkedIn import + 3 enrichment/sync + 3 search/stats + 4 agreement + 5 receivable + 5 initiative + 6 document + 4 document folder): full CRUD + search + dashboard + import + enrichment + team sync + folders. `/api/icp-settings` endpoints deprecated and removed (v9.0.0) |
 | [customer-ai-endpoints.md](./api/customer-ai-endpoints.md) | Customer AI chat streaming endpoint (POST /api/ai/customer/chat/stream) with LLM-driven agent handoff (v2.0.0) |
 
 ---
@@ -268,8 +268,8 @@ Social Post:    draft → ready
 | AI tools | 62+ across 39 tool files (35 content + 27 customer) |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 64 (22 AI/content/onboarding + 41 customer + 1 customer AI) |
-| Database tables | 23 (11 content + 7 customer + 1 document_folders + 1 ICP settings + 1 onboarding + 1 team role filters + 1 agent_interaction_logs) + 5 functions |
+| API endpoints | 62 (22 AI/content/onboarding + 39 customer + 1 customer AI) |
+| Database tables | 23 (11 content + 7 customer + 1 document_folders + 1 ICP settings [deprecated] + 1 onboarding + 1 team role filters + 1 agent_interaction_logs) + 5 functions |
 | Error categories | 13 |
 | Documentation files | 69+ |
 
@@ -285,8 +285,7 @@ Social Post:    draft → ready
 | Tool Definitions | `backend/src/services/ai/agents/` (3 agent folders + shared/) |
 | Company Classification | `backend/src/services/CompanyClassificationService.ts` |
 | Enrichment Service | `backend/src/services/EnrichmentService.ts` |
-| ICP Scoring Service | `backend/src/services/IcpScoringService.ts` |
-| ICP Settings Service | `backend/src/services/IcpSettingsService.ts` |
+| ICP Scoring Service | `backend/src/services/IcpScoringService.ts` (reads `CustomerIcp` from `user_context.customers`) |
 | Customer Service | `backend/src/services/CustomerService.ts` |
 | Initiative Service | `backend/src/services/InitiativeService.ts` |
 | Document Service | `backend/src/services/CustomerDocumentService.ts` |
@@ -310,6 +309,7 @@ Social Post:    draft → ready
 ---
 
 **Version History:**
+- **29.3.0** (2026-03-10) — ICP Consolidation: Merged `icp_settings` data into `user_context.customers` JSONB. Updated customer-management.md (v13.0.0, ICP data source, scoring weights 55%/45%, removed IcpSettingsService/icpSettingsKeys/IcpSettingsSection references), customer-endpoints.md (v9.0.0, deprecated `/api/icp-settings` section with migration note, removed icpSettings controller/service/route from headers), database-schema-reference.md (v10.0.0, deprecated icp_settings table #19, updated user_context.customers JSONB structure with 4 ICP fields, removed from ER diagram), profile-page.md (v2.0.0, 4 Customers section fields, single save path note), onboarding-wizard.md (v2.2.0, MarketStep 4 ICP fields). customer-management-flow.md and customer-agents-reference.md required no changes. 0 new doc files, 6 updated.
 - **29.2.0** (2026-03-09) — RTL/Hebrew Support: Added `tiptap-text-direction` extension to both `RichTextEditor` and `CustomerRichTextEditor`. Added RTL toggle button (Pilcrow icon) to both editor toolbars. Added CSS logical properties (border-s, ps) for blockquotes/lists, RTL ProseMirror alignment overrides, and Heebo font in `index.css`. Added `preserveDirection` Turndown rule in `markdown.ts` to preserve `dir` attributes through HTML→Markdown round-trips. Created `frontend/src/lib/text-direction.ts` with `detectTextDirection` and `containsRTL` utilities. 28 new tests (10 unit text-direction, 6 unit markdown-rtl, 8 integration RichTextEditor-rtl, 4 E2E hebrew-rtl-editor). Updated rich-text-editor.md (v1.1.0, RTL/Hebrew Support section). 0 new doc files, 2 updated.
 - **29.1.0** (2026-03-09) — Analytical Integrity Directive: Added anti-exaggeration directives to both agent system prompts (CM + PM) and all 18 content-generation tool descriptions. Fixed "presentation-ready" → "professional and well-structured" in PM system prompt. Updated customer-agents-reference.md (v7.1.0, Analytical Integrity section), customer-ai-chat.md (v2.5.0, Analytical Integrity section). 0 new doc files, 3 updated.
 - **29.0.0** (2026-03-09) — Meeting Notes Analysis Tool: Added `analyzeMeetingNotes` tool to both Customer Mgmt and Product Mgmt agents with agent-specific analysis flavoring. Shared Zod schema (`meetingNotesSchema.ts`). Updated customer-agents-reference.md (v7.0.0, +2 tools, meeting notes routing, shared schema), customer-ai-chat.md (v2.4.0, meeting notes analysis section, updated tool counts 25→27), DOCUMENTATION_INDEX (v29.0.0, updated tool counts 60+→62+). 0 new doc files, 3 updated.

@@ -1,18 +1,18 @@
 # Customer API Endpoints
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-08
-**Version:** 8.0.0
-**Status:** Complete (Phase 10 — Initiative & Document Restructure)
+**Last Updated:** 2026-03-10
+**Version:** 9.0.0
+**Status:** Complete (Phase 14 — ICP Consolidation)
 
 ## Overview
 
 RESTful CRUD API for customer management. All endpoints require Bearer token authentication via the `requireAuth` middleware.
 
 **Base path:** `/api/customers`
-**Controllers:** `customer.controller.ts`, `linkedinImport.controller.ts`, `icpSettings.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `initiative.controller.ts`, `customer-document.controller.ts`
-**Services:** `CustomerService.ts`, `LinkedInImportService.ts`, `EnrichmentService.ts`, `IcpScoringService.ts`, `IcpSettingsService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `InitiativeService.ts`, `CustomerDocumentService.ts`, `DocumentFolderService.ts`
-**Routes:** `customers.ts`, `icp-settings.ts`, `agreements.ts`, `receivables.ts`, `initiatives.ts`, `customer-documents.ts`, `document-folders.ts`
+**Controllers:** `customer.controller.ts`, `linkedinImport.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `initiative.controller.ts`, `customer-document.controller.ts`
+**Services:** `CustomerService.ts`, `LinkedInImportService.ts`, `EnrichmentService.ts`, `IcpScoringService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `InitiativeService.ts`, `CustomerDocumentService.ts`, `DocumentFolderService.ts`
+**Routes:** `customers.ts`, `agreements.ts`, `receivables.ts`, `initiatives.ts`, `customer-documents.ts`, `document-folders.ts`
 
 Agreement and receivable sub-routes are mounted with `mergeParams: true`, giving handlers access to the parent `:id` (customer ID) parameter.
 
@@ -955,70 +955,17 @@ Delete a folder. All documents inside are moved to the 'General' folder before d
 
 ---
 
-## ICP Settings Endpoints
+## ICP Settings Endpoints (Deprecated)
 
-ICP settings endpoints are mounted at `/api/icp-settings`. Requires `customer_management` feature flag.
-
-**Controller:** `backend/src/controllers/icpSettings.controller.ts`
-**Service:** `backend/src/services/IcpSettingsService.ts`
-**Router:** `backend/src/routes/icp-settings.ts`
-
----
-
-### GET /api/icp-settings
-
-Get the authenticated user's ICP settings.
-
-**Response 200:**
-```json
-{
-  "id": "uuid",
-  "user_id": "uuid",
-  "target_employee_min": 50,
-  "target_employee_max": 500,
-  "target_industries": ["SaaS", "Fintech"],
-  "target_specialties": ["AI", "B2B", "Enterprise"],
-  "description": "Mid-size B2B SaaS companies in the AI space...",
-  "weight_quantitative": 60,
-  "created_at": "2026-02-28T10:00:00Z",
-  "updated_at": "2026-02-28T12:00:00Z"
-}
-```
-
-Returns `null` (200) if no settings configured yet.
-
-**Errors:** 401 (unauthorized), 403 (feature disabled), 500 (server error)
-
----
-
-### PUT /api/icp-settings
-
-Create or update ICP settings (upsert via `ON CONFLICT user_id`).
-
-**Body (Zod validated):**
-```json
-{
-  "target_employee_min": 50,
-  "target_employee_max": 500,
-  "target_industries": ["SaaS", "Fintech"],
-  "target_specialties": ["AI", "B2B", "Enterprise"],
-  "description": "Mid-size B2B SaaS companies in the AI space...",
-  "weight_quantitative": 60
-}
-```
-
-| Field | Type | Required | Validation |
-|-------|------|----------|------------|
-| `target_employee_min` | number or null | No | Integer, min 0 |
-| `target_employee_max` | number or null | No | Integer, min 0 |
-| `target_industries` | string[] | No | Max 20 items, each max 100 chars |
-| `target_specialties` | string[] | No | Max 50 items, each max 100 chars |
-| `description` | string | No | Max 2000 chars |
-| `weight_quantitative` | number | No | Integer 0-100 (default 60). Qualitative weight = 100 - this value |
-
-**Response 200:** Updated ICP settings object
-
-**Errors:** 400 (validation error), 401 (unauthorized), 403 (feature disabled), 500 (server error)
+> **Deprecated as of 2026-03-10.** The `/api/icp-settings` route has been removed. ICP criteria are now stored in `user_context.customers` and managed through the user context API (`PUT /api/user-context`). The `icp_settings` table is retained for rollback but will be dropped in a future migration.
+>
+> ICP criteria fields now stored in `user_context.customers`:
+> - `ideal_client` — free text description of ideal customer (replaces `description`)
+> - `company_stage` — multi-select: Pre-Seed, Seed Stage, Early Stage (Series A & B), Growth Stage (Series C+), Maturity & Exit
+> - `employee_min` / `employee_max` — target employee count range (replaces `target_employee_min` / `target_employee_max`)
+> - `industry_verticals` — free text tags (replaces `target_industries`)
+>
+> ICP scoring weights changed from 40/35/25 (employee/industry/specialties) to **55% employee count / 45% industry verticals** (specialties field removed).
 
 ---
 

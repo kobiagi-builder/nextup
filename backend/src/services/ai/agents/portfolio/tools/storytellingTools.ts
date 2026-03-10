@@ -477,13 +477,7 @@ export const analyzeStorytellingStructure = tool({
         .eq('user_id', artifact.user_id)
         .single();
 
-      const { data: icpRow } = await getSupabase()
-        .from('icp_settings')
-        .select('description')
-        .eq('user_id', artifact.user_id)
-        .single();
-
-      const icpDescription = icpRow?.description || userContext?.customers?.target_audience || 'Not specified';
+      const icpDescription = userContext?.customers?.ideal_client || 'Not specified';
 
       const userContextStr = userContext
         ? `

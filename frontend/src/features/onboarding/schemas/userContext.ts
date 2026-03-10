@@ -25,10 +25,29 @@ export const professionSchema = z.object({
   certifications: z.string().max(2000).optional(),
 })
 
+export const COMPANY_STAGE_OPTIONS = [
+  'Pre-Seed',
+  'Seed Stage',
+  'Early Stage (Series A & B)',
+  'Growth Stage (Series C+)',
+  'Maturity & Exit',
+] as const
+
 export const customersSchema = z.object({
   ideal_client: z.string().max(2000).optional(),
-  industries_served: z.array(z.string()).optional(),
-})
+  company_stage: z.array(z.string()).optional(),
+  target_employee_min: z.number().min(0).nullable().optional(),
+  target_employee_max: z.number().min(0).nullable().optional(),
+  industry_verticals: z.array(z.string()).optional(),
+}).refine(
+  (data) => {
+    if (data.target_employee_min != null && data.target_employee_max != null) {
+      return data.target_employee_min <= data.target_employee_max
+    }
+    return true
+  },
+  { message: 'Min employees must be less than or equal to max', path: ['target_employee_max'] },
+)
 
 export const goalsSchema = z.object({
   content_goals: z.string().max(2000).optional(),

@@ -12,10 +12,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { toast } from '@/hooks/use-toast'
 import { TagsInput } from '@/features/portfolio/components/artifact/TagsInput'
-import { useIcpSettings, useUpsertIcpSettings } from '@/features/customers/hooks/useIcpSettings'
-import type { IcpSettingsInput } from '@/features/customers/types'
+import { ChipToggle } from '@/features/onboarding/components/shared/ChipToggle'
 import type {
   UserContext,
   UpdateUserContextInput,
@@ -29,6 +27,7 @@ import {
   professionSchema,
   customersSchema,
   goalsSchema,
+  COMPANY_STAGE_OPTIONS,
 } from '@/features/onboarding/schemas/userContext'
 
 type SectionType = 'about_me' | 'profession' | 'customers' | 'goals'
@@ -39,7 +38,6 @@ interface UserContextFormProps {
   onSubmit: (data: UpdateUserContextInput) => void
   onCancel: () => void
   isLoading?: boolean
-  showIcp?: boolean
 }
 
 /**
@@ -211,150 +209,128 @@ function ProfessionForm({
 /**
  * Customers form section
  *
- * When showIcp is true, includes ICP Profile fields (employee range,
- * industries, specialties, description) with a coordinated save that
- * persists both user-context and ICP settings.
+ * All 4 ICP fields stored in user_context.customers JSONB:
+ * ideal_client, company_stage, employee range, industry_verticals.
  */
 function CustomersForm({
   data,
   onSubmit,
   onCancel,
   isLoading,
-  showIcp,
 }: {
   data?: Customers
   onSubmit: (data: Customers) => void
   onCancel: () => void
   isLoading?: boolean
-  showIcp?: boolean
 }) {
   const {
+    register,
     handleSubmit,
   } = useForm({
     resolver: zodResolver(customersSchema),
     defaultValues: {
       ideal_client: data?.ideal_client ?? '',
-      industries_served: data?.industries_served ?? [],
+      company_stage: data?.company_stage ?? [],
+      target_employee_min: data?.target_employee_min ?? null,
+      target_employee_max: data?.target_employee_max ?? null,
+      industry_verticals: data?.industry_verticals ?? [],
     },
   })
 
-  // ICP hooks — always called (React rules), data ignored when showIcp=false
-  const { data: icpSettings } = useIcpSettings()
-  const upsertIcp = useUpsertIcpSettings()
+  // Local state for fields managed outside react-hook-form
+  const [companyStage, setCompanyStage] = useState<string[]>(data?.company_stage ?? [])
+  const [industryVerticals, setIndustryVerticals] = useState<string[]>(data?.industry_verticals ?? [])
+  const [employeeMin, setEmployeeMin] = useState(data?.target_employee_min?.toString() ?? '')
+  const [employeeMax, setEmployeeMax] = useState(data?.target_employee_max?.toString() ?? '')
 
-  // Initialize ICP state from cached settings (fixes empty-modal bug)
-  const [employeeMin, setEmployeeMin] = useState(icpSettings?.target_employee_min?.toString() ?? '')
-  const [employeeMax, setEmployeeMax] = useState(icpSettings?.target_employee_max?.toString() ?? '')
-  const [industries, setIndustries] = useState<string[]>(icpSettings?.target_industries ?? [])
-  const [specialties, setSpecialties] = useState<string[]>(icpSettings?.target_specialties ?? [])
-  const [icpDescription, setIcpDescription] = useState(icpSettings?.description ?? '')
-
-  // Sync ICP form state when settings load after mount (React-recommended render-time pattern)
-  const [prevIcpSettings, setPrevIcpSettings] = useState(icpSettings)
-  if (icpSettings !== prevIcpSettings) {
-    setPrevIcpSettings(icpSettings)
-    setEmployeeMin(icpSettings?.target_employee_min?.toString() ?? '')
-    setEmployeeMax(icpSettings?.target_employee_max?.toString() ?? '')
-    setIndustries(icpSettings?.target_industries ?? [])
-    setSpecialties(icpSettings?.target_specialties ?? [])
-    setIcpDescription(icpSettings?.description ?? '')
+  const handleFormSubmit = (formData: z.infer<typeof customersSchema>) => {
+    onSubmit({
+      ideal_client: formData.ideal_client,
+      company_stage: companyStage,
+      target_employee_min: employeeMin ? parseInt(employeeMin, 10) : null,
+      target_employee_max: employeeMax ? parseInt(employeeMax, 10) : null,
+      industry_verticals: industryVerticals,
+    })
   }
-
-  const handleFormSubmit = async (formData: z.infer<typeof customersSchema>) => {
-    // Save ICP settings first when enabled
-    if (showIcp) {
-      const input: IcpSettingsInput = {
-        target_employee_min: employeeMin ? parseInt(employeeMin, 10) : null,
-        target_employee_max: employeeMax ? parseInt(employeeMax, 10) : null,
-        target_industries: industries,
-        target_specialties: specialties,
-        description: icpDescription,
-      }
-      try {
-        await upsertIcp.mutateAsync(input)
-      } catch {
-        toast({ title: 'Failed to save ICP settings', variant: 'destructive' })
-        return
-      }
-    }
-    // Then save user context (parent closes dialog)
-    onSubmit(formData as Customers)
-  }
-
-  const isSaving = isLoading || upsertIcp.isPending
 
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
-      {showIcp && (
-        <>
-          <div>
-            <h3 className="text-sm font-medium text-foreground">ICP Profile</h3>
-            <p className="text-xs text-muted-foreground mt-1">
-              Define your ideal customer profile for automated scoring.
-            </p>
-          </div>
+      <div className="space-y-2">
+        <Label htmlFor="ideal_client">Ideal Customer Description</Label>
+        <Textarea
+          id="ideal_client"
+          rows={3}
+          placeholder="Describe your ideal client. e.g., Series A-C B2B SaaS companies with 50-200 employees looking to establish product-led growth."
+          {...register('ideal_client')}
+        />
+      </div>
 
-          <div className="space-y-2">
-            <Label>Target Employee Count</Label>
-            <div className="flex items-center gap-3">
-              <Input
-                type="number"
-                placeholder="Min"
-                value={employeeMin}
-                onChange={(e) => setEmployeeMin(e.target.value)}
-                min={0}
-                className="w-28"
+      <div className="space-y-2">
+        <Label id="company-stage-label">Company Stage</Label>
+        <p className="text-xs text-muted-foreground -mt-1">Select all that apply</p>
+        <div
+          role="group"
+          aria-labelledby="company-stage-label"
+          className="flex flex-wrap gap-2"
+        >
+          {COMPANY_STAGE_OPTIONS.map((option) => {
+            const selected = companyStage.includes(option)
+            return (
+              <ChipToggle
+                key={option}
+                label={option}
+                selected={selected}
+                onToggle={() => {
+                  setCompanyStage((prev) =>
+                    selected ? prev.filter((v) => v !== option) : [...prev, option]
+                  )
+                }}
               />
-              <span className="text-muted-foreground text-sm">to</span>
-              <Input
-                type="number"
-                placeholder="Max"
-                value={employeeMax}
-                onChange={(e) => setEmployeeMax(e.target.value)}
-                min={0}
-                className="w-28"
-              />
-              <span className="text-muted-foreground text-xs">employees</span>
-            </div>
-          </div>
+            )
+          })}
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label>Target Industries</Label>
-            <TagsInput
-              tags={industries}
-              onChange={setIndustries}
-              placeholder="Add industries (e.g., SaaS, Fintech)..."
+      <div className="space-y-2">
+        <Label>Number of Employees</Label>
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <Input
+              type="number"
+              placeholder="Min"
+              min={0}
+              value={employeeMin}
+              onChange={(e) => setEmployeeMin(e.target.value)}
             />
           </div>
-
-          <div className="space-y-2">
-            <Label>Target Specialties</Label>
-            <TagsInput
-              tags={specialties}
-              onChange={setSpecialties}
-              placeholder="Add specialties (e.g., AI, Enterprise, B2B)..."
+          <span className="text-muted-foreground text-sm">to</span>
+          <div className="flex-1">
+            <Input
+              type="number"
+              placeholder="Max"
+              min={0}
+              value={employeeMax}
+              onChange={(e) => setEmployeeMax(e.target.value)}
             />
           </div>
+        </div>
+      </div>
 
-          <div className="space-y-2">
-            <Label>ICP Description</Label>
-            <Textarea
-              value={icpDescription}
-              onChange={(e) => setIcpDescription(e.target.value)}
-              placeholder="Describe your ideal customer in free text. This is used for qualitative AI scoring..."
-              rows={3}
-              className="resize-none"
-            />
-          </div>
-        </>
-      )}
+      <div className="space-y-2">
+        <Label>Industry Verticals</Label>
+        <TagsInput
+          tags={industryVerticals}
+          onChange={setIndustryVerticals}
+          placeholder="Type an industry and press Enter (e.g., Fintech, Cyber, SaaS)"
+        />
+      </div>
 
       <div className="flex justify-end gap-3 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button type="submit" disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save'}
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Saving...' : 'Save'}
         </Button>
       </div>
     </form>
@@ -420,7 +396,6 @@ export function UserContextForm({
   onSubmit,
   onCancel,
   isLoading,
-  showIcp,
 }: UserContextFormProps) {
   const handleSectionSubmit = (data: AboutMe | Profession | Customers | Goals) => {
     console.log('[UserContextForm] handleSectionSubmit called with section:', section, 'data:', data)
@@ -453,7 +428,6 @@ export function UserContextForm({
           onSubmit={handleSectionSubmit}
           onCancel={onCancel}
           isLoading={isLoading}
-          showIcp={showIcp}
         />
       )
     case 'goals':

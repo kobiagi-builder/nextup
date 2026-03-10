@@ -1,8 +1,8 @@
 # Onboarding Wizard
 
 **Created:** 2026-03-02
-**Last Updated:** 2026-03-02
-**Version:** 2.1.0
+**Last Updated:** 2026-03-10
+**Version:** 2.2.0
 **Status:** Complete (Phase 1 + Phase 2)
 
 ## Overview
@@ -21,7 +21,7 @@ Phase 2 added UX polish: CSS-first step transition animations, extraction waterf
 4. Profile fields are revealed one-by-one in a waterfall animation as AI extraction results arrive
 5. Each pre-filled field shows an "AI-extracted" badge; user-edited fields show "Needs your input"
 6. User reviews About Me, Expertise, Market, and Goals sections across 3 form steps
-7. MarketStep includes ChipToggle priorities selector (Thought Leadership, Lead Generation, etc.)
+7. MarketStep includes all 4 customer ICP fields (ideal client description, company stage multi-select, employee count range, industry verticals tags) and ChipToggle priorities selector (Thought Leadership, Lead Generation, etc.)
 8. User optionally uploads writing references for voice analysis (mobile: vertical stacked layout)
 9. Completion screen with animated checkmark, confetti, personalized greeting, and summary rows
 
@@ -143,7 +143,7 @@ RLS policies: users can only read/write their own row.
 | `frontend/src/features/onboarding/components/steps/WelcomeStep.tsx` | Welcome screen with 3-stage staggered entrance, time badge, value props |
 | `frontend/src/features/onboarding/components/ImportStep.tsx` | URL input + extraction trigger, duplicate URL warning |
 | `frontend/src/features/onboarding/components/ProfileStep.tsx` | About Me + Profession with extraction waterfall, collapsed fields, OnboardingField wrappers |
-| `frontend/src/features/onboarding/components/MarketStep.tsx` | Customers + Goals + ChipToggle priorities selector |
+| `frontend/src/features/onboarding/components/MarketStep.tsx` | Customers section (all 4 ICP fields: ideal client, company stage, employee range, industry verticals) + Goals + ChipToggle priorities selector |
 | `frontend/src/features/onboarding/components/VoiceStep.tsx` | Writing reference upload |
 | `frontend/src/features/onboarding/components/CompletionStep.tsx` | Celebration: AnimatedCheckmark, confetti, personalized greeting, summary rows |
 | `frontend/src/features/onboarding/components/OnboardingReferenceUpload.tsx` | 4-method reference upload (mobile: vertical buttons, desktop: shadcn Tabs) |
