@@ -20,6 +20,7 @@ import {
 } from '../../hooks/useCustomerStructuredChat'
 import { useQueryClient } from '@tanstack/react-query'
 import { customerKeys } from '../../hooks/useCustomers'
+import { CopyButton } from '@/components/ui/copy-button'
 import { StatusChangeCard } from './StatusChangeCard'
 import { ArtifactCreatedCard } from './ArtifactCreatedCard'
 import { ProjectCreatedCard } from './RecommendationCard'
@@ -57,6 +58,7 @@ export function CustomerChatPanel({
 }: CustomerChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
+  const userHasScrolledUpRef = useRef(false)
   const queryClient = useQueryClient()
 
   // File attachment support
@@ -85,13 +87,28 @@ export function CustomerChatPanel({
     onCustomerDataChanged: handleCustomerDataChanged,
   })
 
-  // Auto-scroll to bottom
+  // Track user scroll position to avoid hijacking scroll during streaming
   useEffect(() => {
-    if (scrollRef.current) {
-      const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]')
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight
-      }
+    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]')
+    if (!viewport) return
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight
+      userHasScrolledUpRef.current = distanceFromBottom > 100
+    }
+
+    viewport.addEventListener('scroll', handleScroll)
+    return () => viewport.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Auto-scroll to bottom only when user is near the bottom
+  useEffect(() => {
+    if (userHasScrolledUpRef.current) return
+
+    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]')
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight
     }
   }, [messages, isStreaming])
 
@@ -150,6 +167,7 @@ export function CustomerChatPanel({
           value={input}
           onChange={setInput}
           onSubmit={() => {
+            userHasScrolledUpRef.current = false
             sendMessage(undefined, attachments.length > 0 ? attachments : undefined)
             clearAttachments()
           }}
@@ -180,7 +198,8 @@ function CustomerMessageRenderer({ message }: { message: CustomerParsedMessage }
           <User className="h-4 w-4" />
         </div>
         <div className="flex max-w-[80%] flex-col gap-2 items-end">
-          <div className="rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm">
+          <div className="relative group/msg rounded-lg bg-primary text-primary-foreground px-4 py-2 text-sm">
+            <CopyButton getText={() => message.content} />
             <div className="whitespace-pre-wrap break-words">{message.content}</div>
           </div>
         </div>
@@ -202,7 +221,10 @@ function CustomerMessageRenderer({ message }: { message: CustomerParsedMessage }
 
         {/* Text content — markdown rendered as sanitized HTML */}
         {message.content && (
-          <AssistantContent text={message.content} />
+          <div className="relative group/msg">
+            <CopyButton getText={() => message.content} />
+            <AssistantContent text={message.content} />
+          </div>
         )}
       </div>
     </div>

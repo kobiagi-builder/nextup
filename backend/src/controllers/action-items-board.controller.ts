@@ -21,7 +21,7 @@ const createBoardActionItemSchema = z.object({
   type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
   description: z.string().min(1, 'Description is required'),
   due_date: dateString.nullable().optional(),
-  status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional(),
+  status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
   customer_id: z.string().uuid().nullable().optional(),
 })
 
@@ -29,7 +29,7 @@ const updateBoardActionItemSchema = z.object({
   type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
   description: z.string().min(1).optional(),
   due_date: dateString.nullable().optional(),
-  status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional(),
+  status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
   customer_id: z.string().uuid().nullable().optional(),
 })
 

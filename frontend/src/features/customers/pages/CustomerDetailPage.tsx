@@ -18,7 +18,7 @@ import { useCustomer, useUpdateCustomer, useUpdateCustomerStatus, useCustomerCha
 import { useCustomerStore } from '../stores'
 import { CustomerStatusPill } from '../components/shared/CustomerStatusPill'
 import { IcpScorePill } from '../components/shared/IcpScorePill'
-import { ProjectsTab } from '../components/projects'
+import { DocumentsTab } from '../components/projects'
 import { OverviewTab } from '../components/overview/OverviewTab'
 import { AgreementsTab } from '../components/agreements/AgreementsTab'
 import { ReceivablesTab } from '../components/receivables/ReceivablesTab'
@@ -247,6 +247,18 @@ export function CustomerDetailPage() {
               Overview
             </TabsTrigger>
             <TabsTrigger
+              value="action_items"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
+            >
+              Action Items{customer.action_items_count > 0 ? ` (${customer.action_items_count})` : ''}
+            </TabsTrigger>
+            <TabsTrigger
+              value="documents"
+              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
+            >
+              Documents
+            </TabsTrigger>
+            <TabsTrigger
               value="agreements"
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
@@ -257,18 +269,6 @@ export function CustomerDetailPage() {
               className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
             >
               Receivables{customer.receivables_count > 0 ? ` (${customer.receivables_count})` : ''}
-            </TabsTrigger>
-            <TabsTrigger
-              value="projects"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
-            >
-              Projects{customer.projects_count > 0 ? ` (${customer.projects_count})` : ''}
-            </TabsTrigger>
-            <TabsTrigger
-              value="action_items"
-              className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-primary rounded-none px-1 pb-2"
-            >
-              Action Items{customer.action_items_count > 0 ? ` (${customer.action_items_count})` : ''}
             </TabsTrigger>
           </TabsList>
         </div>
@@ -283,20 +283,20 @@ export function CustomerDetailPage() {
             />
           </TabsContent>
 
+          <TabsContent value="action_items" className="px-6 py-6 mt-0">
+            <ActionItemsTab customerId={customer.id} />
+          </TabsContent>
+
+          <TabsContent value="documents" className="px-6 py-6 mt-0">
+            <DocumentsTab customerId={customer.id} />
+          </TabsContent>
+
           <TabsContent value="agreements" className="px-6 py-6 mt-0">
             <AgreementsTab customerId={customer.id} />
           </TabsContent>
 
           <TabsContent value="receivables" className="px-6 py-6 mt-0">
             <ReceivablesTab customerId={customer.id} />
-          </TabsContent>
-
-          <TabsContent value="projects" className="px-6 py-6 mt-0">
-            <ProjectsTab customerId={customer.id} />
-          </TabsContent>
-
-          <TabsContent value="action_items" className="px-6 py-6 mt-0">
-            <ActionItemsTab customerId={customer.id} />
           </TabsContent>
         </div>
       </Tabs>

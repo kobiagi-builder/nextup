@@ -1,18 +1,18 @@
 # Customer API Endpoints
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-04
-**Version:** 7.0.0
-**Status:** Complete (Phase 9 — LinkedIn Team Extraction)
+**Last Updated:** 2026-03-08
+**Version:** 8.0.0
+**Status:** Complete (Phase 10 — Initiative & Document Restructure)
 
 ## Overview
 
 RESTful CRUD API for customer management. All endpoints require Bearer token authentication via the `requireAuth` middleware.
 
 **Base path:** `/api/customers`
-**Controllers:** `customer.controller.ts`, `linkedinImport.controller.ts`, `icpSettings.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `project.controller.ts`, `customer-artifact.controller.ts`
-**Services:** `CustomerService.ts`, `LinkedInImportService.ts`, `EnrichmentService.ts`, `IcpScoringService.ts`, `IcpSettingsService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `ProjectService.ts`, `CustomerArtifactService.ts`
-**Routes:** `customers.ts`, `icp-settings.ts`, `agreements.ts`, `receivables.ts`, `projects.ts`, `customer-artifacts.ts`
+**Controllers:** `customer.controller.ts`, `linkedinImport.controller.ts`, `icpSettings.controller.ts`, `agreement.controller.ts`, `receivable.controller.ts`, `initiative.controller.ts`, `customer-document.controller.ts`
+**Services:** `CustomerService.ts`, `LinkedInImportService.ts`, `EnrichmentService.ts`, `IcpScoringService.ts`, `IcpSettingsService.ts`, `AgreementService.ts`, `ReceivableService.ts`, `InitiativeService.ts`, `CustomerDocumentService.ts`, `DocumentFolderService.ts`
+**Routes:** `customers.ts`, `icp-settings.ts`, `agreements.ts`, `receivables.ts`, `initiatives.ts`, `customer-documents.ts`, `document-folders.ts`
 
 Agreement and receivable sub-routes are mounted with `mergeParams: true`, giving handlers access to the parent `:id` (customer ID) parameter.
 
@@ -108,7 +108,7 @@ Get a single customer with tab counts.
   "info": { "..." : "..." },
   "agreements_count": 2,
   "receivables_count": 5,
-  "projects_count": 1,
+  "initiatives_count": 1,
   "created_at": "...",
   "updated_at": "..."
 }
@@ -283,9 +283,9 @@ Dashboard stats for the authenticated user. Calls `get_customer_dashboard_stats`
 
 ---
 
-### GET /api/customers/artifacts/search
+### GET /api/customers/documents/search
 
-Search customer artifacts by title for cross-module linking (portfolio -> customer artifacts). Query capped at 200 characters.
+Search customer documents by title for cross-module linking (portfolio -> customer documents). Query capped at 200 characters.
 
 **Query Parameters:**
 
@@ -296,7 +296,7 @@ Search customer artifacts by title for cross-module linking (portfolio -> custom
 **Response 200:**
 ```json
 {
-  "artifacts": [
+  "documents": [
     {
       "id": "uuid",
       "title": "Product Strategy 2026",
@@ -643,24 +643,24 @@ Hard delete a receivable.
 
 ---
 
-## Project Endpoints
+## Initiative Endpoints
 
-All project endpoints are nested under `/api/customers/:id/projects`. The `:id` parameter is the customer ID.
+All initiative endpoints are nested under `/api/customers/:id/initiatives`. The `:id` parameter is the customer ID.
 
-**Controller:** `backend/src/controllers/project.controller.ts`
-**Service:** `backend/src/services/ProjectService.ts`
-**Router:** `backend/src/routes/projects.ts` (mounted with `mergeParams: true`)
+**Controller:** `backend/src/controllers/initiative.controller.ts`
+**Service:** `backend/src/services/InitiativeService.ts`
+**Router:** `backend/src/routes/initiatives.ts` (mounted with `mergeParams: true`)
 
 ---
 
-### GET /api/customers/:id/projects
+### GET /api/customers/:id/initiatives
 
-List all projects for a customer with artifact counts.
+List all initiatives for a customer with document counts.
 
 **Response 200:**
 ```json
 {
-  "projects": [
+  "initiatives": [
     {
       "id": "uuid",
       "customer_id": "uuid",
@@ -669,7 +669,7 @@ List all projects for a customer with artifact counts.
       "status": "active",
       "agreement_id": "uuid or null",
       "metadata": {},
-      "artifacts_count": 3,
+      "documents_count": 3,
       "created_at": "2026-02-25T10:00:00Z",
       "updated_at": "2026-02-25T12:00:00Z"
     }
@@ -682,19 +682,19 @@ List all projects for a customer with artifact counts.
 
 ---
 
-### GET /api/customers/:id/projects/:projectId
+### GET /api/customers/:id/initiatives/:initiativeId
 
-Get a single project with artifact count.
+Get a single initiative with document count.
 
-**Response 200:** Single `ProjectWithCounts` object (same shape as list item).
+**Response 200:** Single `InitiativeWithCounts` object (same shape as list item).
 
 **Errors:** 400, 401, 404, 500
 
 ---
 
-### POST /api/customers/:id/projects
+### POST /api/customers/:id/initiatives
 
-Create a new project for a customer.
+Create a new initiative for a customer.
 
 **Body (Zod validated):**
 ```json
@@ -710,58 +710,60 @@ Create a new project for a customer.
 |-------|------|----------|------------|
 | `name` | string | Yes | Min 1 char |
 | `description` | string | No | Free text |
-| `status` | ProjectStatus | No | Enum: `planning`, `active`, `on_hold`, `completed`, `archived`. Defaults to `planning` |
+| `status` | InitiativeStatus | No | Enum: `planning`, `active`, `on_hold`, `completed`, `archived`. Defaults to `planning` |
 | `agreement_id` | string or null | No | UUID of linked agreement |
 
-**Response 201:** Created project object
+**Response 201:** Created initiative object
 
 **Errors:** 400, 401, 500
 
 ---
 
-### PUT /api/customers/:id/projects/:projectId
+### PUT /api/customers/:id/initiatives/:initiativeId
 
-Update a project (partial update). All fields optional, at least one required.
+Update an initiative (partial update). All fields optional, at least one required.
 
-**Response 200:** Updated project object
+**Response 200:** Updated initiative object
 
 ---
 
-### DELETE /api/customers/:id/projects/:projectId
+### DELETE /api/customers/:id/initiatives/:initiativeId
 
-Hard delete a project. Database CASCADE deletes child artifacts.
+Safe delete — moves child documents to the 'General' folder (ON DELETE RESTRICT prevents cascade). Returns count of moved documents.
 
 **Response 200:**
 ```json
 {
-  "message": "Project deleted successfully"
+  "message": "Initiative deleted successfully",
+  "moved_documents": 4
 }
 ```
 
 ---
 
-## Artifact Endpoints
+## Document Endpoints
 
-Artifact endpoints are nested under `/api/customers/:id/projects/:projectId/artifacts`. Additionally, a flat list of all artifacts across projects is available at `/api/customers/:id/artifacts`.
+Document endpoints are nested under `/api/customers/:id/initiatives/:initiativeId/documents`. A flat list of all documents across all initiatives is also available at `/api/customers/:id/documents`.
 
-**Controller:** `backend/src/controllers/customer-artifact.controller.ts`
-**Service:** `backend/src/services/CustomerArtifactService.ts`
-**Router:** `backend/src/routes/customer-artifacts.ts` (mounted with `mergeParams: true`)
+**Controller:** `backend/src/controllers/customer-document.controller.ts`
+**Service:** `backend/src/services/CustomerDocumentService.ts`
+**Router:** `backend/src/routes/customer-documents.ts` (mounted with `mergeParams: true`)
 
 ---
 
-### GET /api/customers/:id/projects/:projectId/artifacts
+### GET /api/customers/:id/initiatives/:initiativeId/documents
 
-List artifacts for a project, ordered by `updated_at DESC`.
+List documents for an initiative, ordered by `updated_at DESC`.
 
 **Response 200:**
 ```json
 {
-  "artifacts": [
+  "documents": [
     {
       "id": "uuid",
-      "project_id": "uuid",
+      "initiative_id": "uuid",
       "customer_id": "uuid",
+      "folder_id": "uuid or null",
       "type": "strategy",
       "title": "Product Strategy 2026",
       "content": "# Strategy\n\n- Focus on...",
@@ -777,17 +779,17 @@ List artifacts for a project, ordered by `updated_at DESC`.
 
 ---
 
-### GET /api/customers/:id/artifacts
+### GET /api/customers/:id/documents
 
-List ALL artifacts across all projects for a customer (flat view).
+List ALL documents across all initiatives for a customer (flat view).
 
 **Response 200:** Same shape as above.
 
 ---
 
-### POST /api/customers/:id/projects/:projectId/artifacts
+### POST /api/customers/:id/initiatives/:initiativeId/documents
 
-Create a new artifact in a project.
+Create a new document in an initiative.
 
 **Body (Zod validated):**
 ```json
@@ -800,32 +802,156 @@ Create a new artifact in a project.
 | Field | Type | Required | Validation |
 |-------|------|----------|------------|
 | `title` | string | Yes | Min 1 char |
-| `type` | ArtifactType | No | Enum (10 values). Defaults to `custom` |
+| `type` | DocumentType | No | Enum (10 values). Defaults to `custom` |
 | `content` | string | No | Defaults to empty string |
-| `status` | ArtifactStatus | No | Enum: `draft`, `in_progress`, `review`, `final`, `archived`. Defaults to `draft` |
+| `status` | DocumentStatus | No | Enum: `draft`, `in_progress`, `review`, `final`, `archived`. Defaults to `draft` |
+| `folder_id` | string or null | No | UUID of the folder to place the document in |
 
-**Response 201:** Created artifact object
-
----
-
-### PUT /api/customers/:id/projects/:projectId/artifacts/:artifactId
-
-Update an artifact (partial update). Used by the auto-save feature for content updates.
-
-**Response 200:** Updated artifact object
+**Response 201:** Created document object
 
 ---
 
-### DELETE /api/customers/:id/projects/:projectId/artifacts/:artifactId
+### PUT /api/customers/:id/initiatives/:initiativeId/documents/:documentId
 
-Hard delete an artifact.
+Update a document (partial update). Used by the auto-save feature for content updates. Supports reassignment via `initiative_id` and `folder_id`.
+
+**Body (Zod validated):**
+```json
+{
+  "title": "Updated Title",
+  "status": "in_progress",
+  "initiative_id": "uuid",
+  "folder_id": "uuid or null"
+}
+```
+
+**Response 200:** Updated document object
+
+---
+
+### DELETE /api/customers/:id/initiatives/:initiativeId/documents/:documentId
+
+Hard delete a document.
 
 **Response 200:**
 ```json
 {
-  "message": "Artifact deleted successfully"
+  "message": "Document deleted successfully"
 }
 ```
+
+---
+
+## Document Folder Endpoints
+
+Document folder endpoints are mounted at `/api/document-folders`. Requires `customer_management` feature flag.
+
+**Controller:** `backend/src/controllers/document-folder.controller.ts`
+**Service:** `backend/src/services/DocumentFolderService.ts`
+**Router:** `backend/src/routes/document-folders.ts`
+
+---
+
+### GET /api/document-folders
+
+List folders available to the authenticated user. Returns global system folders (e.g., 'General') and customer-specific folders. Filter by customer using the `customerId` query parameter.
+
+**Query Parameters:**
+
+| Param | Type | Required | Description |
+|-------|------|----------|-------------|
+| `customerId` | string | No | UUID — filter to folders for a specific customer (includes global folders) |
+
+**Response 200:**
+```json
+{
+  "folders": [
+    {
+      "id": "uuid",
+      "name": "General",
+      "customer_id": null,
+      "sort_order": 0,
+      "is_system": true,
+      "created_at": "2026-02-25T10:00:00Z",
+      "updated_at": "2026-02-25T10:00:00Z"
+    },
+    {
+      "id": "uuid",
+      "name": "Templates",
+      "customer_id": "uuid",
+      "sort_order": 1,
+      "is_system": false,
+      "created_at": "2026-03-01T10:00:00Z",
+      "updated_at": "2026-03-01T10:00:00Z"
+    }
+  ],
+  "count": 2
+}
+```
+
+**Errors:** 401, 403 (feature disabled), 500
+
+---
+
+### POST /api/document-folders
+
+Create a new document folder for a customer.
+
+**Body (Zod validated):**
+```json
+{
+  "name": "Templates",
+  "customer_id": "uuid"
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `name` | string | Yes | Min 1 char |
+| `customer_id` | string | Yes | UUID of the owning customer |
+
+**Response 201:** Created folder object
+
+**Errors:** 400 (validation error), 401, 403 (feature disabled), 500
+
+---
+
+### PUT /api/document-folders/:id
+
+Update a folder name or sort order. System folders cannot be renamed.
+
+**Body (Zod validated):**
+```json
+{
+  "name": "Renamed Folder",
+  "sort_order": 2
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `name` | string | No | Min 1 char |
+| `sort_order` | number | No | Integer |
+
+**Response 200:** Updated folder object
+
+**Errors:** 400 (validation / missing ID), 401, 403 (feature disabled or system folder), 500
+
+---
+
+### DELETE /api/document-folders/:id
+
+Delete a folder. All documents inside are moved to the 'General' folder before deletion. Returns 403 for system folders.
+
+**Response 200:**
+```json
+{
+  "message": "Folder deleted successfully",
+  "moved_documents": 3
+}
+```
+
+**Errors:** 400 (missing ID), 401, 403 (feature disabled or system folder), 500
 
 ---
 

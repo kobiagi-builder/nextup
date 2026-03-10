@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function createProductStrategyTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -436,9 +436,12 @@ Strategy work is premium fractional PM value - many startups and small companies
 - The best strategies are simple enough to explain in a few sentences
 - **Fractional**: Facilitate strategy discovery, don't hand them a strategy
 - **Fractional**: Strategy they discover with your help will be executed; strategy you create won't
-- **Fractional**: Leave behind frameworks for ongoing strategic review`,
+- **Fractional**: Leave behind frameworks for ongoing strategic review
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown strategy content. Aim for 1500-3000 words.'),
         strategicHorizon: z
@@ -446,10 +449,10 @@ Strategy work is premium fractional PM value - many startups and small companies
           .optional()
           .describe('Strategic horizon: now (0-6mo), next (6-18mo), later (18mo+)'),
       }),
-      execute: async ({ projectId, title, content, strategicHorizon }) => {
-        logToFile('TOOL EXECUTED: createProductStrategy', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, strategicHorizon }) => {
+        logToFile('TOOL EXECUTED: createProductStrategy', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'strategy',
           title,
           content,

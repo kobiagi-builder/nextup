@@ -1,8 +1,8 @@
 # Customer AI Chat
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-02-26
-**Version:** 2.0.0
+**Last Updated:** 2026-03-09
+**Version:** 2.5.0
 **Status:** Complete
 
 ## Overview
@@ -17,7 +17,7 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 
 **System prompt:** `backend/src/services/ai/agents/customer-mgmt/prompt/customerAgentPrompts.ts`
 
-**Tools (4):**
+**Tools (5):**
 
 | Tool | Description | Side Effects |
 |------|-------------|--------------|
@@ -25,6 +25,7 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 | `updateCustomerInfo` | Atomic JSONB merge via `merge_customer_info` RPC | Updates `customers.info` |
 | `createEventLogEntry` | Log interaction to timeline | Inserts `customer_events` |
 | `getCustomerSummary` | Re-fetch full customer context mid-conversation | Read-only |
+| `analyzeMeetingNotes` | Analyze customer-facing meeting notes (relationship-focused) | Inserts `customer_documents` + `customer_events` |
 
 ### Product Management Agent
 
@@ -32,15 +33,32 @@ Customer AI Chat provides two specialized AI agents accessible from the customer
 
 **System prompt:** `backend/src/services/ai/agents/product-mgmt/prompt/productAgentPrompts.ts`
 
-**Tools (25):**
+**Tools (27):**
 
 | Tool | Description | Side Effects |
 |------|-------------|--------------|
-| `createProject` | Create project in `customer_projects` | Inserts `customer_projects` |
-| `createArtifact` | Create artifact with Markdown content + log event | Inserts `customer_artifacts` + `customer_events` |
-| `updateArtifact` | Update artifact content/title/status | Updates `customer_artifacts` |
-| `listProjects` | List customer's projects | Read-only |
-| `listArtifacts` | List artifacts by project or customer | Read-only |
+| `createInitiative` | Create initiative in `customer_initiatives` | Inserts `customer_initiatives` |
+| `createDocument` | Create document with Markdown content + log event | Inserts `customer_documents` + `customer_events` |
+| `updateDocument` | Update document content/title/status | Updates `customer_documents` |
+| `listInitiatives` | List customer's initiatives | Read-only |
+| `listDocuments` | List documents by initiative or customer | Read-only |
+| `analyzeMeetingNotes` | Analyze product-focused meeting notes (product-focused) | Inserts `customer_documents` + `customer_events` |
+
+## Clarification Gate
+
+Both agents implement a **Clarification Gate** — a pre-action internal check that prevents agents from making unannounced assumptions. Before executing any action (creating an action item, drafting an email, creating an artifact), the agent:
+
+1. Identifies the action type from its requirements matrix
+2. Checks what info is available (user message + customer context)
+3. Asks 1-2 targeted clarifying questions if critical info is missing (with options, not open-ended)
+4. Proceeds immediately if all info is present or inferable from context
+
+**Escape hatch:** If the user says "just do it" or similar, the agent proceeds with smart defaults and states its assumptions.
+
+**Example:** User says "Set up a meeting with Acme" → Agent responds: "I see Acme is in the prospect stage with Aviel (CEO) on the team. Is this a discovery call or a follow-up? Should I plan for 30 minutes or more?" — instead of silently creating a 1-hour meeting with assumptions.
+
+**Design document:** `docs/ideation/clarification-before-action/design.md`
+**Agent reference:** [Customer Agents Reference](../ai-agents-and-prompts/customer-agents-reference.md#clarification-gate)
 
 ## Agent Handoff
 
@@ -57,6 +75,18 @@ Each agent has a `handoff` tool. When the LLM determines the user's request requ
 6. Client receives a single seamless stream — handoff is invisible to the frontend
 
 **Loop prevention:** MAX_HANDOFFS=2 per request. Handoff tool removed on final iteration.
+
+**Step budget:** Dual-condition stop prevents runaway tool execution:
+- Hard ceiling: `stepCountIs(8)` — never exceed 8 total steps
+- Soft limit: stop after 4 steps containing tool calls — prevents duplicate artifact creation while allowing conversational steps
+
+**Anti-duplication:** The Product Management Agent prompt explicitly instructs: never create a second artifact to improve/replace one just created in the same conversation — use `updateArtifact` instead.
+
+**Initiative inference:** The Product Agent defaults to saving documents in the initiative mentioned in conversation context. It only asks the user which initiative if the context is ambiguous or no initiative is identifiable.
+
+**Tool routing for market research:** `analyzeCompetition` handles competitive positioning only. General market research (TAM/SAM/SOM, industry opportunities, regulatory landscape) routes to `createArtifact (type: custom)`.
+
+**Interaction logging:** Every agent action is logged to `agent_interaction_logs` table via fire-and-forget inserts with a unique `sessionId` per request. Logged events: `tool_call`, `agent_text`, `agent_finish`, `handoff`. Content truncated to 2000 chars.
 
 **Previous approach (removed in v2.0.0):** Keyword-based router (`CustomerAgentRouter.ts`) using static keyword lists and sticky routing. Replaced because it couldn't handle nuanced intent or natural cross-domain conversation flow.
 
@@ -154,6 +184,38 @@ User types message in CustomerChatPanel
         → Frontend parses tool results → renders cards
         → Invalidates React Query caches
 ```
+
+## Meeting Notes Analysis
+
+Both agents include an `analyzeMeetingNotes` tool for structured analysis of meeting notes. Each agent has its own variant with agent-specific analysis flavoring:
+
+**Customer Management Agent** — relationship-focused analysis:
+- Relationship signals and engagement health indicators
+- Financial/agreement impact (pricing, scope, renewals)
+- Stakeholder dynamics and decision-maker identification
+- Status change triggers
+- Meeting types: status, discovery, pricing, kickoff, introduction, account_review, demo
+
+**Product Management Agent** — product-focused analysis:
+- Product implications (features, bugs, requirements)
+- Technical decisions (architecture, build-vs-buy, tech debt)
+- User/market signals and roadmap impact
+- Design/UX feedback
+- Meeting types: sprint_planning, roadmap_review, design_review, user_interview, retrospective
+
+**Routing:** When a user provides meeting notes, the active agent assesses the topic. If the notes are primarily about the other agent's domain, it hands off via the `handoff` tool before analysis.
+
+**Output:** Analysis is saved as a `customer_documents` entry with `type: 'meeting_notes'` and metadata containing `meetingType`, `agentSource`, `attendees`, `meetingDate`, and `actionItemsSummary`.
+
+**Follow-up actions** (always offered after analysis):
+1. Draft a follow-up email (inline in chat)
+2. Create tracked action items (CM agent uses `createActionItem` directly; PM agent handoffs to CM agent)
+
+**Shared schema:** `backend/src/services/ai/agents/shared/meetingNotesSchema.ts` — Zod schema with 13-value `meetingType` enum and regex-validated `meetingDate` (YYYY-MM-DD).
+
+## Analytical Integrity
+
+Both agents enforce an **Analytical Integrity** directive at two levels: system prompts and tool descriptions. This prevents agents from exaggerating, inflating, or "pleasing" the user with overstated conclusions. Agents must state facts proportionally to evidence, acknowledge data gaps explicitly, and omit sections that lack sufficient evidence. All 18 content-generation tools include anti-exaggeration guidelines. See [customer-agents-reference.md](../ai-agents-and-prompts/customer-agents-reference.md) for full details.
 
 ## Known Limitations
 

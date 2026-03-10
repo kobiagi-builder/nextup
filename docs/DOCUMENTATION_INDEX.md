@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-06
-**Version:** 24.0.0
+**Last Updated:** 2026-03-09
+**Version:** 29.2.0
 **Total Documentation Files:** 70+
-**Status:** Complete (Action Items Kanban Board)
+**Status:** Complete (Analytical Integrity Directive)
 
 ## Overview
 
@@ -43,7 +43,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [showcase-interview-flow.md](./flows/showcase-interview-flow.md) | Multi-turn showcase interview with coverage scoring |
 | [social-post-creation-flow.md](./flows/social-post-creation-flow.md) | Social post generation from source blog/showcase artifact |
 | [writing-style-setup-flow.md](./flows/writing-style-setup-flow.md) | Writing references management: 4 upload methods, per-artifact-type, async extraction |
-| [customer-management-flow.md](./flows/customer-management-flow.md) | Customer CRUD, filtering, status changes, archiving; Flows 9-14: Agreements + Receivables; Flows 15-20: Projects + Artifacts; Flows 21-23: Search, Enriched Cards, Cross-Module Linking; Flow 24: Auto Team Extraction (Phase 11) |
+| [customer-management-flow.md](./flows/customer-management-flow.md) | Customer CRUD, filtering, status changes, archiving; Flows 9-14: Agreements + Receivables; Flows 15-20: Initiatives + Documents (flat view with collapsible sections, folder sections, client-side filter bar); Flows 21-23: Search, Enriched Cards, Cross-Module Linking; Flow 24: Auto Team Extraction |
 | [onboarding-flow.md](./flows/onboarding-flow.md) | New-user onboarding wizard: 6 steps, AI extraction, waterfall reveal, step transitions, skip dialog, mobile layout, celebration sequence (Phase 1 + 2) |
 
 ---
@@ -93,14 +93,14 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [humanity-check.md](./features/humanity-check.md) | 24-pattern AI writing detection and removal |
 | [image-generation.md](./features/image-generation.md) | DALL-E 3 / Gemini Imagen 4 image generation with approval |
 | [research-pipeline.md](./features/research-pipeline.md) | Multi-source research via Tavily (Reddit, LinkedIn, Quora, etc.) |
-| [rich-text-editor.md](./features/rich-text-editor.md) | TipTap editor with AlignableImage, text/image AI, crop |
+| [rich-text-editor.md](./features/rich-text-editor.md) | TipTap editor with AlignableImage, text/image AI, crop, RTL/Hebrew support (v1.1.0) |
 | [showcase-interview.md](./features/showcase-interview.md) | Multi-turn interview with 5 coverage dimensions |
 | [social-post-generation.md](./features/social-post-generation.md) | Viral post generation from source artifacts |
 | [storytelling-analysis.md](./features/storytelling-analysis.md) | Storytelling framework selection, narrative arc design, emotional journey |
 | [topic-creation.md](./features/topic-creation.md) | Topic suggestion flow, entry points, tools, data model, known limitations |
 | [writing-style-analysis.md](./features/writing-style-analysis.md) | Writing references system + characteristics extraction (per artifact type) |
 | [customer-management.md](./features/customer-management.md) | CRM-lite: customer lifecycle, LinkedIn CSV import, 4-layer company classification, LLM enrichment, hybrid ICP scoring, ICP settings, LinkedIn team extraction (Tavily scrape + AI role filter + merge + frontend sync UI + auto-triggers on creation/update), per-user role filters, URL validation error icons, full-text search, enriched cards, dashboard stats, health signals, cross-module linking (Phase 11) |
-| [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 25 tools, structured response cards (Phase 4) |
+| [customer-ai-chat.md](./features/customer-ai-chat.md) | Dual AI agents (Customer Mgmt + Product Mgmt) with LLM-driven tool-based handoff, 27 tools, structured response cards, Clarification Gate, anti-duplication, step budget, interaction logging, initiative inference, meeting notes analysis, analytical integrity (Phase 4) |
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 | [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
 | [action-items-kanban.md](./features/action-items-kanban.md) | Cross-customer Kanban board: 4-column drag-and-drop (dnd-kit), customer filter, inline create/edit, optimistic updates, feature-flagged (`action_items_kanban`), symmetric RLS (v1.0.0) |
@@ -117,7 +117,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [backend/content-agent-architecture.md](./Architecture/backend/content-agent-architecture.md) | Backend AI architecture: AIService.ts, Vercel AI SDK v6, tool orchestration (v3.0.0) |
 | [backend/security-architecture.md](./Architecture/backend/security-architecture.md) | Multi-layered security (prompt injection, PII, rate limiting) |
 | [backend/observability-architecture.md](./Architecture/backend/observability-architecture.md) | Distributed tracing, metrics, circuit breaker |
-| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 22 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v8.0.0) |
+| [database/database-schema-reference.md](./Architecture/database/database-schema-reference.md) | All 23 tables with columns, types, relationships, RLS; 5 database functions; TSVECTOR generated column; 2 additional GIN indexes (v9.0.0) |
 | [database/artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) | Table relationships and data flow diagrams |
 | [database/artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) | Artifacts table schema with status workflow |
 | [frontend/screen-context-integration.md](./Architecture/frontend/screen-context-integration.md) | useScreenContext hook, React Query caching |
@@ -135,7 +135,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [error-handling-reference.md](./api/error-handling-reference.md) | 13 error categories with HTTP mappings and retry policies |
 | [screen-context-specification.md](./api/screen-context-specification.md) | ScreenContextPayload interface for AI context awareness |
 | [MOCK_CONFIGURATION_GUIDE.md](./api/MOCK_CONFIGURATION_GUIDE.md) | Mock toggle configuration for development/testing |
-| [customer-endpoints.md](./api/customer-endpoints.md) | 37 endpoints (8 customer + 1 LinkedIn import + 3 enrichment/sync + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 project + 6 artifact): full CRUD + search + dashboard + import + enrichment + team sync + ICP config (v7.0.0) |
+| [customer-endpoints.md](./api/customer-endpoints.md) | 41 endpoints (8 customer + 1 LinkedIn import + 3 enrichment/sync + 2 ICP settings + 3 search/stats + 4 agreement + 5 receivable + 5 initiative + 6 document + 4 document folder): full CRUD + search + dashboard + import + enrichment + team sync + ICP config + folders (v8.0.0) |
 | [customer-ai-endpoints.md](./api/customer-ai-endpoints.md) | Customer AI chat streaming endpoint (POST /api/ai/customer/chat/stream) with LLM-driven agent handoff (v2.0.0) |
 
 ---
@@ -152,14 +152,14 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [pipeline-execution-flow.md](./ai-agents-and-prompts/pipeline-execution-flow.md) | **3 pipeline paths**: full, interview, social post |
 | [intent-detection-guide.md](./ai-agents-and-prompts/intent-detection-guide.md) | **DEPRECATED** — intent detection removed; LLM handles via tool-calling |
 | [system-prompt-specification.md](./ai-agents-and-prompts/system-prompt-specification.md) | Complete system prompt with structured response format |
-| [customer-agents-reference.md](./ai-agents-and-prompts/customer-agents-reference.md) | Customer AI agents (Customer Mgmt + Product Mgmt): LLM-driven handoff, 25 tools, context builder with health signals and deliverables (v4.0.0) |
+| [customer-agents-reference.md](./ai-agents-and-prompts/customer-agents-reference.md) | Customer AI agents (Customer Mgmt + Product Mgmt): LLM-driven handoff, 27 tools, initiative/document CRUD, Clarification Gate, anti-duplication, step budget, interaction logging, initiative inference, meeting notes analysis, analytical integrity directive, context builder with health signals and action items (v7.1.0) |
 
 ---
 
 ## Layer 9: Database Schema
 
 Covered by Layer 6 Architecture files:
-- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (21 tables, 5 functions)
+- [database-schema-reference.md](./Architecture/database/database-schema-reference.md) — **Primary reference** (23 tables, 5 functions)
 - [artifact-data-relationships.md](./Architecture/database/artifact-data-relationships.md) — Relationships and data flow
 - [artifact-schema-and-workflow.md](./Architecture/database/artifact-schema-and-workflow.md) — Artifacts table detail
 
@@ -228,6 +228,8 @@ Contains product requirement documents and specifications for major features:
 - `customers-management-platform/` — Customer management PRD, spec, and review summary
 - `new-account-onboarding/` — Onboarding wizard contract, PRDs, specs, UX/interface design reviews
 - `linkedin-team-extraction/` — LinkedIn team extraction contract, PRDs, and Phase 1-3 specs (backend pipeline, frontend UI, auto-triggers)
+- `clarification-before-action/` — Clarification Gate design: pre-action information check for Customer and Product agents
+- `initiative-documents-restructure/` — Initiative/Document restructure: rename projects→initiatives, artifacts→documents, add document_folders, safe-delete
 
 ---
 
@@ -254,20 +256,20 @@ Social Post:    draft → ready
 | **Profile & Context** | 7 | getUserContext, getUserSkills, suggestProfileUpdates, fetchArtifact, fetchResearch, fetchArtifactTopics, listDraftArtifacts |
 | **Research & Topics** | 3 | topicsResearch, researchTrendingTopics, analyzeFollowUpTopics |
 | **Response** | 1 | structuredResponse |
-| **Customer Mgmt** | 4 | updateCustomerStatus, updateCustomerInfo, createEventLogEntry, getCustomerSummary |
-| **Product Mgmt CRUD** | 5 | createProject, createArtifact, updateArtifact, listProjects, listArtifacts |
-| **Product Mgmt Capabilities** | 16 | createProductStrategy, evaluateBuildStrategy, applyDecisionFramework, assessShipReadiness, analyzeCompetition, scopeMvp, buildPersonaIcp, planUserResearch, analyzeProductData, designUserFlow, designUxUi, designAiFeature, createGrowthStrategy, createLaunchPlan, createNarrative, prioritizeItems |
+| **Customer Mgmt** | 5 | updateCustomerStatus, updateCustomerInfo, createEventLogEntry, getCustomerSummary, analyzeMeetingNotes (CM) |
+| **Product Mgmt CRUD** | 5 | createInitiative, createDocument, updateDocument, listInitiatives, listDocuments |
+| **Product Mgmt Capabilities** | 17 | createProductStrategy, evaluateBuildStrategy, applyDecisionFramework, assessShipReadiness, analyzeCompetition, scopeMvp, buildPersonaIcp, planUserResearch, analyzeProductData, designUserFlow, designUxUi, designAiFeature, createGrowthStrategy, createLaunchPlan, createNarrative, prioritizeItems, analyzeMeetingNotes (PM) |
 
 ### Key Counts
 
 | What | Count |
 |------|-------|
 | Artifact statuses | 11 (+ archived in DB) |
-| AI tools | 60+ across 37 tool files (35 content + 25 customer) |
+| AI tools | 62+ across 39 tool files (35 content + 27 customer) |
 | Pipeline paths | 3 |
 | Artifact types | 3 (blog, showcase, social_post) |
-| API endpoints | 60 (22 AI/content/onboarding + 37 customer + 1 customer AI) |
-| Database tables | 21 (11 content + 7 customer + 1 ICP settings + 1 onboarding + 1 team role filters) + 5 functions |
+| API endpoints | 64 (22 AI/content/onboarding + 41 customer + 1 customer AI) |
+| Database tables | 23 (11 content + 7 customer + 1 document_folders + 1 ICP settings + 1 onboarding + 1 team role filters + 1 agent_interaction_logs) + 5 functions |
 | Error categories | 13 |
 | Documentation files | 69+ |
 
@@ -286,8 +288,9 @@ Social Post:    draft → ready
 | ICP Scoring Service | `backend/src/services/IcpScoringService.ts` |
 | ICP Settings Service | `backend/src/services/IcpSettingsService.ts` |
 | Customer Service | `backend/src/services/CustomerService.ts` |
-| Project Service | `backend/src/services/ProjectService.ts` |
-| Artifact Service | `backend/src/services/CustomerArtifactService.ts` |
+| Initiative Service | `backend/src/services/InitiativeService.ts` |
+| Document Service | `backend/src/services/CustomerDocumentService.ts` |
+| Document Folder Service | `backend/src/services/DocumentFolderService.ts` |
 | Customer Controller | `backend/src/controllers/customer.controller.ts` |
 | Customer Routes | `backend/src/routes/customers.ts` |
 | Customer AI Controller | `backend/src/controllers/customer-ai.controller.ts` |
@@ -307,6 +310,15 @@ Social Post:    draft → ready
 ---
 
 **Version History:**
+- **29.2.0** (2026-03-09) — RTL/Hebrew Support: Added `tiptap-text-direction` extension to both `RichTextEditor` and `CustomerRichTextEditor`. Added RTL toggle button (Pilcrow icon) to both editor toolbars. Added CSS logical properties (border-s, ps) for blockquotes/lists, RTL ProseMirror alignment overrides, and Heebo font in `index.css`. Added `preserveDirection` Turndown rule in `markdown.ts` to preserve `dir` attributes through HTML→Markdown round-trips. Created `frontend/src/lib/text-direction.ts` with `detectTextDirection` and `containsRTL` utilities. 28 new tests (10 unit text-direction, 6 unit markdown-rtl, 8 integration RichTextEditor-rtl, 4 E2E hebrew-rtl-editor). Updated rich-text-editor.md (v1.1.0, RTL/Hebrew Support section). 0 new doc files, 2 updated.
+- **29.1.0** (2026-03-09) — Analytical Integrity Directive: Added anti-exaggeration directives to both agent system prompts (CM + PM) and all 18 content-generation tool descriptions. Fixed "presentation-ready" → "professional and well-structured" in PM system prompt. Updated customer-agents-reference.md (v7.1.0, Analytical Integrity section), customer-ai-chat.md (v2.5.0, Analytical Integrity section). 0 new doc files, 3 updated.
+- **29.0.0** (2026-03-09) — Meeting Notes Analysis Tool: Added `analyzeMeetingNotes` tool to both Customer Mgmt and Product Mgmt agents with agent-specific analysis flavoring. Shared Zod schema (`meetingNotesSchema.ts`). Updated customer-agents-reference.md (v7.0.0, +2 tools, meeting notes routing, shared schema), customer-ai-chat.md (v2.4.0, meeting notes analysis section, updated tool counts 25→27), DOCUMENTATION_INDEX (v29.0.0, updated tool counts 60+→62+). 0 new doc files, 3 updated.
+- **28.0.0** (2026-03-09) — Initiative/Document Restructure Phase 3 (Folders, Filters, AI Inference): Added 4 new frontend components (FolderSection, DocumentsFilterBar, FolderManager, TableToolbarDropdown) + useDocumentFolders hook. DocumentsTab now renders folder sections below initiatives with client-side AND-logic filtering (initiative status, name search, document status). DocumentForm accepts optional folder_id. DocumentEditor supports folder reassignment. FolderManager popover for CRUD with duplicate name validation. AI prompt updated for initiative inference from conversation context. Updated customer-pages.md (component hierarchy + filter state), customer-management.md (folder + filter features, key files), customer-agents-reference.md (v6.1.0, initiative inference), customer-ai-chat.md (v2.3.0, initiative inference). 35 new unit tests across 4 test files + 5 new Playwright E2E tests. 4 new files, 6 updated docs.
+- **27.0.0** (2026-03-08) — Initiative/Document Restructure Phase 2: Frontend rename of all project/artifact references to initiative/document. Flat view with collapsible initiative sections replacing drill-down ProjectDetail. Updated customer-pages.md (v6.0.0, DocumentsTab component hierarchy), customer-management.md (Phase 2 terminology). 0 new doc files, 3 updated.
+- **26.0.0** (2026-03-08) — Initiative/Document Restructure Phase 1: Renamed `customer_projects` → `customer_initiatives`, `customer_artifacts` → `customer_documents`. Added `document_folders` table (#23). Updated customer-agents-reference.md (v6.0.0, CRUD tool renames, context builder updates), customer-endpoints.md (v8.0.0, initiative/document/folder endpoints), database-schema-reference.md (v9.0.0, 23 tables, renamed tables + new folder table), customer-management.md (updated terminology). Key files: `ProjectService.ts` → `InitiativeService.ts`, `CustomerArtifactService.ts` → `CustomerDocumentService.ts`, new `DocumentFolderService.ts`. 0 new doc files, 5 updated.
+- **25.1.0** (2026-03-08) — Anti-Duplication Fix: updated customer-agents-reference.md (v5.1.0, anti-duplication rule, analyzeCompetition scope clarification, step budget dual-condition, interaction logging), customer-ai-chat.md (v2.2.0, step budget, anti-duplication, tool routing for market research, interaction logging). 0 new doc files, 3 updated.
+- **25.0.0** (2026-03-08) — Agent Clarification Gate: updated customer-agents-reference.md (v5.0.0, Clarification Gate section with 11-row Action Requirements Matrix, question rules, escape hatch), customer-ai-chat.md (v2.1.0, Clarification Gate overview section), added clarification-before-action/ ideation design doc. 0 new doc files, 3 updated.
+- **24.0.0** (2026-03-06) — Action Items Kanban Board: added action-items-kanban.md (feature). 1 new doc file, 2 updated.
 - **23.0.0** (2026-03-05) — Reference Picker Phase 2 (Topic Suggestions + Foundations Re-analyze): updated reference-picker.md (v2.0.0, ReferenceSelectionDialog for topic suggestions, FoundationsReferences compact/expanded, re-analyze API endpoint, PipelineExecutor.reanalyzeFoundations), artifact-creation-flow.md (v1.2.0, topic suggestion reference dialog sequence, re-analyze optional step in foundations approval), content-agent-endpoints.md (v5.1.0, +1 endpoint: POST /api/artifacts/:id/re-analyze-foundations with full spec), artifact-page.md (v1.1.0, FoundationsReferences in component hierarchy, useReanalyzeFoundations hook, updated foundations approval interaction), foundations-approval.md (v1.1.0, re-analyze section with FoundationsReferences component). 0 new doc files, 6 updated.
 - **22.0.0** (2026-03-05) — Reference Picker Phase 1: Added reference-picker.md feature doc. 1 new doc file, 0 updated.
 - **21.0.0** (2026-03-04) — LinkedIn Team Extraction Phase 11 (Auto-Triggers): updated customer-management.md (v10.0.0, `syncTeamForCustomer` reusable helper, auto-trigger on creation via `enrichAndScoreNewCustomer`, auto-trigger on update via fire-and-forget, 5s delayed invalidation on `useUpdateCustomer`, 15 new tests across 3 test files), customer-management-flow.md (v5.0.0, updated Flow 1 with background pipeline, added Flow 24: Automatic Team Extraction with sequence diagram). 0 new doc files, 4 updated.

@@ -13,6 +13,12 @@ import Link from '@tiptap/extension-link'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { TableCell } from '@tiptap/extension-table-cell'
+import TextDirection from 'tiptap-text-direction'
+import { InlineStyleCopy } from '@/lib/tiptap/inlineStyleCopy'
 import {
   Bold,
   Italic,
@@ -28,10 +34,12 @@ import {
   Baseline,
   Highlighter,
   Ban,
+  Pilcrow,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
+import { TableToolbarDropdown } from '@/features/portfolio/components/editor/TableToolbarDropdown'
 
 interface CustomerRichTextEditorProps {
   content: string
@@ -304,6 +312,35 @@ function EditorToolbar({ editor }: { editor: Editor | null }) {
         >
           <LinkIcon className="h-4 w-4" />
         </ToolbarButton>
+
+        <div className="w-px h-6 bg-border mx-1" />
+
+        {/* Table dropdown */}
+        <TableToolbarDropdown editor={editor} />
+
+        {/* RTL toggle */}
+        <div className="w-px h-6 bg-border mx-1" />
+        <ToolbarButton
+          onClick={() => {
+            const currentDir = editor.isActive('heading')
+              ? editor.getAttributes('heading').dir
+              : editor.getAttributes('paragraph').dir
+            if (currentDir === 'rtl') {
+              editor.commands.setTextDirection('ltr')
+            } else {
+              editor.commands.setTextDirection('rtl')
+            }
+          }}
+          isActive={(() => {
+            const dir = editor.isActive('heading')
+              ? editor.getAttributes('heading').dir
+              : editor.getAttributes('paragraph').dir
+            return dir === 'rtl'
+          })()}
+          title="Toggle RTL (Right-to-Left)"
+        >
+          <Pilcrow className="h-4 w-4" />
+        </ToolbarButton>
       </div>
     </div>
   )
@@ -335,6 +372,16 @@ export function CustomerRichTextEditor({
           class: 'text-primary underline',
         },
       }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextDirection.configure({
+        types: ['heading', 'paragraph', 'blockquote', 'listItem'],
+      }),
+      InlineStyleCopy,
     ],
     content,
     editable,
@@ -361,10 +408,10 @@ export function CustomerRichTextEditor({
           // Code
           'prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono',
           // Blockquotes
-          'prose-blockquote:border-l-4 prose-blockquote:border-l-primary prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-6',
+          'prose-blockquote:border-s-4 prose-blockquote:border-s-primary prose-blockquote:ps-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-6',
           // Lists
-          'prose-ul:text-foreground prose-ul:my-6 prose-ul:pl-6',
-          'prose-ol:text-foreground prose-ol:my-6 prose-ol:pl-6',
+          'prose-ul:text-foreground prose-ul:my-6 prose-ul:ps-6',
+          'prose-ol:text-foreground prose-ol:my-6 prose-ol:ps-6',
           'prose-li:text-foreground prose-li:text-base prose-li:leading-7 prose-li:mb-3',
           'prose-li>ul:mt-3 prose-li>ul:mb-0',
           'prose-li>ol:mt-3 prose-li>ol:mb-0'

@@ -11,5 +11,4 @@ export {
   EmptyCustomerSearch,
   EmptyAgreementsTab,
   EmptyReceivablesTab,
-  EmptyProjectsTab,
 } from './EmptyState'

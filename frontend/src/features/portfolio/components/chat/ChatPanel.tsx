@@ -60,6 +60,7 @@ export function ChatPanel({
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const initialMessageSentRef = useRef(false);
+  const userHasScrolledUpRef = useRef(false);
   const { toast } = useToast();
 
   // File attachment support
@@ -179,15 +180,28 @@ export function ChatPanel({
     [createArtifactMutation, markItemAdded, setMessages, chatOptions.contextKey, toast],
   );
 
-  // Auto-scroll to bottom when new messages arrive
+  // Track user scroll position to avoid hijacking scroll during streaming
   useEffect(() => {
-    if (scrollRef.current) {
-      // ScrollArea uses Radix, the actual scrollable viewport is a child element
-      // Find the viewport element which has the scrollable content
-      const viewport = scrollRef.current.querySelector('[data-radix-scroll-area-viewport]');
-      if (viewport) {
-        viewport.scrollTop = viewport.scrollHeight;
-      }
+    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (!viewport) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = viewport;
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      userHasScrolledUpRef.current = distanceFromBottom > 100;
+    };
+
+    viewport.addEventListener('scroll', handleScroll);
+    return () => viewport.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Auto-scroll to bottom only when user is near the bottom
+  useEffect(() => {
+    if (userHasScrolledUpRef.current) return;
+
+    const viewport = scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]');
+    if (viewport) {
+      viewport.scrollTop = viewport.scrollHeight;
     }
   }, [messages, isStreaming]);
 
@@ -339,6 +353,7 @@ export function ChatPanel({
           value={input}
           onChange={setInput}
           onSubmit={() => {
+            userHasScrolledUpRef.current = false;
             sendMessage(undefined, attachments.length > 0 ? attachments : undefined);
             clearAttachments();
           }}

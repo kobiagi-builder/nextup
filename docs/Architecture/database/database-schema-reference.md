@@ -1,13 +1,13 @@
 # Database Schema Reference
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-03-04
-**Version:** 8.0.0
+**Last Updated:** 2026-03-08
+**Version:** 9.0.0
 **Status:** Complete
 
 ## Overview
 
-Product Consultant Helper uses Supabase (PostgreSQL) with 22 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
+Product Consultant Helper uses Supabase (PostgreSQL) with 23 tables in the `public` schema, 5 database functions, 1 generated column (TSVECTOR), and 2 additional GIN indexes (Phase 5). All tables have Row Level Security (RLS) enabled with user-isolation policies. The database supports multi-tenancy via `user_id` (Supabase Auth) with a placeholder user (`00000000-...0001`) for MVP development.
 
 **Supabase Project ID:** `ohwubfmipnpguunryopl`
 
@@ -31,14 +31,15 @@ Product Consultant Helper uses Supabase (PostgreSQL) with 22 tables in the `publ
 | 12 | `customers` | Customer records with lifecycle status | Root table (CRM) | Yes |
 | 13 | `customer_agreements` | Service agreements per customer | Many-to-one → customers | Yes |
 | 14 | `customer_receivables` | Invoices and payments per customer | Many-to-one → customers | Yes |
-| 15 | `customer_projects` | Projects per customer/agreement | Many-to-one → customers | Yes |
-| 16 | `customer_artifacts` | Deliverables per project | Many-to-one → customer_projects | Yes |
+| 15 | `customer_initiatives` | Initiatives per customer/agreement | Many-to-one → customers | Yes |
+| 16 | `customer_documents` | Documents per initiative | Many-to-one → customer_initiatives | Yes |
 | 17 | `customer_events` | Timeline events per customer | Many-to-one → customers | Yes |
 | 18 | `customer_chat_messages` | AI chat messages per customer | Many-to-one → customers | Yes |
 | 19 | `icp_settings` | ICP criteria for automated scoring | One-to-one per user | Yes |
 | 20 | `onboarding_progress` | Onboarding wizard state and extraction results | One-to-one per user | Yes |
 | 21 | `team_role_filters` | Per-user role filter config for LinkedIn team extraction | One-to-one per user | Yes |
 | 22 | `customer_action_items` | Action items (tasks) per user, optionally linked to customer | Many-to-one → users, optional many-to-one → customers | Yes |
+| 23 | `document_folders` | Folder categories for documents | Root table (global + customer-specific) | Yes |
 
 ---
 
@@ -64,8 +65,10 @@ erDiagram
     users ||--o{ customers : "owns many"
     customers ||--o{ customer_agreements : "has many"
     customers ||--o{ customer_receivables : "has many"
-    customers ||--o{ customer_projects : "has many"
-    customer_projects ||--o{ customer_artifacts : "has many"
+    customers ||--o{ customer_initiatives : "has many"
+    customer_initiatives ||--o{ customer_documents : "has many"
+    document_folders ||--o{ customer_documents : "categorizes"
+    customers ||--o{ document_folders : "has custom folders"
     customers ||--o{ customer_events : "has many"
     customers ||--o{ customer_chat_messages : "has many"
     users ||--o{ customer_action_items : "owns many"
@@ -794,6 +797,54 @@ Action items (tasks) owned by a user, optionally linked to a customer. Supports 
 
 ---
 
+## 23. document_folders
+
+Folder categories for organizing customer documents. Supports both global (system-defined) folders visible to all users and customer-specific folders created per account. The `is_system` flag protects seed folders from deletion; `is_default` marks the fallback folder for orphaned documents.
+
+### Schema
+
+| Column | Type | Nullable | Default | Description |
+|--------|------|----------|---------|-------------|
+| `id` | UUID | NO | `gen_random_uuid()` | Primary key |
+| `name` | TEXT | NO | - | Folder display name |
+| `slug` | TEXT | NO | - | URL-friendly slug |
+| `is_system` | BOOLEAN | NO | `false` | System folder (cannot be deleted) |
+| `is_default` | BOOLEAN | NO | `false` | Default folder for orphaned documents |
+| `customer_id` | UUID | YES | NULL | FK → customers(id) CASCADE; NULL = global folder |
+| `user_id` | UUID | YES | NULL | FK → auth.users(id); creator |
+| `sort_order` | INTEGER | NO | `0` | Display order |
+| `created_at` | TIMESTAMPTZ | NO | `now()` | Creation timestamp |
+| `updated_at` | TIMESTAMPTZ | NO | `now()` | Last update |
+
+### Indexes
+
+| Index | Column(s) | Purpose |
+|-------|-----------|---------|
+| `document_folders_pkey` | `id` | Primary key |
+| `idx_document_folders_customer_id` | `customer_id` | Lookup folders by customer |
+| `idx_document_folders_user_id` | `user_id` | Lookup folders by creator |
+| `idx_document_folders_slug_scope` | `(slug, COALESCE(customer_id, '00000000-0000-0000-0000-000000000000'))` UNIQUE | Enforce slug uniqueness within scope (global or per customer) |
+
+### RLS Policies
+
+| Policy | Command | Condition |
+|--------|---------|-----------|
+| `folders_select_global` | SELECT | `customer_id IS NULL` — global folders are visible to all authenticated users |
+| `folders_select_customer` | SELECT | `is_customer_owner(customer_id)` — customer-specific folders visible to owner |
+| `folders_insert` | INSERT | `WITH CHECK user_id = auth.uid()` |
+| `folders_update` | UPDATE | `user_id = auth.uid()` |
+| `folders_delete` | DELETE | `user_id = auth.uid() AND is_system = false` — system folders cannot be deleted |
+
+### Seed Data
+
+| name | slug | is_system | is_default | customer_id |
+|------|------|-----------|------------|-------------|
+| General | general | true | true | NULL |
+
+The `General` folder is the global default. All documents without an explicit `folder_id` fall back to this folder in the application layer.
+
+---
+
 ## Database Functions
 
 ### `get_receivables_summary(cid UUID)`
@@ -905,7 +956,7 @@ RETURNS TABLE (
   id UUID, user_id UUID, name TEXT, status TEXT, info JSONB,
   deleted_at TIMESTAMPTZ, created_at TIMESTAMPTZ, updated_at TIMESTAMPTZ,
   active_agreements_count BIGINT, outstanding_balance NUMERIC(12,2),
-  active_projects_count BIGINT, last_activity TIMESTAMPTZ
+  active_initiatives_count BIGINT, last_activity TIMESTAMPTZ
 )
 LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
 ```
@@ -913,7 +964,7 @@ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public
 **Summary columns:**
 - `active_agreements_count`: COUNT of agreements where `override_status IS NULL` and `end_date >= today OR end_date IS NULL`
 - `outstanding_balance`: SUM(invoices where status != 'cancelled') - SUM(payments). Note: paid invoices remain in the sum to avoid double-counting when payments are recorded separately
-- `active_projects_count`: COUNT of projects where `status IN ('planning', 'active')`
+- `active_initiatives_count`: COUNT of initiatives where `status IN ('planning', 'active')` — queries `customer_initiatives` table (renamed from `customer_projects`; return column was `active_projects_count` in earlier versions)
 - `last_activity`: MAX(event_date) from `customer_events`
 
 **Search:** `search_vector @@ websearch_to_tsquery('english', p_search)` — TSVECTOR generated column indexes `name`, `vertical`, `about`, `persona`
@@ -1038,6 +1089,7 @@ CREATE TRIGGER update_artifacts_updated_at
 ---
 
 **Version History:**
+- **9.0.0** (2026-03-08) - Renamed `customer_projects` → `customer_initiatives` (#15) and `customer_artifacts` → `customer_documents` (#16). Added `document_folders` table (#23) with global/customer-scoped folder support, slug uniqueness index, and five RLS policies. Changed `initiative_id` FK on `customer_documents` from CASCADE to RESTRICT. Added `folder_id` column to `customer_documents`. Updated `get_customer_list_summary` return column from `active_projects_count` to `active_initiatives_count` (queries `customer_initiatives`). Updated table count to 23, ER diagram
 - **8.0.0** (2026-03-06) - Added `customer_action_items` table (#22) with `user_id` column, nullable `customer_id`, composite index, symmetric RLS policy. Updated table count to 22, ER diagram
 - **7.0.0** (2026-03-04) - Added `team_role_filters` table (#21) for per-user LinkedIn team extraction role configuration. Updated table count to 21, ER diagram, table summary
 - **5.0.0** (2026-02-28) - Added `icp_settings` table (#19) for ICP scoring criteria. Updated table count to 19, ER diagram, table summary

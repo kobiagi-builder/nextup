@@ -40,7 +40,7 @@ export const customerKeys = {
 /**
  * Fetch customers with summary metrics via RPC.
  * Returns enriched data: active_agreements_count, outstanding_balance,
- * active_projects_count, last_activity.
+ * active_initiatives_count, last_activity.
  */
 export function useCustomers(filters: CustomerFilters = {}) {
   return useQuery({
@@ -54,7 +54,7 @@ export function useCustomers(filters: CustomerFilters = {}) {
       })
 
       if (error) throw error
-      return ((data ?? []) as CustomerWithSummary[]).map(c => ({
+      return ((data ?? []) as unknown as CustomerWithSummary[]).map(c => ({
         ...c,
         outstanding_balance: Number(c.outstanding_balance) || 0,
       }))

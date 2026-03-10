@@ -15,10 +15,6 @@ interface CustomerStore {
   activeTab: CustomerTab | null
   setActiveCustomer: (id: string | null) => void
   setActiveTab: (tab: CustomerTab | null) => void
-
-  // Selected project within Projects tab (persists across tab switches)
-  selectedProjectIds: Record<string, string | null>
-  setSelectedProjectId: (customerId: string, projectId: string | null) => void
 }
 
 export const useCustomerStore = create<CustomerStore>()(
@@ -28,16 +24,6 @@ export const useCustomerStore = create<CustomerStore>()(
       activeTab: null,
       setActiveCustomer: (id) => set({ activeCustomerId: id }, false, 'setActiveCustomer'),
       setActiveTab: (tab) => set({ activeTab: tab }, false, 'setActiveTab'),
-
-      selectedProjectIds: {},
-      setSelectedProjectId: (customerId, projectId) =>
-        set(
-          (state) => ({
-            selectedProjectIds: { ...state.selectedProjectIds, [customerId]: projectId },
-          }),
-          false,
-          'setSelectedProjectId'
-        ),
     }),
     { name: 'CustomerStore' }
   )

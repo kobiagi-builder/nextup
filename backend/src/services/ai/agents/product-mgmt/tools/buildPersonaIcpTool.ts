@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function buildPersonaIcpTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -780,9 +780,12 @@ Use this capability when:
 - Validate assumptions through customer research when possible
 - Personas evolve - document confidence levels and revision needs
 - Use ask-user-question skill proactively when scope is ambiguous
-- Match analysis depth to decision importance`,
+- Match analysis depth to decision importance
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown persona/ICP analysis content. Aim for 1500-3000 words.'),
         analysisScope: z
@@ -790,10 +793,10 @@ Use this capability when:
           .optional()
           .describe('Scope: ICP only, personas only, or full analysis'),
       }),
-      execute: async ({ projectId, title, content, analysisScope }) => {
-        logToFile('TOOL EXECUTED: buildPersonaIcp', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, analysisScope }) => {
+        logToFile('TOOL EXECUTED: buildPersonaIcp', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'persona_icp',
           title,
           content,

@@ -2,7 +2,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 import { logToFile } from '../../../../../lib/logger.js'
 
 export function createGrowthStrategyTool(supabase: SupabaseClient, customerId: string) {
@@ -398,16 +398,19 @@ Growth work is often operational - running experiments daily, optimizing funnels
 - Measure K-factor for all viral features
 - Time-to-value is the most important activation metric
 - Network effects are the strongest moat - help clients find them
-- Your job is to make their growth team effective, not to be their growth team`,
+- Your job is to make their growth team effective, not to be their growth team
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown growth strategy content. Aim for 1500-3000 words.'),
       }),
-      execute: async ({ projectId, title, content }) => {
-        logToFile('TOOL EXECUTED: createGrowthStrategy', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content }) => {
+        logToFile('TOOL EXECUTED: createGrowthStrategy', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'growth_strategy',
           title,
           content,

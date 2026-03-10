@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function evaluateBuildStrategyTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -317,16 +317,19 @@ One of the highest-value services a fractional PM provides is helping clients bu
 - 70% of time should be Leverage work
 - If you can't explain the impact, don't build it
 - **Fractional**: Your outside perspective is the value - use it
-- **Fractional**: Teach the framework, don't just apply it`,
+- **Fractional**: Teach the framework, don't just apply it
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown build evaluation content. Aim for 1500-3000 words.'),
       }),
-      execute: async ({ projectId, title, content }) => {
-        logToFile('TOOL EXECUTED: evaluateBuildStrategy', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content }) => {
+        logToFile('TOOL EXECUTED: evaluateBuildStrategy', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'build_analysis',
           title,
           content,

@@ -14,6 +14,7 @@ import { KanbanCard } from './KanbanCard'
 const STATUS_DOT_COLORS: Record<ActionItemStatus, string> = {
   todo: 'bg-gray-500',
   in_progress: 'bg-blue-500',
+  on_hold: 'bg-yellow-500',
   done: 'bg-green-500',
   cancelled: 'bg-orange-500',
 }
@@ -21,6 +22,7 @@ const STATUS_DOT_COLORS: Record<ActionItemStatus, string> = {
 const COLUMN_HEADER_BG: Record<ActionItemStatus, string> = {
   todo: '',
   in_progress: 'bg-blue-500/5',
+  on_hold: 'bg-yellow-500/5',
   done: 'bg-green-500/5',
   cancelled: 'bg-orange-500/5',
 }

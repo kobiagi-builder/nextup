@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function designUserFlowTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -342,9 +342,12 @@ Use this capability when:
 - Consider all user segments, not just ideal users
 - Document assumptions clearly
 - Keep diagrams simple enough to be useful
-- Version control flow documents`,
+- Version control flow documents
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown user flow/journey content. Aim for 1500-3000 words.'),
         flowType: z
@@ -352,10 +355,10 @@ Use this capability when:
           .optional()
           .describe('Type of flow design'),
       }),
-      execute: async ({ projectId, title, content, flowType }) => {
-        logToFile('TOOL EXECUTED: designUserFlow', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, flowType }) => {
+        logToFile('TOOL EXECUTED: designUserFlow', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'user_flow',
           title,
           content,

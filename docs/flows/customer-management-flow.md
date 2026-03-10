@@ -2,12 +2,12 @@
 
 **Created:** 2026-02-25
 **Last Updated:** 2026-03-04
-**Version:** 5.0.0
-**Status:** Complete (Phase 11 — Auto-Triggers)
+**Version:** 6.0.0
+**Status:** Complete (Phase 13 — Initiative/Document Frontend Restructure)
 
 ## Overview
 
-User flows for managing customer relationships: creating, browsing, editing, and archiving customers (Flows 1-8), Agreements (Flows 9-11), Receivables (Flows 12-14), Projects & Artifacts (Flows 15-20), Search/Dashboard/Cross-Linking (Flows 21-23), and Auto-Triggers (Flow 24).
+User flows for managing customer relationships: creating, browsing, editing, and archiving customers (Flows 1-8), Agreements (Flows 9-11), Receivables (Flows 12-14), Initiatives & Documents (Flows 15-20), Search/Dashboard/Cross-Linking (Flows 21-23), and Auto-Triggers (Flow 24).
 
 **Phase 5 additions:**
 - **Flow 21: Full-Text Search** — User types in search box, query passed to `get_customer_list_summary` RPC via `websearch_to_tsquery('english', query)`, TSVECTOR indexes name/vertical/about/persona. Results update in real-time via TanStack Query.
@@ -74,7 +74,7 @@ sequenceDiagram
 1. Navigate to `/customers/:id`
 2. Backend fetches customer with tab counts (agreements, receivables, projects)
 3. Header shows: Back button, editable name, status dropdown
-4. 4 tabs: Overview (active), Agreements, Receivables, Projects
+4. 5 tabs: Overview (active), Agreements, Receivables, Documents, Action Items
 5. Overview tab renders: QuickStats, CustomerInfoSection, TeamSection, EventTimeline
 
 ## Flow 4: Edit Customer Name (Inline)
@@ -249,21 +249,21 @@ sequenceDiagram
 
 ---
 
-## Flow 15: Create Project
+## Flow 15: Create Initiative
 
-**Entry:** Click "New Project" button in the Projects tab on the Customer Detail page
+**Entry:** Click "New Initiative" button in the Documents tab on the Customer Detail page
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Tab as ProjectsTab
-    participant Form as ProjectForm
-    participant Hook as useCreateProject
+    participant Tab as DocumentsTab
+    participant Form as InitiativeForm
+    participant Hook as useCreateInitiative
     participant API as Backend API
     participant DB as Supabase
 
-    User->>Tab: Click "New Project"
-    Tab->>Form: Open ProjectForm dialog
+    User->>Tab: Click "New Initiative"
+    Tab->>Form: Open InitiativeForm dialog
     User->>Form: Enter name (required)
     User->>Form: Enter description (optional)
     User->>Form: Select status (default: planning)
@@ -271,85 +271,84 @@ sequenceDiagram
     User->>Form: Click "Create"
     Form->>Form: React Hook Form + Zod validation
     Form->>Hook: mutate({ customerId, input })
-    Hook->>API: POST /api/customers/:id/projects
+    Hook->>API: POST /api/customers/:id/initiatives
     API->>API: Zod validation
-    API->>DB: INSERT into customer_projects
-    DB-->>API: New project row
+    API->>DB: INSERT into customer_initiatives
+    DB-->>API: New initiative row
     API-->>Hook: 201 Created
-    Hook->>Hook: Invalidate projectKeys.list(customerId)
+    Hook->>Hook: Invalidate initiativeKeys.all(customerId)
     Hook->>Hook: Invalidate customerKeys.detail(customerId)
     Form->>Form: Close dialog + success toast
-    User->>Tab: Sees new project card
+    User->>Tab: Sees new initiative section (collapsed)
 ```
 
 **Error path:** Zod validation failure shows inline field errors. API error shows destructive toast.
 
-## Flow 16: Edit Project
+## Flow 16: Edit Initiative
 
-**Entry:** Click Edit in project card actions dropdown or Edit button in ProjectDetail
+**Entry:** Click Edit in initiative section 3-dot menu
 
-1. `ProjectForm` dialog opens pre-populated with existing project data
+1. `InitiativeForm` dialog opens pre-populated with existing initiative data
 2. User edits one or more fields
 3. Click "Save"
-4. `PUT /api/customers/:id/projects/:projectId` fires
-5. TanStack Query invalidates `projectKeys.list(customerId)` and `projectKeys.detail(customerId, projectId)`
-6. Card or detail view re-renders with updated data
+4. `PUT /api/customers/:id/initiatives/:initiativeId` fires
+5. TanStack Query invalidates `initiativeKeys.all(customerId)` and `customerKeys.detail(customerId)`
+6. Initiative section header re-renders with updated data
 
-## Flow 17: Delete Project
+## Flow 17: Delete Initiative
 
-**Entry:** Click Delete in project card actions dropdown
+**Entry:** Click Delete in initiative section 3-dot menu
 
-1. Confirm dialog: "Delete this project? This will also delete all artifacts within it."
-2. `DELETE /api/customers/:id/projects/:projectId`
-3. Database CASCADE deletes all child artifacts
-4. TanStack Query invalidates project and customer detail keys
-5. If in detail view, navigates back to project list
-6. Project card disappears from list
+1. AlertDialog confirmation: "This will permanently delete [name] and its N documents. This action cannot be undone."
+2. `DELETE /api/customers/:id/initiatives/:initiativeId`
+3. TanStack Query invalidates initiative and customer detail keys
+4. Initiative section disappears from list
 
-## Flow 18: Create Artifact
+## Flow 18: Create Document
 
-**Entry:** Click "New Artifact" button in ProjectDetail
+**Entry:** Click "New Document" button in DocumentsTab header
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Detail as ProjectDetail
-    participant Form as ArtifactForm
-    participant Hook as useCreateArtifact
+    participant Tab as DocumentsTab
+    participant Form as DocumentForm
+    participant Hook as useCreateDocument
     participant API as Backend API
     participant DB as Supabase
 
-    User->>Detail: Click "New Artifact"
-    Detail->>Form: Open ArtifactForm dialog
+    User->>Tab: Click "New Document"
+    Tab->>Form: Open DocumentForm dialog
     User->>Form: Enter title (required)
-    User->>Form: Select type (default: custom)
+    User->>Form: Select type (default: strategy)
+    User->>Form: Select initiative (required)
     User->>Form: Click "Create"
-    Form->>Hook: mutate({ title, type })
-    Hook->>API: POST /api/customers/:id/projects/:projectId/artifacts
+    Form->>Hook: mutate({ initiativeId, title, type })
+    Hook->>API: POST /api/customers/:id/initiatives/:initiativeId/documents
     API->>API: Zod validation
-    API->>DB: INSERT into customer_artifacts (content: '', status: 'draft')
-    DB-->>API: New artifact row
+    API->>DB: INSERT into customer_documents (content: '', status: 'draft')
+    DB-->>API: New document row
     API-->>Hook: 201 Created
-    Hook->>Hook: Invalidate artifact list + project detail keys
+    Hook->>Hook: Invalidate document + initiative keys
     Form->>Form: Close dialog + success toast
-    User->>Detail: Sees new ArtifactRow in list
+    User->>Tab: Sees new DocumentCard in initiative section
 ```
 
-## Flow 19: Edit Artifact Content
+## Flow 19: Edit Document Content
 
-**Entry:** Click an ArtifactRow in ProjectDetail
+**Entry:** Click a DocumentCard in an initiative section
 
 ```mermaid
 sequenceDiagram
     actor User
-    participant Row as ArtifactRow
-    participant Editor as ArtifactEditor (Sheet)
+    participant Card as DocumentCard
+    participant Editor as DocumentEditor (Sheet)
     participant TipTap as CustomerRichTextEditor
-    participant Hook as useUpdateArtifact
+    participant Hook as useUpdateDocument
     participant API as Backend API
 
-    User->>Row: Click artifact row
-    Row->>Editor: Open Sheet (slide from right)
+    User->>Card: Click document card
+    Card->>Editor: Open Sheet (slide from right, resizable)
     Editor->>Editor: isMarkdown(content) ? markdownToHTML(content) : content
     Editor->>TipTap: Set initial HTML content
     User->>TipTap: Type or format text
@@ -357,8 +356,8 @@ sequenceDiagram
     Editor->>Editor: Start 1.5s debounce timer
     Note over Editor: After 1.5s of inactivity...
     Editor->>Editor: htmlToMarkdown(html)
-    Editor->>Hook: mutateAsync({ id, content: markdown })
-    Hook->>API: PUT /api/customers/:id/projects/:projectId/artifacts/:artifactId
+    Editor->>Hook: mutateAsync({ id, initiativeId, content: markdown })
+    Hook->>API: PUT /api/customers/:id/initiatives/:initiativeId/documents/:documentId
     API-->>Hook: 200 Updated
     Editor->>Editor: Show "Saved" indicator
     User->>Editor: Close Sheet
@@ -370,15 +369,17 @@ sequenceDiagram
 
 **Status change:** Immediate save (no debounce). Select new status from dropdown, PUT fires immediately.
 
-## Flow 20: Delete Artifact
+**Initiative reassignment:** Select different initiative from dropdown in editor header. Calls `useReassignDocument` which PUTs the new `initiative_id`. Document moves to the target initiative section.
 
-**Entry:** Click trash icon in ArtifactEditor header
+## Flow 20: Delete Document
 
-1. AlertDialog confirmation: "Delete artifact? This action cannot be undone."
-2. `DELETE /api/customers/:id/projects/:projectId/artifacts/:artifactId`
-3. TanStack Query invalidates artifact list + project detail keys
-4. ArtifactEditor Sheet closes
-5. ArtifactRow disappears from list
+**Entry:** Click trash icon in DocumentEditor header 3-dot menu
+
+1. AlertDialog confirmation: "Delete document? This action cannot be undone."
+2. `DELETE /api/customers/:id/initiatives/:initiativeId/documents/:documentId`
+3. TanStack Query invalidates document + initiative keys
+4. DocumentEditor Sheet closes
+5. DocumentCard disappears from initiative section
 
 ---
 

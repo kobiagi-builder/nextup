@@ -35,8 +35,8 @@ export function QuickStats({ counts, financialSummary }: QuickStatsProps) {
       subValueColor: balanceDir === 'positive' ? 'text-amber-600 dark:text-amber-400' : balanceDir === 'negative' ? 'text-blue-600 dark:text-blue-400' : 'text-muted-foreground',
     },
     {
-      label: 'Projects',
-      value: String(counts.projects),
+      label: 'Initiatives',
+      value: String(counts.initiatives),
       subValue: null as string | null,
       icon: FolderKanban,
       valueColor: '',

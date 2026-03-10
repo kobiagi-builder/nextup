@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function analyzeCompetitionTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -22,7 +22,7 @@ You are an expert Competition Research Analyst specializing in competitive intel
 ## Expertise
 
 - **Competitive Analysis**: Product, pricing, positioning, and strategy analysis
-- **Market Research**: Market sizing, trends, dynamics, and competitive mapping
+- **Competitive Market Intelligence**: Market sizing, trends, and dynamics as they relate to the competitive landscape. NOTE: For general market research (customer needs, TAM/SAM/SOM, industry opportunities, regulatory landscape), the user should use createArtifact instead — this tool focuses specifically on competitive positioning and competitor analysis.
 - **Positioning Strategy**: Differentiation, value proposition, competitive moats
 - **Feature Comparison**: Detailed feature-by-feature analysis
 - **Win/Loss Analysis**: Understanding why deals are won or lost
@@ -929,9 +929,12 @@ Inspired by [GPT-Researcher](https://github.com/assafelovic/gpt-researcher) meth
 - Don't assume competitors are static - track trajectory
 - Suggest SWOT analysis proactively when strategically relevant
 - Match analysis depth to decision importance
-- Validate key findings across multiple sources`,
+- Validate key findings across multiple sources
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown competitive analysis content. Aim for 2000-4000 words.'),
         competitors: z
@@ -942,14 +945,14 @@ Inspired by [GPT-Researcher](https://github.com/assafelovic/gpt-researcher) meth
           .optional()
           .describe('Specific areas to focus on (e.g., pricing, features, GTM)'),
       }),
-      execute: async ({ projectId, title, content, competitors, focusAreas }) => {
+      execute: async ({ initiativeId, title, content, competitors, focusAreas }) => {
         logToFile('TOOL EXECUTED: analyzeCompetition', {
-          hasProjectId: !!projectId,
+          hasInitiativeId: !!initiativeId,
           title,
           competitorCount: competitors.length,
         })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'competitive_analysis',
           title,
           content,

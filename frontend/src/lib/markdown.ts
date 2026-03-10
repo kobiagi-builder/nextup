@@ -6,6 +6,7 @@
 
 import { marked } from 'marked'
 import TurndownService from 'turndown'
+import { gfm } from 'turndown-plugin-gfm'
 import { logger } from '@/lib/logger'
 
 // Configure marked at module level (not per-call)
@@ -16,6 +17,9 @@ const turndownService = new TurndownService({
   bulletListMarker: '-',
   codeBlockStyle: 'fenced',
 })
+
+// Add GFM support (tables, strikethrough, task lists) for HTML-to-Markdown conversion
+turndownService.use(gfm)
 
 // Preserve colored text spans as inline HTML (markdown doesn't support text color)
 turndownService.addRule('coloredSpan', {
@@ -29,6 +33,27 @@ turndownService.addRule('coloredSpan', {
 turndownService.addRule('highlightMark', {
   filter: 'mark',
   replacement: (_content, node) => (node as HTMLElement).outerHTML,
+})
+
+// Preserve dir attributes on block elements (RTL/LTR direction)
+turndownService.addRule('preserveDirection', {
+  filter: (node) => {
+    return (
+      node.nodeType === 1 &&
+      !!(node as HTMLElement).getAttribute('dir')
+    )
+  },
+  replacement: (content, node) => {
+    const el = node as HTMLElement
+    const dir = el.getAttribute('dir')
+    const tag = el.tagName.toLowerCase()
+
+    if (['p', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'li'].includes(tag)) {
+      return `<${tag} dir="${dir}">${content.trim()}</${tag}>\n\n`
+    }
+
+    return content
+  },
 })
 
 /**

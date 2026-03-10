@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils'
 import { markdownToHTML } from '@/lib/markdown'
 import { cleanAIText } from '@/lib/cleanAIText'
 import { Bot, User } from 'lucide-react'
+import { CopyButton } from '@/components/ui/copy-button'
 
 // =============================================================================
 // Types
@@ -83,12 +84,13 @@ export function ChatMessage({
       >
         <div
           className={cn(
-            'px-4 py-2 text-sm',
+            'relative group/msg px-4 py-2 text-sm',
             isUser
               ? 'rounded-2xl rounded-br-sm bg-primary text-primary-foreground'
               : 'rounded-2xl rounded-bl-sm bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 text-foreground'
           )}
         >
+          <CopyButton getText={() => content} />
           {isUser ? (
             <div className="whitespace-pre-wrap break-words">{content}</div>
           ) : (

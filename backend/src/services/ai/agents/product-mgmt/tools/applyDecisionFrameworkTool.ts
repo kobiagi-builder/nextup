@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function applyDecisionFrameworkTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -403,9 +403,12 @@ Fractional PMs add most value in decision frameworks when:
 - Good decisions can have bad outcomes; learn from process, not just results
 - **Fractional**: Facilitate decisions, don't make them - you advise, they decide
 - **Fractional**: Leave behind frameworks they can use without you
-- **Fractional**: Your objectivity is premium value - protect it by not having stake in outcomes`,
+- **Fractional**: Your objectivity is premium value - protect it by not having stake in outcomes
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown decision analysis content. Aim for 1000-2000 words.'),
         decisionStatement: z
@@ -413,10 +416,10 @@ Fractional PMs add most value in decision frameworks when:
           .optional()
           .describe('The specific decision being analyzed'),
       }),
-      execute: async ({ projectId, title, content, decisionStatement }) => {
-        logToFile('TOOL EXECUTED: applyDecisionFramework', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, decisionStatement }) => {
+        logToFile('TOOL EXECUTED: applyDecisionFramework', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'decision_analysis',
           title,
           content,

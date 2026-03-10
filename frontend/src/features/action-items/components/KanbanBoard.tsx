@@ -42,6 +42,7 @@ export function KanbanBoard({ items, onStatusChange, onCardClick }: KanbanBoardP
     const grouped: Record<ActionItemStatus, ActionItemWithCustomer[]> = {
       todo: [],
       in_progress: [],
+      on_hold: [],
       done: [],
       cancelled: [],
     }
@@ -82,7 +83,7 @@ export function KanbanBoard({ items, onStatusChange, onCardClick }: KanbanBoardP
       onDragStart={handleDragStart}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-4 h-full">
+      <div className="flex gap-4 h-full overflow-x-auto pb-2">
         {ACTION_ITEM_STATUSES.map((status) => (
           <KanbanColumn
             key={status}

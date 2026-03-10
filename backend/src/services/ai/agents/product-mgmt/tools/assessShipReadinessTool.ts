@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function assessShipReadinessTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -329,16 +329,19 @@ Fractional PMs are especially valuable at ship decisions because:
 - Gradual rollout is almost always better than big bang
 - Document technical debt at creation time, not discovery time
 - **Fractional**: Your objectivity at ship decisions is premium value
-- **Fractional**: Push back on "ship because deadline" - that's what they pay you for`,
+- **Fractional**: Push back on "ship because deadline" - that's what they pay you for
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown ship readiness assessment. Aim for 1000-2000 words.'),
       }),
-      execute: async ({ projectId, title, content }) => {
-        logToFile('TOOL EXECUTED: assessShipReadiness', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content }) => {
+        logToFile('TOOL EXECUTED: assessShipReadiness', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'ship_decision',
           title,
           content,

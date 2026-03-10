@@ -224,33 +224,16 @@ export function ChatInput({
         'flex items-end gap-2 rounded-md transition-colors',
         isDragOver && 'ring-2 ring-primary/50 bg-primary/5',
       )}>
-        {/* Paperclip button */}
+        {/* Hidden file input */}
         {onAttach && (
-          <>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept={ACCEPT_FILE_TYPES}
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            <Button
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isDisabled || isUploading}
-              className="h-11 w-11 shrink-0 text-muted-foreground hover:text-foreground"
-              title="Attach file"
-            >
-              {isUploading ? (
-                <Spinner size="sm" />
-              ) : (
-                <Paperclip className="h-4 w-4" />
-              )}
-            </Button>
-          </>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPT_FILE_TYPES}
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
         )}
 
         <div className="relative flex-1">
@@ -263,12 +246,13 @@ export function ChatInput({
             disabled={isDisabled}
             rows={1}
             className={cn(
-              'flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-sm',
+              'flex w-full rounded-md border border-input bg-transparent py-2 text-base shadow-sm',
               'placeholder:text-muted-foreground',
               'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
               'focus:ring-primary/20 focus:ring-2',
               'disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
-              'resize-none pr-12'
+              'resize-none pr-12',
+              onAttach ? 'pl-9' : 'px-3'
             )}
             style={{
               minHeight: `${MIN_HEIGHT}px`,
@@ -276,6 +260,23 @@ export function ChatInput({
             }}
             data-testid="chat-input"
           />
+
+          {/* Floating attach button inside textarea */}
+          {onAttach && (
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isDisabled || isUploading}
+              className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              title="Attach file"
+            >
+              {isUploading ? (
+                <Spinner size="sm" />
+              ) : (
+                <Paperclip className="h-4 w-4" />
+              )}
+            </button>
+          )}
         </div>
 
         {/* Submit/Stop button */}
@@ -297,12 +298,6 @@ export function ChatInput({
           )}
         </Button>
       </div>
-
-      {/* Keyboard hint */}
-      <p className="text-xs text-muted-foreground">
-        Press <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Enter</kbd> to send,{' '}
-        <kbd className="rounded bg-muted px-1 py-0.5 text-xs">Shift+Enter</kbd> for new line
-      </p>
     </div>
   )
 }

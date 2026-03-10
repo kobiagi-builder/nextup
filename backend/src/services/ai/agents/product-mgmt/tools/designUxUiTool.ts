@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function designUxUiTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -408,9 +408,12 @@ Use this capability when:
 - Include accessibility from the start, not as an afterthought
 - Document decisions and rationale
 - Keep wireframes at appropriate fidelity (lo-fi for concepts, hi-fi for handoff)
-- Consider the full user journey, not just individual screens`,
+- Consider the full user journey, not just individual screens
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown UX/UI spec content. Aim for 1500-3000 words.'),
         designScope: z
@@ -418,10 +421,10 @@ Use this capability when:
           .optional()
           .describe('Scope of the design (e.g., specific page, component, or flow)'),
       }),
-      execute: async ({ projectId, title, content, designScope }) => {
-        logToFile('TOOL EXECUTED: designUxUi', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, designScope }) => {
+        logToFile('TOOL EXECUTED: designUxUi', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'ux_design',
           title,
           content,

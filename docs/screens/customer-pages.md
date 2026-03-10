@@ -170,40 +170,37 @@ CustomerDetailPage
         |           +-- PaymentForm (dialog — portal with data-portal-ignore-click-outside)
         |                 +-- Amount, date, description, reference
         |                 +-- Linked invoice select
-        +-- TabsContent: projects
-              +-- ProjectsTab
-                    +-- [List view] (when no project selected)
-                    |     +-- Header ("Projects" count + "New Project" button)
-                    |     +-- ProjectCard[] (grid gap-3)
-                    |     |     +-- Name + status badge
-                    |     |     +-- Description (line-clamp-1)
-                    |     |     +-- Artifact count + linked agreement label
-                    |     |     +-- Last updated (relative)
-                    |     |     +-- Actions dropdown (Edit, Delete with confirm)
-                    |     +-- Empty state ("No projects yet" + Create CTA)
-                    |     +-- Loading skeleton (3 pulse cards)
-                    |     +-- ProjectForm (dialog — portal with data-portal-ignore-click-outside)
-                    +-- [Detail view] (when project selected via Zustand)
-                          +-- ProjectDetail
-                                +-- Back button (clears selectedProjectId)
-                                +-- Project name + status badge + description
-                                +-- Linked agreement label (if any)
-                                +-- Edit button (opens ProjectForm)
-                                +-- Artifacts header ("Artifacts" count + "New Artifact" button)
-                                +-- ArtifactRow[] (list)
-                                |     +-- Type badge (colored)
-                                |     +-- Title + status badge
-                                |     +-- Content preview (~80 chars, stripped)
-                                |     +-- Last updated (relative)
-                                +-- Empty artifact state
-                                +-- ArtifactForm (dialog — portal with data-portal-ignore-click-outside)
-                                +-- ArtifactEditor (Sheet — side panel)
-                                      +-- Type badge + status Select + save indicator
-                                      +-- Delete button (with AlertDialog confirm)
-                                      +-- Editable title (Input, Enter/Escape)
-                                      +-- "Referenced by" section (read-only Badge chips linking to portfolio artifacts, via useReferencedByArtifacts)
-                                      +-- CustomerRichTextEditor (TipTap)
-                                      +-- Auto-save (1.5s debounce, HTML→Markdown)
+        +-- TabsContent: documents
+              +-- DocumentsTab
+                    +-- Header (doc count + initiative count + "New Initiative" + "New Document" buttons)
+                    +-- DocumentsFilterBar (initiative status Select, name search Input, document status Select, "Clear filters" link)
+                    +-- InitiativeSection[] (sorted: active → planning → on_hold → completed → archived; filtered by status + name + doc status)
+                    |     +-- Collapsible header (ChevronDown, name, status badge, doc count, 3-dot menu)
+                    |     +-- DocumentCard[] (expandable content with grid-rows animation)
+                    |     |     +-- Title (truncated) + status badge + type badge
+                    |     |     +-- Click to open DocumentEditor
+                    |     +-- Empty doc state ("No documents yet")
+                    +-- "Folders" separator label + FolderManager (gear icon popover)
+                    |     +-- FolderManager popover (list folders, add/rename/delete; system folders protected with lock icon)
+                    |     +-- Inline duplicate name validation
+                    +-- FolderSection[] (sorted: custom first by sort_order, system last; filtered by name + doc status)
+                    |     +-- Collapsible header (div role="button", FolderOpen icon, name, doc count, lock or 3-dot menu)
+                    |     +-- DocumentCard[] (same as initiative sections)
+                    |     +-- AlertDialog delete confirmation (docs move to General)
+                    +-- No-filter-results state (FilterX icon + "Clear filters" link)
+                    +-- Empty state ("No documents yet" + "Create First Initiative" CTA)
+                    +-- Loading skeleton (3 pulse cards)
+                    +-- InitiativeForm (dialog — portal with data-portal-ignore-click-outside)
+                    +-- DocumentForm (dialog — portal with data-portal-ignore-click-outside)
+                    |     +-- Title, type select, required initiative select, optional folder select
+                    +-- DocumentEditor (Sheet — resizable side panel)
+                          +-- Resize handle (desktop, left edge drag)
+                          +-- Type badge + status Select + initiative reassignment Select + folder reassignment Select
+                          +-- 3-dot menu with Delete option (AlertDialog confirm)
+                          +-- Editable title (Input, Enter/Escape)
+                          +-- "Referenced by" section (read-only Badge chips, via useReferencedByArtifacts)
+                          +-- CustomerRichTextEditor (TipTap)
+                          +-- Auto-save (1.5s debounce, HTML→Markdown)
 ```
 
 ### State
@@ -213,10 +210,11 @@ CustomerDetailPage
 - Data: `useAgreements(id)` returns agreements list (Agreements tab + ProjectForm linked agreement select)
 - Data: `useReceivables(id)` returns receivables list (Receivables tab)
 - Data: `useReceivableSummary(id)` returns `FinancialSummary` (Receivables tab + OverviewTab)
-- Data: `useProjects(id)` returns `ProjectWithCounts[]` (Projects tab list view)
-- Data: `useProject(id, projectId)` returns single project (Projects tab detail view)
-- Data: `useProjectArtifacts(id, projectId)` returns `CustomerArtifact[]` (Projects tab detail view)
-- Store: `useCustomerStore` for `activeCustomer`, `activeTab`, and `selectedProjectIds`
+- Data: `useInitiatives(id)` returns `InitiativeWithCounts[]` (Documents tab)
+- Data: `useCustomerDocuments(id)` returns `CustomerDocument[]` (Documents tab — flat list grouped client-side by initiative_id or folder_id)
+- Data: `useDocumentFolders(id)` returns `DocumentFolder[]` (Documents tab — folder sections + FolderManager)
+- Filter state: `initiativeStatusFilter`, `nameSearch`, `documentStatusFilter` (all client-side, AND logic)
+- Store: `useCustomerStore` for `activeCustomer` and `activeTab`
 - Local: `isEditingName`, `editedName` for inline name edit
 
 ### Key Interactions
@@ -238,18 +236,18 @@ CustomerDetailPage
 | Edit transaction | Hover row, click Edit | Appropriate form pre-populated, PUT on save |
 | Mark as paid | Hover invoice row, click "Mark as Paid" | Sets status to "paid" via PUT |
 | Delete transaction | Hover row, click Delete | Confirm dialog, DELETE on confirm |
-| Create project | Click "New Project" in Projects tab | ProjectForm dialog opens |
-| Edit project | Click Edit in project card actions | ProjectForm pre-populated, PUT on save |
-| Delete project | Click Delete in project card actions | Confirm dialog, DELETE on confirm (cascades artifacts) |
-| Select project | Click project card | Zustand `selectedProjectIds` updated, detail view renders |
-| Back to project list | Click back arrow in ProjectDetail | Clears `selectedProjectId`, list view renders |
-| Create artifact | Click "New Artifact" in ProjectDetail | ArtifactForm dialog opens |
-| Open artifact editor | Click ArtifactRow | ArtifactEditor Sheet slides in from right |
-| Edit artifact title | Type in title Input in ArtifactEditor | Auto-saves after 1.5s debounce |
-| Edit artifact content | Type in TipTap editor | Auto-saves after 1.5s debounce (HTML→Markdown) |
-| Change artifact status | Select from dropdown in ArtifactEditor header | Immediate PUT save |
-| Delete artifact | Click trash icon in ArtifactEditor header | Confirm dialog, DELETE on confirm |
-| Close artifact editor | Click overlay or X | Flushes pending save, then closes |
+| Create initiative | Click "New Initiative" in Documents tab | InitiativeForm dialog opens |
+| Edit initiative | Click Edit in initiative section 3-dot menu | InitiativeForm pre-populated, PUT on save |
+| Delete initiative | Click Delete in initiative section 3-dot menu | Confirm dialog, DELETE on confirm |
+| Collapse/expand initiative | Click initiative section header | Toggle via grid-rows CSS animation |
+| Create document | Click "New Document" in Documents tab | DocumentForm dialog opens (initiative required) |
+| Open document editor | Click DocumentCard | DocumentEditor Sheet slides in from right (resizable) |
+| Edit document title | Type in title Input in DocumentEditor | Auto-saves after 1.5s debounce |
+| Edit document content | Type in TipTap editor | Auto-saves after 1.5s debounce (HTML→Markdown) |
+| Change document status | Select from dropdown in DocumentEditor header | Immediate PUT save |
+| Reassign document | Select different initiative in DocumentEditor header | Immediate PUT via useReassignDocument |
+| Delete document | Click Delete in DocumentEditor 3-dot menu | Confirm dialog, DELETE on confirm |
+| Close document editor | Click overlay or X | Flushes pending save, then closes |
 
 ## OverviewTab — QuickStats Enhancement
 
@@ -326,98 +324,92 @@ Fields:
 - Reference number (text)
 - Linked invoice (select from customer's invoices)
 
-## ProjectsTab
+## DocumentsTab
 
-**Component:** `frontend/src/features/customers/components/projects/ProjectsTab.tsx`
+**Component:** `frontend/src/features/customers/components/projects/DocumentsTab.tsx`
 
-Tab orchestrator that switches between list and detail views based on Zustand `selectedProjectIds[customerId]`.
+Flat view of all documents grouped under collapsible initiative sections. No drill-down navigation.
 
-- **List view** (no project selected): Header with project count and "New Project" button, `ProjectCard` grid, empty state, loading skeleton
-- **Detail view** (project selected): Renders `<ProjectDetail>` with back navigation
+- **Header:** Total document count, total initiative count, "New Initiative" + "New Document" buttons
+- **Initiative sections:** `InitiativeSection[]` sorted by status (active → planning → on_hold → completed → archived)
+- **Grouping:** Client-side `Record<string, CustomerDocument[]>` by `initiative_id`
+- **Empty state:** "No documents yet" + "Create First Initiative" CTA
+- **Loading skeleton:** 3 pulse cards
 
 Props:
 ```typescript
-interface ProjectsTabProps {
+interface DocumentsTabProps {
   customerId: string
 }
 ```
 
-## ProjectCard
+## InitiativeSection
 
-**Component:** `frontend/src/features/customers/components/projects/ProjectCard.tsx`
+**Component:** `frontend/src/features/customers/components/projects/InitiativeSection.tsx`
 
-Landscape card for a single project.
+Collapsible section displaying an initiative header and its document cards. Uses CSS `grid-template-rows: 0fr/1fr` for smooth expand/collapse animation.
 
-- **Name** + **status badge** (colored per `PROJECT_STATUS_COLORS`)
-- **Description** (1-line clamp)
-- **Artifact count** (FileText icon + "N artifacts")
-- **Linked agreement** label (if `agreement_id` is set, resolved from agreements list)
-- **Last updated** (relative via `date-fns`)
-- **Actions dropdown** (hover-visible: Edit, Delete with confirmation)
-- Click calls `onSelect` (sets Zustand `selectedProjectId`)
+- **ChevronDown** rotates -90deg when collapsed
+- **Initiative name** + **status badge** (colored per `INITIATIVE_STATUS_COLORS`)
+- **Document count** ("N docs")
+- **3-dot menu** (hover-visible: Edit, Delete with AlertDialog confirmation)
+- **Delete confirmation** warns that initiative and its documents will be permanently deleted
 
-## ProjectDetail
+## DocumentCard
 
-**Component:** `frontend/src/features/customers/components/projects/ProjectDetail.tsx`
+**Component:** `frontend/src/features/customers/components/projects/DocumentCard.tsx`
 
-Detail view showing project header + artifact list.
+Minimal clickable row for a single document within an initiative section.
 
-- **Back button** — clears `selectedProjectId` via Zustand
-- **Project name**, status badge, description, linked agreement label
-- **Edit button** — opens `ProjectForm` in edit mode
-- **Artifacts section** — header with count + "New Artifact" button
-- **ArtifactRow list** — clicking a row opens `ArtifactEditor` Sheet
-- **Delete artifact** — via `useDeleteArtifact` mutation
+- **Title** (truncated, flex-1)
+- **Status badge** (colored per `DOCUMENT_STATUS_COLORS`)
+- **Type badge** (colored per `DOCUMENT_TYPE_CONFIG`)
+- **Border-bottom** on all cards except the last one
+- **Hover:** `hover:bg-muted/30`
 
-## ProjectForm
+## InitiativeForm
 
-**Component:** `frontend/src/features/customers/components/projects/ProjectForm.tsx`
+**Component:** `frontend/src/features/customers/components/projects/InitiativeForm.tsx`
 
-Portal dialog (`createPortal` to `document.body`) with `data-portal-ignore-click-outside`. Uses React Hook Form + Zod validation. Supports create and edit modes.
+Portal dialog with `data-portal-ignore-click-outside`. Uses React Hook Form + Zod validation. Supports create and edit modes.
 
 Fields:
 - Name (required, text input)
 - Description (optional, textarea)
-- Status (select: 5 project statuses)
+- Status (select: 5 initiative statuses)
 - Linked agreement (optional, select from `useAgreements(customerId)`)
 
-## ArtifactRow
+## DocumentForm
 
-**Component:** `frontend/src/features/customers/components/projects/ArtifactRow.tsx`
+**Component:** `frontend/src/features/customers/components/projects/DocumentForm.tsx`
 
-Clickable list row for a single artifact.
-
-- **Type badge** (colored per `ARTIFACT_TYPE_CONFIG`)
-- **Title** (truncated)
-- **Status badge** (colored per `ARTIFACT_STATUS_COLORS`)
-- **Content preview** (~80 chars, HTML/markdown stripped)
-- **Last updated** (relative)
-
-## ArtifactForm
-
-**Component:** `frontend/src/features/customers/components/projects/ArtifactForm.tsx`
-
-Portal dialog with `data-portal-ignore-click-outside`. Simple form for creating artifacts.
+Portal dialog with `data-portal-ignore-click-outside`. Creates a new document within a selected initiative.
 
 Fields:
 - Title (required, text input)
-- Type (select: 10 artifact types, defaults to "custom")
+- Type (select: 10 document types, defaults to "strategy")
+- Initiative (required select — every document must belong to an initiative)
 
-## ArtifactEditor
+## DocumentEditor
 
-**Component:** `frontend/src/features/customers/components/projects/ArtifactEditor.tsx`
+**Component:** `frontend/src/features/customers/components/projects/DocumentEditor.tsx`
 
-Side-panel Sheet (`side="right"`, `sm:max-w-3xl`) with `data-portal-ignore-click-outside`. Edits artifact content with auto-save.
+Resizable side-panel Sheet (`side="right"`, default 768px, min 400px, max 85%) with `data-portal-ignore-click-outside`. Edits document content with auto-save.
 
 **Header:**
 - Type badge (read-only)
 - Status Select (immediate save on change)
-- Save indicator ("Saving..." / "Saved" / "Unsaved changes")
-- Delete button (opens AlertDialog confirmation)
+- Initiative reassignment Select (immediate save via `useReassignDocument`)
+- 3-dot menu with Delete option (AlertDialog confirmation)
 - Editable title (Input, Enter to blur, auto-save on change)
+- Resize handle on left edge (desktop only, drag to resize)
 
 **Body:**
 - `CustomerRichTextEditor` (TipTap-based)
+
+**"Referenced by" section:**
+- Read-only Badge chips linking to portfolio artifacts (via `useReferencedByArtifacts`)
+- Shown only when references exist
 
 **Content format:**
 - **On open:** `isMarkdown(content)` → `markdownToHTML(content)` → pass as HTML to TipTap

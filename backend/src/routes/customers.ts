@@ -7,20 +7,20 @@
 
 import { Router } from 'express'
 import * as customerController from '../controllers/customer.controller.js'
-import * as customerArtifactController from '../controllers/customer-artifact.controller.js'
+import * as customerDocumentController from '../controllers/customer-document.controller.js'
 import { requireFeature } from '../middleware/requireFeature.js'
 import { uploadMiddleware, importLinkedInConnections } from '../controllers/linkedinImport.controller.js'
 import { agreementsRouter } from './agreements.js'
 import { receivablesRouter } from './receivables.js'
-import { projectsRouter } from './projects.js'
+import { initiativesRouter } from './initiatives.js'
 import { actionItemsRouter } from './action-items.js'
 
 const router = Router()
 
-// Search, stats, and artifact search (must come BEFORE /:id to avoid route collision)
+// Search, stats, and document search (must come BEFORE /:id to avoid route collision)
 router.get('/search', customerController.searchCustomers)
 router.get('/stats', customerController.getDashboardStats)
-router.get('/artifacts/search', customerController.searchArtifacts)
+router.get('/documents/search', customerController.searchDocuments)
 
 // LinkedIn import (must come BEFORE /:id to avoid route collision)
 router.post('/import/linkedin', requireFeature('linkedin_import'), uploadMiddleware, importLinkedInConnections)
@@ -44,13 +44,13 @@ router.post('/:id/events', customerController.createCustomerEvent)
 // LinkedIn team sync
 router.post('/:id/sync-team-from-linkedin', customerController.syncTeamFromLinkedIn)
 
-// Nested sub-routes (agreements, receivables, projects)
+// Nested sub-routes (agreements, receivables, initiatives)
 router.use('/:id/agreements', agreementsRouter)
 router.use('/:id/receivables', receivablesRouter)
-router.use('/:id/projects', projectsRouter)
+router.use('/:id/initiatives', initiativesRouter)
 router.use('/:id/action-items', actionItemsRouter)
 
-// Flat artifact route (all artifacts across all projects for a customer)
-router.get('/:id/artifacts', customerArtifactController.listCustomerArtifacts)
+// Flat document route (all documents across all initiatives for a customer)
+router.get('/:id/documents', customerDocumentController.listCustomerDocuments)
 
 export default router

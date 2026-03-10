@@ -2,7 +2,7 @@
 /**
  * Product Management Agent — Tool Definitions
  *
- * Tools for project/artifact creation, listing, and updates.
+ * Tools for initiative/document creation, listing, and updates.
  * Uses factory pattern: accepts injected supabase client and customerId for per-request context.
  * customerId is bound into closures — the model never needs to supply it.
  */
@@ -14,18 +14,18 @@ import { logToFile } from '../../../../../lib/logger.js'
 
 export function createProductMgmtTools(supabase: SupabaseClient, customerId: string) {
   return {
-    createProject: tool({
-      description: 'Create a new product workflow project for the customer',
+    createInitiative: tool({
+      description: 'Create a new product workflow initiative for the customer',
       inputSchema: z.object({
         name: z.string(),
         description: z.string().optional(),
         agreementId: z.string().uuid().optional(),
       }),
       execute: async ({ name, description, agreementId }) => {
-        logToFile('TOOL EXECUTED: createProject', { hasCustomerId: !!customerId, name })
+        logToFile('TOOL EXECUTED: createInitiative', { hasCustomerId: !!customerId, name })
 
         const { data, error } = await supabase
-          .from('customer_projects')
+          .from('customer_initiatives')
           .insert({
             customer_id: customerId,
             name,
@@ -37,25 +37,25 @@ export function createProductMgmtTools(supabase: SupabaseClient, customerId: str
           .single()
 
         if (error) return { success: false, error: error.message }
-        return { success: true, projectId: data.id, projectName: name }
+        return { success: true, initiativeId: data.id, initiativeName: name }
       },
     }),
 
-    createArtifact: tool({
-      description: 'Create an artifact for types without a specialized tool (roadmaps, product specs, meeting notes, presentations, ideation, custom). Do NOT use for strategy, competitive analysis, user research, or other types that have dedicated tools.',
+    createDocument: tool({
+      description: 'Create a document for types without a specialized tool (roadmaps, product specs, meeting notes, presentations, ideation, custom). Do NOT use for strategy, competitive analysis, user research, or other types that have dedicated tools.',
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         type: z.enum(['roadmap', 'product_spec', 'meeting_notes', 'presentation', 'ideation', 'custom']),
         title: z.string(),
-        content: z.string().describe('The full artifact content in Markdown format'),
+        content: z.string().describe('The full document content in Markdown format'),
       }),
-      execute: async ({ projectId, type, title, content }) => {
-        logToFile('TOOL EXECUTED: createArtifact', { hasProjectId: !!projectId, type, title, contentLength: content.length })
+      execute: async ({ initiativeId, type, title, content }) => {
+        logToFile('TOOL EXECUTED: createDocument', { hasInitiativeId: !!initiativeId, type, title, contentLength: content.length })
 
         const { data, error } = await supabase
-          .from('customer_artifacts')
+          .from('customer_documents')
           .insert({
-            project_id: projectId,
+            initiative_id: initiativeId,
             customer_id: customerId,
             type,
             title,
@@ -71,24 +71,24 @@ export function createProductMgmtTools(supabase: SupabaseClient, customerId: str
         await supabase.from('customer_events').insert({
           customer_id: customerId,
           event_type: 'delivery',
-          title: `Created artifact: ${title}`,
+          title: `Created document: ${title}`,
           description: `Type: ${type}`,
         })
 
-        return { success: true, artifactId: data.id, title, type, projectId }
+        return { success: true, documentId: data.id, title, type, initiativeId }
       },
     }),
 
-    updateArtifact: tool({
-      description: 'Update an existing artifact content, title, or status',
+    updateDocument: tool({
+      description: 'Update an existing document content, title, or status',
       inputSchema: z.object({
-        artifactId: z.string().uuid(),
+        documentId: z.string().uuid(),
         content: z.string().optional().describe('New content in Markdown format'),
         title: z.string().optional(),
         status: z.enum(['draft', 'in_progress', 'review', 'final', 'archived']).optional(),
       }),
-      execute: async ({ artifactId, content, title, status }) => {
-        logToFile('TOOL EXECUTED: updateArtifact', { hasArtifactId: !!artifactId, hasContent: !!content, hasTitle: !!title, status })
+      execute: async ({ documentId, content, title, status }) => {
+        logToFile('TOOL EXECUTED: updateDocument', { hasDocumentId: !!documentId, hasContent: !!content, hasTitle: !!title, status })
 
         const updates: Record<string, unknown> = {}
         if (content !== undefined) updates.content = content
@@ -96,51 +96,51 @@ export function createProductMgmtTools(supabase: SupabaseClient, customerId: str
         if (status !== undefined) updates.status = status
 
         const { error } = await supabase
-          .from('customer_artifacts')
+          .from('customer_documents')
           .update(updates)
-          .eq('id', artifactId)
+          .eq('id', documentId)
 
         if (error) return { success: false, error: error.message }
-        return { success: true, artifactId }
+        return { success: true, documentId }
       },
     }),
 
-    listProjects: tool({
-      description: 'List all projects for the customer',
+    listInitiatives: tool({
+      description: 'List all initiatives for the customer',
       inputSchema: z.object({}),
       execute: async () => {
-        logToFile('TOOL EXECUTED: listProjects', { hasCustomerId: !!customerId })
+        logToFile('TOOL EXECUTED: listInitiatives', { hasCustomerId: !!customerId })
 
         const { data, error } = await supabase
-          .from('customer_projects')
+          .from('customer_initiatives')
           .select('id, name, status, description')
           .eq('customer_id', customerId)
           .order('updated_at', { ascending: false })
 
         if (error) return { success: false, error: error.message }
-        return { projects: data || [] }
+        return { initiatives: data || [] }
       },
     }),
 
-    listArtifacts: tool({
-      description: 'List artifacts in a project or all artifacts for the customer',
+    listDocuments: tool({
+      description: 'List documents in an initiative or all documents for the customer',
       inputSchema: z.object({
-        projectId: z.string().uuid().optional(),
+        initiativeId: z.string().uuid().optional(),
       }),
-      execute: async ({ projectId }) => {
-        logToFile('TOOL EXECUTED: listArtifacts', { hasCustomerId: !!customerId, hasProjectId: !!projectId })
+      execute: async ({ initiativeId }) => {
+        logToFile('TOOL EXECUTED: listDocuments', { hasCustomerId: !!customerId, hasInitiativeId: !!initiativeId })
 
         let query = supabase
-          .from('customer_artifacts')
-          .select('id, title, type, status, project_id, updated_at')
+          .from('customer_documents')
+          .select('id, title, type, status, initiative_id, updated_at')
           .eq('customer_id', customerId)
 
-        if (projectId) query = query.eq('project_id', projectId)
+        if (initiativeId) query = query.eq('initiative_id', initiativeId)
 
         const { data, error } = await query.order('updated_at', { ascending: false })
 
         if (error) return { success: false, error: error.message }
-        return { artifacts: data || [] }
+        return { documents: data || [] }
       },
     }),
   }

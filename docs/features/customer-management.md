@@ -1,13 +1,13 @@
 # Customer Management
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-04
-**Version:** 10.0.0
-**Status:** Active (Phase 11 — LinkedIn Team Auto-Triggers)
+**Last Updated:** 2026-03-08
+**Version:** 12.0.0
+**Status:** Active (Phase 13 — Initiative & Document Restructure Frontend)
 
 ## Overview
 
-Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, projects, and deliverable artifacts. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Projects tab with full project and artifact CRUD, including a TipTap rich text editor with auto-save for artifact content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts. Phase 6 adds LinkedIn Connections CSV Import — upload a LinkedIn-exported CSV to auto-create/match customers and upsert team members with edge case handling, ICP score badges, ICP filter pills, and a "Not Relevant" status. Phase 7 adds post-import intelligence: LLM-powered company enrichment (employee count, industry, specialties, about) and hybrid ICP scoring (quantitative formula + qualitative LLM), with ICP settings configuration in the Settings page and auto-status assignment for low-ICP new customers. Phase 8 replaces the inline deterministic-only company classification with a 4-layer pipeline (deterministic → Tavily LinkedIn lookup → LLM batch → fail-open), deduplicates company names before classification, stores LinkedIn company URLs, and guards low-confidence companies from auto-status upgrades. Phase 9 adds the LinkedIn Team Extraction backend pipeline: scrape team members from LinkedIn company People pages via Tavily + AI role filtering via Haiku, merge scraped members into existing team with source tracking (`manual` vs `linkedin_scrape`), soft-delete stale scraped members, and per-user configurable role filters. Phase 10 adds the frontend UI for LinkedIn Team Extraction: a "Sync" button in TeamSection with LinkedIn icon and loading spinner, "via LinkedIn" source badges on scraped members, URL validation error icons (AlertCircle) next to invalid LinkedIn/website URLs with tooltip explanations, and hidden member filtering in OverviewTab to exclude soft-deleted members from display while preserving them during manual edits. Phase 11 automates team extraction across all entry points: (1) auto-extract on customer creation after enrichment populates a LinkedIn URL, (2) auto-extract on customer update when `info` contains a LinkedIn URL, (3) refactored manual sync handler to use a shared `syncTeamForCustomer` helper, and (4) 5-second delayed query invalidation on `useUpdateCustomer` to surface background results without manual refresh.
+Customer Management allows advisors and consultants to track their client relationships through a CRM-lite interface. Each customer has a lifecycle status, contact info, team members, event timeline, service agreements, financial receivables, initiatives, and documents. Phase 1 delivered the core CRUD, overview tab, and status workflows. Phase 2 added Agreements and Receivables with full CRUD, computed status logic, and financial summary reporting. Phase 3 activates the Initiatives tab (formerly Projects) with full initiative and document CRUD, including a TipTap rich text editor with auto-save for document content. Phase 4 added dual AI agents (Customer Mgmt + Product Mgmt) with auto-routing and structured response cards. Phase 5 delivers enriched customer list cards with summary metrics (active agreements, outstanding balance, active projects, last activity), full-text search via PostgreSQL TSVECTOR, dashboard stats RPC, agent prompt refinement with health signals, UX polish (structured skeletons, AlertDialog confirmations, event timeline filter, responsive grid), and cross-module linking between portfolio and customer artifacts. Phase 6 adds LinkedIn Connections CSV Import — upload a LinkedIn-exported CSV to auto-create/match customers and upsert team members with edge case handling, ICP score badges, ICP filter pills, and a "Not Relevant" status. Phase 7 adds post-import intelligence: LLM-powered company enrichment (employee count, industry, specialties, about) and hybrid ICP scoring (quantitative formula + qualitative LLM), with ICP settings configuration in the Settings page and auto-status assignment for low-ICP new customers. Phase 8 replaces the inline deterministic-only company classification with a 4-layer pipeline (deterministic → Tavily LinkedIn lookup → LLM batch → fail-open), deduplicates company names before classification, stores LinkedIn company URLs, and guards low-confidence companies from auto-status upgrades. Phase 9 adds the LinkedIn Team Extraction backend pipeline: scrape team members from LinkedIn company People pages via Tavily + AI role filtering via Haiku, merge scraped members into existing team with source tracking (`manual` vs `linkedin_scrape`), soft-delete stale scraped members, and per-user configurable role filters. Phase 10 adds the frontend UI for LinkedIn Team Extraction: a "Sync" button in TeamSection with LinkedIn icon and loading spinner, "via LinkedIn" source badges on scraped members, URL validation error icons (AlertCircle) next to invalid LinkedIn/website URLs with tooltip explanations, and hidden member filtering in OverviewTab to exclude soft-deleted members from display while preserving them during manual edits. Phase 11 automates team extraction across all entry points: (1) auto-extract on customer creation after enrichment populates a LinkedIn URL, (2) auto-extract on customer update when `info` contains a LinkedIn URL, (3) refactored manual sync handler to use a shared `syncTeamForCustomer` helper, and (4) 5-second delayed query invalidation on `useUpdateCustomer` to surface background results without manual refresh. Phase 12 renames the backend from projects/artifacts to initiatives/documents terminology, adds a `document_folders` table with a seeded "General" folder, and changes initiative deletion from cascade-delete to safe-move-to-General (documents are moved to the General folder rather than deleted). Phase 13 completes the frontend restructure: renames all frontend types (Project→Initiative, Artifact→Document), hooks (useProjects→useInitiatives, useCustomerArtifacts→useCustomerDocuments), and components (ProjectsTab→DocumentsTab, ProjectCard→InitiativeSection, ArtifactEditor→DocumentEditor). Replaces the two-level drill-down UI (ProjectsTab→ProjectDetail) with a flat view where all documents are grouped under collapsible initiative sections sorted by status (active→planning→on_hold→completed→archived). Documents always belong to an initiative (`initiative_id NOT NULL`). The Zustand store no longer tracks selectedProjectIds since drill-down navigation is removed.
 
 ## User Perspective
 
@@ -17,14 +17,16 @@ Customer Management allows advisors and consultants to track their client relati
 - **Status Pipeline** -- Move customers through `lead > prospect > negotiation > live > on_hold > archive > not_relevant`
 - **LinkedIn Import** -- Upload LinkedIn connections CSV to auto-create/match customers and upsert team members. Feature-flagged (`linkedin_import`). Multi-step dialog: CSV upload → import progress → results summary with counts, skipped rows, and errors
 - **Customer Detail** -- View and edit name, status, info fields, team members, and event timeline
-- **Enriched Cards** -- List cards show active agreements count, outstanding balance, active projects count, and last activity date
+- **Enriched Cards** -- List cards show active agreements count, outstanding balance, active initiatives count, and last activity date
 - **Dashboard Stats** -- Total customers, active customers, total outstanding, expiring agreements (within 30 days)
 - **Quick Actions** -- Inline status change from list cards, archive with AlertDialog confirmation (replaces window.confirm)
 - **Cross-Module Linking** -- Portfolio artifacts can reference customer artifacts; customer artifacts show "Referenced by" badges linking back to portfolio artifacts
 - **Agreements** -- Create, edit, terminate, and delete service agreements with scope, type, pricing, and date tracking. Status is computed from dates (active, upcoming, expired, open-ended) with manual override (terminated, suspended)
 - **Receivables** -- Record invoices and payments, track financial summary (total invoiced, total paid, outstanding balance). Mark invoices as paid, link payments to invoices, link invoices to agreements
-- **Projects** -- Create and manage projects with name, description, status, and optional linked agreement. Navigate into a project to see its artifacts
-- **Artifacts** -- Create deliverable documents (strategy, research, roadmap, product spec, etc.) within projects. Edit artifact content in a side-panel TipTap rich text editor with auto-save (1.5s debounce). Content stored as Markdown, edited as HTML
+- **Initiatives** -- Create and manage initiatives with name, description, status, and optional linked agreement. Documents are grouped under collapsible initiative sections in a flat view (no drill-down navigation). Initiative sections are sorted by status: active first, then planning, on_hold, completed, archived.
+- **Documents** -- Create documents (strategy, research, roadmap, product spec, etc.) within initiatives. Every document must belong to an initiative (`initiative_id NOT NULL`). Documents can optionally belong to a folder (`folder_id`). Edit document content in a side-panel TipTap rich text editor with auto-save (1.5s debounce). Content stored as Markdown, edited as HTML. Documents can be reassigned between initiatives and folders via the editor header dropdowns.
+- **Document Folders** -- Organize documents into folders (displayed below initiative sections). System folders (e.g., General) are protected from rename/delete (lock icon). Custom folders can be created, renamed, and deleted via the Folder Manager popover (gear icon). Deleting a folder moves its documents to General. Duplicate folder name validation is client-side.
+- **Filter Bar** -- Client-side filter bar with 3 controls (AND logic): initiative status dropdown, name search input, document status dropdown. Filters apply to both initiative sections and folder sections. Empty sections are hidden when document status filter is active. "Clear filters" link resets all filters.
 
 ### Entry Points
 
@@ -296,17 +298,17 @@ The `getAgreementStatus(agreement)` utility in `frontend/src/features/customers/
 | `paid` | Paid | Green | Payment received in full |
 | `cancelled` | Cancelled | Gray | Invoice voided |
 
-### Project Statuses
+### Initiative Statuses
 
 | Status | Label | Color | Description |
 |--------|-------|-------|-------------|
-| `planning` | Planning | Blue | Project in planning phase |
+| `planning` | Planning | Blue | Initiative in planning phase |
 | `active` | Active | Green | Work actively in progress |
 | `on_hold` | On Hold | Orange | Paused temporarily |
 | `completed` | Completed | Purple | All deliverables done |
 | `archived` | Archived | Gray | No longer active |
 
-### Artifact Types
+### Document Types
 
 | Type | Label | Color | Description |
 |------|-------|-------|-------------|
@@ -321,7 +323,7 @@ The `getAgreementStatus(agreement)` utility in `frontend/src/features/customers/
 | `ideation` | Ideation | Pink | Brainstorming and ideation sessions |
 | `custom` | Custom | Slate | Custom document type |
 
-### Artifact Statuses
+### Document Statuses
 
 | Status | Label | Color | Description |
 |--------|-------|-------|-------------|
@@ -337,7 +339,7 @@ The `getAgreementStatus(agreement)` utility in `frontend/src/features/customers/
 
 ```
 Frontend (Supabase direct reads + RPC) ──► Supabase (RLS / SECURITY DEFINER)
-Frontend (mutations) ──► Backend API ──► CustomerService / AgreementService / ReceivableService / ProjectService / CustomerArtifactService ──► Supabase (service role)
+Frontend (mutations) ──► Backend API ──► CustomerService / AgreementService / ReceivableService / InitiativeService / CustomerDocumentService / DocumentFolderService ──► Supabase (service role)
 ```
 
 - **Reads**: Customer list uses `get_customer_list_summary` RPC (full-text search via TSVECTOR, enriched with summary metrics). Detail page uses direct Supabase queries. RLS enforces `user_id = auth.uid()` isolation.
@@ -371,34 +373,39 @@ Frontend (mutations) ──► Backend API ──► CustomerService / Agreement
 | Routes | `backend/src/routes/customers.ts` | Express router with `requireAuth`, mounts agreement/receivable sub-routes |
 | Routes | `backend/src/routes/agreements.ts` | `Router({ mergeParams: true })`: GET /, POST /, PUT /:agreementId, DELETE /:agreementId |
 | Routes | `backend/src/routes/receivables.ts` | `Router({ mergeParams: true })`: GET /, GET /summary, POST /, PUT /:receivableId, DELETE /:receivableId |
-| Service | `backend/src/services/ProjectService.ts` | Project CRUD: list (with artifact counts), getById, create, update, delete |
-| Service | `backend/src/services/CustomerArtifactService.ts` | Artifact CRUD: listByProject, listByCustomer, create, update, delete |
-| Controller | `backend/src/controllers/project.controller.ts` | Project Zod validation + handlers |
-| Controller | `backend/src/controllers/customer-artifact.controller.ts` | Artifact Zod validation + handlers |
-| Routes | `backend/src/routes/projects.ts` | `Router({ mergeParams: true })`: GET /, GET /:projectId, POST /, PUT /:projectId, DELETE /:projectId, USE /:projectId/artifacts |
-| Routes | `backend/src/routes/customer-artifacts.ts` | `Router({ mergeParams: true })`: GET /, POST /, PUT /:artifactId, DELETE /:artifactId |
-| Types (FE) | `frontend/src/features/customers/types/customer.ts` | Frontend types + status labels + agreement/receivable/project/artifact types and label/color constants |
-| Store | `frontend/src/features/customers/stores/customerStore.ts` | Active customer + tab state + selectedProjectIds |
+| Service | `backend/src/services/InitiativeService.ts` | Initiative CRUD: list (with document counts), getById, create, update, safe-delete (moves docs to General) |
+| Service | `backend/src/services/CustomerDocumentService.ts` | Document CRUD: listByInitiative, listByCustomer, create, update, delete |
+| Service | `backend/src/services/DocumentFolderService.ts` | Document folder CRUD: list, getDefault, create, update, delete (with system folder protection) |
+| Controller | `backend/src/controllers/initiative.controller.ts` | Initiative Zod validation + handlers |
+| Controller | `backend/src/controllers/customer-document.controller.ts` | Document Zod validation + handlers |
+| Controller | `backend/src/controllers/document-folder.controller.ts` | Document folder Zod validation + handlers |
+| Routes | `backend/src/routes/initiatives.ts` | `Router({ mergeParams: true })`: GET /, GET /:initiativeId, POST /, PUT /:initiativeId, DELETE /:initiativeId, USE /:initiativeId/documents |
+| Routes | `backend/src/routes/customer-documents.ts` | `Router({ mergeParams: true })`: GET /, POST /, PUT /:documentId, DELETE /:documentId |
+| Routes | `backend/src/routes/document-folders.ts` | `Router({ mergeParams: true })`: GET /, POST /, PUT /:folderId, DELETE /:folderId |
+| Types (FE) | `frontend/src/features/customers/types/customer.ts` | Frontend types + status labels + agreement/receivable/initiative/document types and label/color constants |
+| Store | `frontend/src/features/customers/stores/customerStore.ts` | Active customer + tab state (no drill-down state) |
 | Hooks | `frontend/src/features/customers/hooks/useCustomers.ts` | TanStack Query customer CRUD hooks + useDashboardStats |
-| Hooks | `frontend/src/features/customers/hooks/useCustomerArtifactSearch.ts` | Cross-module artifact search for portfolio linking |
-| Hooks | `frontend/src/features/customers/hooks/useReferencedByArtifacts.ts` | Reverse lookup: portfolio artifacts referencing a customer artifact |
+| Hooks | `frontend/src/features/customers/hooks/useCustomerDocumentSearch.ts` | Cross-module document search for portfolio linking |
+| Hooks | `frontend/src/features/customers/hooks/useReferencedByArtifacts.ts` | Reverse lookup: portfolio artifacts referencing a customer document |
 | Hooks | `frontend/src/features/customers/hooks/useAgreements.ts` | TanStack Query agreement hooks + agreementKeys factory |
 | Hooks | `frontend/src/features/customers/hooks/useReceivables.ts` | TanStack Query receivable hooks + receivableKeys factory + useReceivableSummary |
-| Hooks | `frontend/src/features/customers/hooks/useProjects.ts` | TanStack Query project hooks + projectKeys factory |
-| Hooks | `frontend/src/features/customers/hooks/useCustomerArtifacts.ts` | TanStack Query artifact hooks + customerArtifactKeys factory |
+| Hooks | `frontend/src/features/customers/hooks/useInitiatives.ts` | TanStack Query initiative CRUD hooks + initiativeKeys factory (Supabase direct reads, API mutations) |
+| Hooks | `frontend/src/features/customers/hooks/useCustomerDocuments.ts` | TanStack Query document CRUD hooks + customerDocumentKeys factory + useReassignDocument |
 | ICP Settings UI | `frontend/src/features/customers/components/settings/IcpSettingsSection.tsx` | ICP settings form (employee range, industries, specialties, description, weights) |
 | ICP Hooks | `frontend/src/features/customers/hooks/useIcpSettings.ts` | TanStack Query GET/PUT for ICP settings |
 | Skeleton | `frontend/src/features/customers/components/shared/CustomerCardSkeleton.tsx` | Structured loading skeleton matching card layout |
 | References | `frontend/src/features/portfolio/components/editor/ArtifactReferences.tsx` | Collapsible cross-module references section in portfolio editor |
 | List Page | `frontend/src/features/customers/pages/CustomerListPage.tsx` | List with filters, enriched cards, AlertDialog, responsive grid |
-| Detail Page | `frontend/src/features/customers/pages/CustomerDetailPage.tsx` | Tabs: Overview, Agreements, Receivables, Projects |
-| Projects Tab | `frontend/src/features/customers/components/projects/ProjectsTab.tsx` | Tab orchestrator: list/detail view via Zustand selection |
-| Project Card | `frontend/src/features/customers/components/projects/ProjectCard.tsx` | Card with name, status, artifact count, actions |
-| Project Detail | `frontend/src/features/customers/components/projects/ProjectDetail.tsx` | Project header + artifact list |
-| Project Form | `frontend/src/features/customers/components/projects/ProjectForm.tsx` | Create/edit project dialog |
-| Artifact Row | `frontend/src/features/customers/components/projects/ArtifactRow.tsx` | List item with type badge, preview |
-| Artifact Form | `frontend/src/features/customers/components/projects/ArtifactForm.tsx` | Create artifact dialog |
-| Artifact Editor | `frontend/src/features/customers/components/projects/ArtifactEditor.tsx` | Sheet editor with auto-save |
+| Detail Page | `frontend/src/features/customers/pages/CustomerDetailPage.tsx` | Tabs: Overview, Agreements, Receivables, Documents, Action Items |
+| Documents Tab | `frontend/src/features/customers/components/projects/DocumentsTab.tsx` | Orchestrator: initiative sections + folder sections + filter bar + folder manager, documents grouped by initiative_id or folder_id |
+| Initiative Section | `frontend/src/features/customers/components/projects/InitiativeSection.tsx` | Collapsible section with header (name, status badge, doc count, 3-dot menu), expand/collapse animation |
+| Folder Section | `frontend/src/features/customers/components/projects/FolderSection.tsx` | Collapsible folder section (lighter styling, FolderOpen icon, no status badge, lock for system folders, div role="button" header) |
+| Documents Filter Bar | `frontend/src/features/customers/components/projects/DocumentsFilterBar.tsx` | 3 filter controls (initiative status, name search, document status) + clear filters link |
+| Folder Manager | `frontend/src/features/customers/components/projects/FolderManager.tsx` | Popover for folder CRUD: add, inline rename, delete with confirmation, duplicate name validation |
+| Document Card | `frontend/src/features/customers/components/projects/DocumentCard.tsx` | Minimal row: title, status badge, type badge, click to open editor |
+| Initiative Form | `frontend/src/features/customers/components/projects/InitiativeForm.tsx` | Create/edit initiative dialog with name, description, status, optional agreement link |
+| Document Form | `frontend/src/features/customers/components/projects/DocumentForm.tsx` | Create document dialog with title, type, required initiative selection, optional folder selection |
+| Document Editor | `frontend/src/features/customers/components/projects/DocumentEditor.tsx` | Sheet editor with auto-save (1.5s debounce), initiative + folder reassignment dropdowns, status dropdown, resizable panel |
 | Rich Text Editor | `frontend/src/features/customers/components/projects/CustomerRichTextEditor.tsx` | Simplified TipTap (no portfolio dependencies) |
 | Markdown Utils | `frontend/src/lib/markdown.ts` | markdownToHTML (marked), htmlToMarkdown (turndown), isMarkdown |
 
@@ -498,35 +505,36 @@ interface FinancialSummary {
 }
 ```
 
-**`Project`**:
+**`Initiative`**:
 ```typescript
-interface Project {
+interface Initiative {
   id: string
   customer_id: string
   name: string
   description: string | null
-  status: ProjectStatus
+  status: InitiativeStatus
   agreement_id: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
-interface ProjectWithCounts extends Project {
-  artifacts_count: number
+interface InitiativeWithCounts extends Initiative {
+  documents_count: number
 }
 ```
 
-**`CustomerArtifact`**:
+**`CustomerDocument`**:
 ```typescript
-interface CustomerArtifact {
+interface CustomerDocument {
   id: string
-  project_id: string
+  initiative_id: string      // NOT NULL — every document belongs to an initiative
   customer_id: string
-  type: ArtifactType  // 10 values
+  folder_id: string | null   // References document_folders
+  type: DocumentType  // 10 values
   title: string
   content: string     // Stored as Markdown
-  status: ArtifactStatus
+  status: DocumentStatus
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
@@ -569,10 +577,10 @@ receivableKeys = {
   summary: (customerId) => ['receivables', 'summary', customerId],
 }
 
-projectKeys = {
-  all: (customerId) => [...customerKeys.detail(customerId), 'projects'],
-  list: (customerId) => [...projectKeys.all(customerId), 'list'],
-  detail: (customerId, projectId) => [...projectKeys.all(customerId), 'detail', projectId],
+initiativeKeys = {
+  all: (customerId) => [...customerKeys.detail(customerId), 'initiatives'],
+  list: (customerId) => [...initiativeKeys.all(customerId), 'list'],
+  detail: (customerId, initiativeId) => [...initiativeKeys.all(customerId), 'detail', initiativeId],
 }
 
 icpSettingsKeys = {
@@ -580,11 +588,11 @@ icpSettingsKeys = {
   mine: () => ['icp-settings', 'mine'],
 }
 
-customerArtifactKeys = {
-  allByProject: (customerId, projectId) => [...projectKeys.detail(customerId, projectId), 'artifacts'],
-  listByProject: (customerId, projectId) => [...customerArtifactKeys.allByProject(customerId, projectId), 'list'],
-  allByCustomer: (customerId) => [...customerKeys.detail(customerId), 'artifacts'],
-  listByCustomer: (customerId) => [...customerArtifactKeys.allByCustomer(customerId), 'list'],
+customerDocumentKeys = {
+  allByInitiative: (customerId, initiativeId) => [...initiativeKeys.detail(customerId, initiativeId), 'documents'],
+  listByInitiative: (customerId, initiativeId) => [...customerDocumentKeys.allByInitiative(customerId, initiativeId), 'list'],
+  allByCustomer: (customerId) => [...customerKeys.detail(customerId), 'documents'],
+  listByCustomer: (customerId) => [...customerDocumentKeys.allByCustomer(customerId), 'list'],
 }
 ```
 
@@ -627,6 +635,7 @@ PAYMENT_METHOD_LABELS: Record<string, string>
 - `get_customer_dashboard_stats()` PostgreSQL function (SECURITY DEFINER) — aggregate dashboard counters
 - GIN index on `customers.search_vector` for full-text search
 - GIN index on `artifacts.metadata->'linkedCustomerArtifacts'` for cross-module reverse lookup
+- `document_folders` table — stores named folder groups per customer; always seeded with a "General" system folder (`is_system: true`) that cannot be deleted. Initiative safe-delete moves orphaned documents to this folder.
 
 ## Related Documentation
 

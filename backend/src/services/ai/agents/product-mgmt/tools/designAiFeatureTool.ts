@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function designAiFeatureTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -327,16 +327,19 @@ AI product expertise is in high demand. Many clients want to "add AI" but don't 
 - Design UX that communicates AI uncertainty honestly
 - Every AI feature should degrade gracefully
 - **Fractional**: Your job is AI strategy and architecture, not daily prompt tuning
-- **Fractional**: Leave behind eval frameworks client can run themselves`,
+- **Fractional**: Leave behind eval frameworks client can run themselves
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown AI feature spec content. Aim for 1500-3000 words.'),
       }),
-      execute: async ({ projectId, title, content }) => {
-        logToFile('TOOL EXECUTED: designAiFeature', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content }) => {
+        logToFile('TOOL EXECUTED: designAiFeature', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'ai_feature_spec',
           title,
           content,

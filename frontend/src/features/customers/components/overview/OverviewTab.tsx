@@ -37,7 +37,7 @@ export function OverviewTab({ customer, onUpdateInfo, isUpdating, isEnriching }:
         counts={{
           agreements: customer.agreements_count,
           receivables: customer.receivables_count,
-          projects: customer.projects_count,
+          initiatives: customer.initiatives_count,
           action_items: customer.action_items_count,
         }}
         financialSummary={financialSummary ?? undefined}

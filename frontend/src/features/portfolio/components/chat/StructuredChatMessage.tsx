@@ -11,6 +11,7 @@ import { Bot, ListTree, TrendingUp, User } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { markdownToHTML } from '@/lib/markdown'
 import { cleanAIText } from '@/lib/cleanAIText'
+import { CopyButton } from '@/components/ui/copy-button'
 import { DiscussionSection } from './DiscussionSection'
 import { ArtifactSuggestionCard } from './ArtifactSuggestionCard'
 import { parseMessageSegments } from '../../utils/messageFormatter'
@@ -254,12 +255,13 @@ export function StructuredChatMessage({
                   <div
                     key={segment.id}
                     className={cn(
-                      "rounded-lg px-4 py-2 text-sm",
+                      "relative group/msg rounded-lg px-4 py-2 text-sm",
                       segment.type === 'result' && "bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100",
                       segment.type === 'action' && "bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100",
                       segment.type === 'explanation' && "bg-muted"
                     )}
                   >
+                    <CopyButton getText={() => segment.text} />
                     <RenderedText text={segment.text} />
                   </div>
                 ))}
@@ -295,13 +297,14 @@ export function StructuredChatMessage({
             <div
               key={segment.id}
               className={cn(
-                "rounded-lg px-4 py-2 text-sm",
+                "relative group/msg rounded-lg px-4 py-2 text-sm",
                 // Style based on segment type
                 segment.type === 'result' && "bg-green-50 dark:bg-green-900/20 text-green-900 dark:text-green-100",
                 segment.type === 'action' && "bg-blue-50 dark:bg-blue-900/20 text-blue-900 dark:text-blue-100",
                 segment.type === 'explanation' && "bg-muted"
               )}
             >
+              <CopyButton getText={() => segment.text} />
               <div className="whitespace-pre-wrap break-words">{segment.text}</div>
             </div>
           ))}

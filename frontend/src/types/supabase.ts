@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_interaction_logs: {
+        Row: {
+          agent_type: string
+          created_at: string
+          customer_id: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          session_id: string
+          step_number: number | null
+          text_content: string | null
+          tool_input: Json | null
+          tool_name: string | null
+          tool_output: Json | null
+        }
+        Insert: {
+          agent_type: string
+          created_at?: string
+          customer_id: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          session_id: string
+          step_number?: number | null
+          text_content?: string | null
+          tool_input?: Json | null
+          tool_name?: string | null
+          tool_output?: Json | null
+        }
+        Update: {
+          agent_type?: string
+          created_at?: string
+          customer_id?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          session_id?: string
+          step_number?: number | null
+          text_content?: string | null
+          tool_input?: Json | null
+          tool_name?: string | null
+          tool_output?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_interaction_logs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_conversations: {
         Row: {
           account_id: string
@@ -279,33 +332,36 @@ export type Database = {
       customer_action_items: {
         Row: {
           created_at: string
-          customer_id: string
+          customer_id: string | null
           description: string
           due_date: string | null
           id: string
           status: string
           type: string
           updated_at: string
+          user_id: string
         }
         Insert: {
           created_at?: string
-          customer_id: string
+          customer_id?: string | null
           description: string
           due_date?: string | null
           id?: string
           status?: string
           type?: string
           updated_at?: string
+          user_id?: string
         }
         Update: {
           created_at?: string
-          customer_id?: string
+          customer_id?: string | null
           description?: string
           due_date?: string | null
           id?: string
           status?: string
           type?: string
           updated_at?: string
+          user_id?: string
         }
         Relationships: [
           {
@@ -323,10 +379,10 @@ export type Database = {
           customer_id: string
           end_date: string | null
           id: string
-          override_status: string | null
           pricing: Json | null
           scope: string
           start_date: string | null
+          status: string
           type: string
           updated_at: string | null
         }
@@ -335,10 +391,10 @@ export type Database = {
           customer_id: string
           end_date?: string | null
           id?: string
-          override_status?: string | null
           pricing?: Json | null
           scope: string
           start_date?: string | null
+          status?: string
           type?: string
           updated_at?: string | null
         }
@@ -347,10 +403,10 @@ export type Database = {
           customer_id?: string
           end_date?: string | null
           id?: string
-          override_status?: string | null
           pricing?: Json | null
           scope?: string
           start_date?: string | null
+          status?: string
           type?: string
           updated_at?: string | null
         }
@@ -360,60 +416,6 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customer_artifacts: {
-        Row: {
-          content: string | null
-          created_at: string | null
-          customer_id: string
-          id: string
-          metadata: Json | null
-          project_id: string
-          status: string
-          title: string
-          type: string
-          updated_at: string | null
-        }
-        Insert: {
-          content?: string | null
-          created_at?: string | null
-          customer_id: string
-          id?: string
-          metadata?: Json | null
-          project_id: string
-          status?: string
-          title: string
-          type?: string
-          updated_at?: string | null
-        }
-        Update: {
-          content?: string | null
-          created_at?: string | null
-          customer_id?: string
-          id?: string
-          metadata?: Json | null
-          project_id?: string
-          status?: string
-          title?: string
-          type?: string
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_artifacts_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "customer_artifacts_project_id_fkey"
-            columns: ["project_id"]
-            isOneToOne: false
-            referencedRelation: "customer_projects"
             referencedColumns: ["id"]
           },
         ]
@@ -452,6 +454,70 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_documents: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          customer_id: string
+          folder_id: string | null
+          id: string
+          initiative_id: string
+          metadata: Json | null
+          status: string
+          title: string
+          type: string
+          updated_at: string | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          customer_id: string
+          folder_id?: string | null
+          id?: string
+          initiative_id: string
+          metadata?: Json | null
+          status?: string
+          title: string
+          type?: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          customer_id?: string
+          folder_id?: string | null
+          id?: string
+          initiative_id?: string
+          metadata?: Json | null
+          status?: string
+          title?: string
+          type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_artifacts_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_documents_folder_id_fkey"
+            columns: ["folder_id"]
+            isOneToOne: false
+            referencedRelation: "document_folders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_documents_initiative_id_fkey"
+            columns: ["initiative_id"]
+            isOneToOne: false
+            referencedRelation: "customer_initiatives"
             referencedColumns: ["id"]
           },
         ]
@@ -500,7 +566,42 @@ export type Database = {
           },
         ]
       }
-      customer_projects: {
+      customer_features: {
+        Row: {
+          created_at: string | null
+          feature_id: string
+          flag_state: boolean
+          id: string
+          uid: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          feature_id: string
+          flag_state?: boolean
+          id?: string
+          uid: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          feature_id?: string
+          flag_state?: boolean
+          id?: string
+          uid?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_features_feature_id_fkey"
+            columns: ["feature_id"]
+            isOneToOne: false
+            referencedRelation: "feature_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_initiatives: {
         Row: {
           agreement_id: string | null
           created_at: string | null
@@ -657,6 +758,152 @@ export type Database = {
         }
         Relationships: []
       }
+      document_folders: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          is_default: boolean
+          is_system: boolean
+          name: string
+          slug: string
+          sort_order: number
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_default?: boolean
+          is_system?: boolean
+          name: string
+          slug: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          is_default?: boolean
+          is_system?: boolean
+          name?: string
+          slug?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_folders_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feature_flags: {
+        Row: {
+          created_at: string | null
+          default_state: boolean
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          default_state?: boolean
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          default_state?: boolean
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      icp_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          target_employee_max: number | null
+          target_employee_min: number | null
+          target_industries: string[] | null
+          target_specialties: string[] | null
+          updated_at: string | null
+          user_id: string
+          weight_quantitative: number
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          target_employee_max?: number | null
+          target_employee_min?: number | null
+          target_industries?: string[] | null
+          target_specialties?: string[] | null
+          updated_at?: string | null
+          user_id: string
+          weight_quantitative?: number
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          target_employee_max?: number | null
+          target_employee_min?: number | null
+          target_industries?: string[] | null
+          target_specialties?: string[] | null
+          updated_at?: string | null
+          user_id?: string
+          weight_quantitative?: number
+        }
+        Relationships: []
+      }
+      onboarding_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          current_step: number
+          extraction_results: Json | null
+          id: string
+          step_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          extraction_results?: Json | null
+          id?: string
+          step_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          current_step?: number
+          extraction_results?: Json | null
+          id?: string
+          step_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       skills: {
         Row: {
           account_id: string
@@ -725,6 +972,74 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      team_role_filters: {
+        Row: {
+          created_at: string
+          exclusions: Json
+          id: string
+          roles: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          exclusions?: Json
+          id?: string
+          roles?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          exclusions?: Json
+          id?: string
+          roles?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      unmatched_action_requests: {
+        Row: {
+          agent_type: string
+          created_at: string
+          customer_id: string
+          id: string
+          model_response_preview: string | null
+          request_description: string
+          tool_calls_made: string[] | null
+          user_id: string
+        }
+        Insert: {
+          agent_type?: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          model_response_preview?: string | null
+          request_description: string
+          tool_calls_made?: string[] | null
+          user_id: string
+        }
+        Update: {
+          agent_type?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          model_response_preview?: string | null
+          request_description?: string
+          tool_calls_made?: string[] | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unmatched_action_requests_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_context: {
         Row: {
@@ -858,22 +1173,30 @@ export type Database = {
         }[]
       }
       get_customer_list_summary: {
-        Args: { p_search?: string; p_sort?: string; p_status?: string }
-        Returns: {
-          active_agreements_count: number
-          active_projects_count: number
-          created_at: string
-          deleted_at: string
-          id: string
-          info: Json
-          last_activity: string
-          name: string
-          outstanding_balance: number
-          status: string
-          updated_at: string
-          user_id: string
-        }[]
-      }
+            Args: {
+              p_icp?: string
+              p_search?: string
+              p_sort?: string
+              p_status?: string
+            }
+            Returns: {
+              action_items_count: number
+              active_agreements_count: number
+              active_initiatives_count: number
+              created_at: string
+              deleted_at: string
+              id: string
+              info: Json
+              last_activity: string
+              name: string
+              next_action_description: string
+              next_action_due_date: string
+              outstanding_balance: number
+              status: string
+              updated_at: string
+              user_id: string
+            }[]
+          }
       get_receivables_summary: {
         Args: { cid: string }
         Returns: {
@@ -884,7 +1207,7 @@ export type Database = {
       }
       is_customer_owner: { Args: { cid: string }; Returns: boolean }
       is_feature_active: {
-        Args: { p_uid: string; p_feature_name: string }
+        Args: { p_feature_name: string; p_uid: string }
         Returns: boolean
       }
       merge_customer_info: {
@@ -984,10 +1307,6 @@ export type TablesUpdate<
       : never
     : never
 
-// Aliases for backward compatibility
-export type TableInsert<T extends keyof DefaultSchema["Tables"]> = TablesInsert<T>
-export type TableUpdate<T extends keyof DefaultSchema["Tables"]> = TablesUpdate<T>
-
 export type Enums<
   DefaultSchemaEnumNameOrOptions extends
     | keyof DefaultSchema["Enums"]
@@ -1021,6 +1340,9 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
     ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export type TableInsert<T extends keyof DefaultSchema["Tables"]> = TablesInsert<T>
+export type TableUpdate<T extends keyof DefaultSchema["Tables"]> = TablesUpdate<T>
 
 export const Constants = {
   public: {

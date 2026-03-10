@@ -76,6 +76,7 @@ export function TextSelectionAIButton({ editor, artifactId, onAIClick }: TextSel
   return (
     <BubbleMenu
       editor={editor}
+      pluginKey="textSelectionAIButton"
       shouldShow={({ editor: e }: { editor: Editor }) => {
         // Show only when text is selected (not empty selection) and NOT on an image
         const { from, to } = e.state.selection

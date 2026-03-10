@@ -155,7 +155,7 @@ export interface Customer {
 export interface CustomerWithCounts extends Customer {
   agreements_count: number
   receivables_count: number
-  projects_count: number
+  initiatives_count: number
   action_items_count: number
 }
 
@@ -166,7 +166,7 @@ export interface CustomerWithCounts extends Customer {
 export interface CustomerWithSummary extends Customer {
   active_agreements_count: number
   outstanding_balance: number
-  active_projects_count: number
+  active_initiatives_count: number
   last_activity: string | null
   next_action_description: string | null
   next_action_due_date: string | null
@@ -184,14 +184,14 @@ export interface DashboardStats {
 }
 
 // =============================================================================
-// Customer Artifact Search Result (for cross-module linking)
+// Customer Document Search Result (for cross-module linking)
 // =============================================================================
 
-export interface CustomerArtifactSearchResult {
+export interface CustomerDocumentSearchResult {
   id: string
   title: string
-  type: ArtifactType
-  status: ArtifactStatus
+  type: DocumentType
+  status: DocumentStatus
   customer_id: string
   customer_name: string
 }
@@ -341,42 +341,42 @@ export interface FinancialSummary {
 }
 
 // =============================================================================
-// Project Types
+// Initiative Types (formerly Project)
 // =============================================================================
 
-export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived'
+export type InitiativeStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived'
 
-export const VALID_PROJECT_STATUSES: ProjectStatus[] = [
+export const VALID_INITIATIVE_STATUSES: InitiativeStatus[] = [
   'planning', 'active', 'on_hold', 'completed', 'archived',
 ]
 
-export interface Project {
+export interface Initiative {
   id: string
   customer_id: string
   name: string
   description: string | null
-  status: ProjectStatus
+  status: InitiativeStatus
   agreement_id: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
-export interface ProjectWithCounts extends Project {
-  artifacts_count: number
+export interface InitiativeWithCounts extends Initiative {
+  documents_count: number
 }
 
-export interface CreateProjectInput {
+export interface CreateInitiativeInput {
   name: string
   description?: string
-  status?: ProjectStatus
+  status?: InitiativeStatus
   agreement_id?: string | null
 }
 
-export interface UpdateProjectInput {
+export interface UpdateInitiativeInput {
   name?: string
   description?: string
-  status?: ProjectStatus
+  status?: InitiativeStatus
   agreement_id?: string | null
 }
 
@@ -390,10 +390,10 @@ export const VALID_ACTION_ITEM_TYPES: ActionItemType[] = [
   'follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom',
 ]
 
-export type ActionItemStatus = 'todo' | 'in_progress' | 'done' | 'cancelled'
+export type ActionItemStatus = 'todo' | 'in_progress' | 'on_hold' | 'done' | 'cancelled'
 
 export const VALID_ACTION_ITEM_STATUSES: ActionItemStatus[] = [
-  'todo', 'in_progress', 'done', 'cancelled',
+  'todo', 'in_progress', 'on_hold', 'done', 'cancelled',
 ]
 
 export interface ActionItem {
@@ -435,10 +435,10 @@ export interface UpdateBoardActionItemInput {
 }
 
 // =============================================================================
-// Customer Artifact Types
+// Customer Document Types (formerly Artifact)
 // =============================================================================
 
-export type ArtifactType =
+export type DocumentType =
   | 'strategy'
   | 'research'
   | 'roadmap'
@@ -450,40 +450,43 @@ export type ArtifactType =
   | 'ideation'
   | 'custom'
 
-export const VALID_ARTIFACT_TYPES: ArtifactType[] = [
+export const VALID_DOCUMENT_TYPES: DocumentType[] = [
   'strategy', 'research', 'roadmap', 'competitive_analysis',
   'user_research', 'product_spec', 'meeting_notes', 'presentation', 'ideation', 'custom',
 ]
 
-export type ArtifactStatus = 'draft' | 'in_progress' | 'review' | 'final' | 'archived'
+export type DocumentStatus = 'draft' | 'in_progress' | 'review' | 'final' | 'archived'
 
-export const VALID_ARTIFACT_STATUSES: ArtifactStatus[] = [
+export const VALID_DOCUMENT_STATUSES: DocumentStatus[] = [
   'draft', 'in_progress', 'review', 'final', 'archived',
 ]
 
-export interface CustomerArtifact {
+export interface CustomerDocument {
   id: string
-  project_id: string
+  initiative_id: string
   customer_id: string
-  type: ArtifactType
+  folder_id: string | null
+  type: DocumentType
   title: string
   content: string
-  status: ArtifactStatus
+  status: DocumentStatus
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
-export interface CreateArtifactInput {
+export interface CreateDocumentInput {
   title: string
-  type?: ArtifactType
+  type?: DocumentType
   content?: string
-  status?: ArtifactStatus
+  status?: DocumentStatus
 }
 
-export interface UpdateArtifactInput {
+export interface UpdateDocumentInput {
   title?: string
-  type?: ArtifactType
+  type?: DocumentType
   content?: string
-  status?: ArtifactStatus
+  status?: DocumentStatus
+  initiative_id?: string | null
+  folder_id?: string | null
 }

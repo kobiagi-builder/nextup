@@ -2,7 +2,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 import { logToFile } from '../../../../../lib/logger.js'
 
 export function createLaunchPlanTool(supabase: SupabaseClient, customerId: string) {
@@ -506,9 +506,12 @@ Launch strategy is high-value fractional work - many teams struggle with structu
 - Always have a rollback plan for Tier 1 launches
 - **Fractional**: You design the launch, they execute it
 - **Fractional**: Create launch playbooks they can reuse without you
-- **Fractional**: Position as strategic launch advisor, not launch operator`,
+- **Fractional**: Position as strategic launch advisor, not launch operator
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown launch plan content. Aim for 1500-3000 words.'),
         launchTier: z
@@ -516,10 +519,10 @@ Launch strategy is high-value fractional work - many teams struggle with structu
           .optional()
           .describe('Launch tier: major (full GTM), medium (targeted), minor (release notes)'),
       }),
-      execute: async ({ projectId, title, content, launchTier }) => {
-        logToFile('TOOL EXECUTED: createLaunchPlan', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, launchTier }) => {
+        logToFile('TOOL EXECUTED: createLaunchPlan', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'launch_plan',
           title,
           content,

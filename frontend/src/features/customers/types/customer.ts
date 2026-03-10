@@ -160,14 +160,14 @@ export interface Customer {
 export interface CustomerWithCounts extends Customer {
   agreements_count: number
   receivables_count: number
-  projects_count: number
+  initiatives_count: number
   action_items_count: number
 }
 
 export interface CustomerWithSummary extends Customer {
   active_agreements_count: number
   outstanding_balance: number
-  active_projects_count: number
+  active_initiatives_count: number
   action_items_count: number
   last_activity: string | null
   next_action_description: string | null
@@ -188,7 +188,7 @@ export interface DashboardStats {
 export interface TabCounts {
   agreements: number
   receivables: number
-  projects: number
+  initiatives: number
   action_items: number
 }
 
@@ -278,7 +278,7 @@ export interface CustomerFilters {
 // Customer Tab
 // =============================================================================
 
-export type CustomerTab = 'overview' | 'agreements' | 'receivables' | 'projects' | 'action_items'
+export type CustomerTab = 'overview' | 'agreements' | 'receivables' | 'documents' | 'action_items'
 
 // =============================================================================
 // Agreement Types
@@ -459,16 +459,16 @@ export interface FinancialSummary {
 }
 
 // =============================================================================
-// Project Types
+// Initiative Types (formerly Project)
 // =============================================================================
 
-export type ProjectStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived'
+export type InitiativeStatus = 'planning' | 'active' | 'on_hold' | 'completed' | 'archived'
 
-export const PROJECT_STATUSES: ProjectStatus[] = [
+export const INITIATIVE_STATUSES: InitiativeStatus[] = [
   'planning', 'active', 'on_hold', 'completed', 'archived',
 ]
 
-export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+export const INITIATIVE_STATUS_LABELS: Record<InitiativeStatus, string> = {
   planning: 'Planning',
   active: 'Active',
   on_hold: 'On Hold',
@@ -476,7 +476,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   archived: 'Archived',
 }
 
-export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
+export const INITIATIVE_STATUS_COLORS: Record<InitiativeStatus, string> = {
   planning: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
   active: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   on_hold: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
@@ -484,33 +484,33 @@ export const PROJECT_STATUS_COLORS: Record<ProjectStatus, string> = {
   archived: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
 }
 
-export interface Project {
+export interface Initiative {
   id: string
   customer_id: string
   name: string
   description: string | null
-  status: ProjectStatus
+  status: InitiativeStatus
   agreement_id: string | null
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
-export interface ProjectWithCounts extends Project {
-  artifacts_count: number
+export interface InitiativeWithCounts extends Initiative {
+  documents_count: number
 }
 
-export interface CreateProjectInput {
+export interface CreateInitiativeInput {
   name: string
   description?: string
-  status?: ProjectStatus
+  status?: InitiativeStatus
   agreement_id?: string | null
 }
 
-export interface UpdateProjectInput {
+export interface UpdateInitiativeInput {
   name?: string
   description?: string
-  status?: ProjectStatus
+  status?: InitiativeStatus
   agreement_id?: string | null
 }
 
@@ -542,15 +542,16 @@ export const ACTION_ITEM_TYPE_COLORS: Record<ActionItemType, string> = {
   custom: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
 }
 
-export type ActionItemStatus = 'todo' | 'in_progress' | 'done' | 'cancelled'
+export type ActionItemStatus = 'todo' | 'in_progress' | 'on_hold' | 'done' | 'cancelled'
 
 export const ACTION_ITEM_STATUSES: ActionItemStatus[] = [
-  'todo', 'in_progress', 'done', 'cancelled',
+  'todo', 'in_progress', 'on_hold', 'done', 'cancelled',
 ]
 
 export const ACTION_ITEM_STATUS_LABELS: Record<ActionItemStatus, string> = {
   todo: 'To Do',
   in_progress: 'In Progress',
+  on_hold: 'On Hold',
   done: 'Done',
   cancelled: 'Cancelled',
 }
@@ -558,6 +559,7 @@ export const ACTION_ITEM_STATUS_LABELS: Record<ActionItemStatus, string> = {
 export const ACTION_ITEM_STATUS_COLORS: Record<ActionItemStatus, string> = {
   todo: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
   in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+  on_hold: 'bg-yellow-500/10 text-yellow-600 dark:text-yellow-400 border-yellow-500/20',
   done: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   cancelled: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
 }
@@ -593,10 +595,10 @@ export interface UpdateActionItemInput {
 }
 
 // =============================================================================
-// Customer Artifact Types
+// Customer Document Types (formerly Artifact)
 // =============================================================================
 
-export type ArtifactType =
+export type DocumentType =
   | 'strategy'
   | 'research'
   | 'roadmap'
@@ -608,12 +610,12 @@ export type ArtifactType =
   | 'ideation'
   | 'custom'
 
-export const ARTIFACT_TYPES: ArtifactType[] = [
+export const DOCUMENT_TYPES: DocumentType[] = [
   'strategy', 'research', 'roadmap', 'competitive_analysis',
   'user_research', 'product_spec', 'meeting_notes', 'presentation', 'ideation', 'custom',
 ]
 
-export const ARTIFACT_TYPE_CONFIG: Record<ArtifactType, { label: string; color: string }> = {
+export const DOCUMENT_TYPE_CONFIG: Record<DocumentType, { label: string; color: string }> = {
   strategy: { label: 'Strategy', color: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20' },
   research: { label: 'Research', color: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20' },
   roadmap: { label: 'Roadmap', color: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' },
@@ -626,13 +628,13 @@ export const ARTIFACT_TYPE_CONFIG: Record<ArtifactType, { label: string; color: 
   custom: { label: 'Custom', color: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20' },
 }
 
-export type ArtifactStatus = 'draft' | 'in_progress' | 'review' | 'final' | 'archived'
+export type DocumentStatus = 'draft' | 'in_progress' | 'review' | 'final' | 'archived'
 
-export const ARTIFACT_STATUSES: ArtifactStatus[] = [
+export const DOCUMENT_STATUSES: DocumentStatus[] = [
   'draft', 'in_progress', 'review', 'final', 'archived',
 ]
 
-export const ARTIFACT_STATUS_LABELS: Record<ArtifactStatus, string> = {
+export const DOCUMENT_STATUS_LABELS: Record<DocumentStatus, string> = {
   draft: 'Draft',
   in_progress: 'In Progress',
   review: 'Review',
@@ -640,7 +642,7 @@ export const ARTIFACT_STATUS_LABELS: Record<ArtifactStatus, string> = {
   archived: 'Archived',
 }
 
-export const ARTIFACT_STATUS_COLORS: Record<ArtifactStatus, string> = {
+export const DOCUMENT_STATUS_COLORS: Record<DocumentStatus, string> = {
   draft: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
   in_progress: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
   review: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -648,29 +650,51 @@ export const ARTIFACT_STATUS_COLORS: Record<ArtifactStatus, string> = {
   archived: 'bg-gray-500/10 text-gray-600 dark:text-gray-400 border-gray-500/20',
 }
 
-export interface CustomerArtifact {
+export interface CustomerDocument {
   id: string
-  project_id: string
+  initiative_id: string
   customer_id: string
-  type: ArtifactType
+  folder_id: string | null
+  type: DocumentType
   title: string
   content: string
-  status: ArtifactStatus
+  status: DocumentStatus
   metadata: Record<string, unknown>
   created_at: string
   updated_at: string
 }
 
-export interface CreateArtifactInput {
+export interface CreateDocumentInput {
   title: string
-  type?: ArtifactType
+  type?: DocumentType
   content?: string
-  status?: ArtifactStatus
+  status?: DocumentStatus
+  initiative_id?: string
+  folder_id?: string | null
 }
 
-export interface UpdateArtifactInput {
+export interface UpdateDocumentInput {
   title?: string
-  type?: ArtifactType
+  type?: DocumentType
   content?: string
-  status?: ArtifactStatus
+  status?: DocumentStatus
+  initiative_id?: string
+  folder_id?: string | null
+}
+
+// =============================================================================
+// Document Folder Types
+// =============================================================================
+
+export interface DocumentFolder {
+  id: string
+  name: string
+  slug: string
+  is_system: boolean
+  is_default: boolean
+  customer_id: string | null
+  user_id: string | null
+  sort_order: number
+  created_at: string
+  updated_at: string
 }

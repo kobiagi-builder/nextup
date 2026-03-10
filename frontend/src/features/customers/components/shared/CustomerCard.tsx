@@ -163,9 +163,9 @@ export function CustomerCard({
             ? formatCurrency(customer.outstanding_balance)
             : '\u2014'}
         </span>
-        <span className="flex items-center gap-1" title="Active projects">
+        <span className="flex items-center gap-1" title="Active initiatives">
           <FolderOpen className="h-3 w-3" aria-hidden="true" />
-          {customer.active_projects_count || '\u2014'}
+          {customer.active_initiatives_count || '\u2014'}
         </span>
       </div>
 

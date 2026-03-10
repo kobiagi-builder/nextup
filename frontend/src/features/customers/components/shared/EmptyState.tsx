@@ -4,7 +4,7 @@
  * Context-specific empty states for the customers module.
  */
 
-import { Users, Search, FileText, Receipt, FolderKanban } from 'lucide-react'
+import { Users, Search, FileText, Receipt } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 
 interface EmptyCustomersProps {
@@ -74,17 +74,3 @@ export function EmptyReceivablesTab() {
   )
 }
 
-export function EmptyProjectsTab() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="rounded-full bg-muted p-4 mb-4">
-        <FolderKanban className="h-8 w-8 text-muted-foreground" />
-      </div>
-      <h3 className="text-lg font-semibold text-foreground">Projects</h3>
-      <p className="mt-1 text-sm text-muted-foreground max-w-sm">
-        Manage product workflow projects and deliverables for this customer.
-        Project management will be available in Phase 3.
-      </p>
-    </div>
-  )
-}

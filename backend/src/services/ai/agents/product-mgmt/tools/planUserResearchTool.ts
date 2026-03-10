@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function planUserResearchTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -219,9 +219,12 @@ Use this capability when:
 - Plan for synthesis time - analysis takes as long as interviews
 - Include stakeholders in research where appropriate (builds buy-in)
 - Document methodology so research can be replicated
-- Be honest about confidence levels and limitations`,
+- Be honest about confidence levels and limitations
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown user research content. Aim for 1500-3000 words.'),
         researchObjective: z
@@ -229,10 +232,10 @@ Use this capability when:
           .optional()
           .describe('The primary research objective'),
       }),
-      execute: async ({ projectId, title, content, researchObjective }) => {
-        logToFile('TOOL EXECUTED: planUserResearch', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, researchObjective }) => {
+        logToFile('TOOL EXECUTED: planUserResearch', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'user_research',
           title,
           content,

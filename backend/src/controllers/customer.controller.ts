@@ -827,10 +827,10 @@ export const getDashboardStats = async (req: Request, res: Response): Promise<vo
 }
 
 /**
- * GET /api/customers/artifacts/search?q=...
- * Search customer artifacts by title for cross-module linking.
+ * GET /api/customers/documents/search?q=...
+ * Search customer documents by title for cross-module linking.
  */
-export const searchArtifacts = async (req: Request, res: Response): Promise<void> => {
+export const searchDocuments = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.user?.id
     if (!userId) {
@@ -847,12 +847,12 @@ export const searchArtifacts = async (req: Request, res: Response): Promise<void
     const query = q.slice(0, 200)
 
     const service = getService(req)
-    const artifacts = await service.searchArtifacts(query)
+    const documents = await service.searchDocuments(query)
 
-    res.status(200).json({ artifacts, count: artifacts.length })
+    res.status(200).json({ documents, count: documents.length })
   } catch (error) {
-    logger.error('[CustomerController] Error in searchArtifacts', {
-      sourceCode: 'searchArtifacts',
+    logger.error('[CustomerController] Error in searchDocuments', {
+      sourceCode: 'searchDocuments',
       error: error instanceof Error ? error : new Error(String(error)),
     })
     res.status(500).json({

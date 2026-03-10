@@ -3,7 +3,7 @@
  *
  * Assembles the full customer profile into a structured text block
  * for injection into system prompts. Enforces a ~3000 token budget
- * with priority-based truncation (events first, then projects, then agreement details).
+ * with priority-based truncation (events first, then initiatives, then agreement details).
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js'
@@ -71,13 +71,13 @@ export async function buildCustomerContext(
   supabase: SupabaseClient,
   tokenBudget: number = 3000
 ): Promise<string> {
-  const [customerResult, agreementsResult, receivablesResult, projectsResult, eventsResult, artifactsResult, actionItemsResult] = await Promise.all([
+  const [customerResult, agreementsResult, receivablesResult, initiativesResult, eventsResult, documentsResult, actionItemsResult] = await Promise.all([
     supabase.from('customers').select('*').eq('id', customerId).single(),
     supabase.from('customer_agreements').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
     supabase.from('customer_receivables').select('type, amount, status').eq('customer_id', customerId),
-    supabase.from('customer_projects').select('id, name, status, description, agreement_id').eq('customer_id', customerId).order('updated_at', { ascending: false }),
+    supabase.from('customer_initiatives').select('id, name, status, description, agreement_id').eq('customer_id', customerId).order('updated_at', { ascending: false }),
     supabase.from('customer_events').select('*').eq('customer_id', customerId).order('event_date', { ascending: false }).limit(10),
-    supabase.from('customer_artifacts').select('title, type, status').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(10),
+    supabase.from('customer_documents').select('title, type, status').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(10),
     supabase.from('customer_action_items').select('id, type, description, due_date, status').eq('customer_id', customerId).in('status', ['todo', 'in_progress']).order('due_date', { ascending: true, nullsFirst: false }).limit(10),
   ])
 
@@ -92,9 +92,9 @@ export async function buildCustomerContext(
   const customer = customerResult.data
   const agreements = agreementsResult.data || []
   const receivables = receivablesResult.data || []
-  const projects = projectsResult.data || []
+  const initiatives = initiativesResult.data || []
   const events = eventsResult.data || []
-  const artifacts = artifactsResult.data || []
+  const documents = documentsResult.data || []
   const actionItems = actionItemsResult.data || []
 
   // Compute financial summary
@@ -114,9 +114,9 @@ export async function buildCustomerContext(
 
   function buildContext(
     eventSlice: typeof events,
-    projectSlice: typeof projects,
+    initiativeSlice: typeof initiatives,
     agreementSlice: typeof agreements,
-    artifactSlice: typeof artifacts,
+    documentSlice: typeof documents,
     actionItemSlice: typeof actionItems,
   ): string {
     const teamBlock = team.length > 0
@@ -130,9 +130,9 @@ export async function buildCustomerContext(
         }).join('\n')
       : '- No agreements'
 
-    const projectsBlock = projectSlice.length > 0
-      ? projectSlice.map(p => `- ${p.name} (${p.status})${p.description ? ` - ${p.description.slice(0, 80)}` : ''}`).join('\n')
-      : '- No projects'
+    const initiativesBlock = initiativeSlice.length > 0
+      ? initiativeSlice.map(p => `- ${p.name} (${p.status})${p.description ? ` - ${p.description.slice(0, 80)}` : ''}`).join('\n')
+      : '- No initiatives'
 
     const eventsBlock = eventSlice.length > 0
       ? eventSlice.map(e => `- [${e.event_date?.slice(0, 10) || '?'}] ${e.event_type}: ${e.title}`).join('\n')
@@ -142,9 +142,9 @@ export async function buildCustomerContext(
       ? healthSignals.map(s => `- ${s}`).join('\n')
       : '- No concerns'
 
-    const artifactsBlock = artifactSlice.length > 0
-      ? artifactSlice.map((a: any) => `- ${a.title} (${a.type}, ${a.status})`).join('\n')
-      : '- No artifacts'
+    const documentsBlock = documentSlice.length > 0
+      ? documentSlice.map((a: any) => `- ${a.title} (${a.type}, ${a.status})`).join('\n')
+      : '- No documents'
 
     const actionItemsBlock = actionItemSlice.length > 0
       ? actionItemSlice.map((ai: any) => `- [${ai.type}] ${ai.description}${ai.due_date ? ` (due: ${ai.due_date})` : ''} [${ai.status}]`).join('\n')
@@ -182,37 +182,37 @@ ${healthBlock}
 **Action Items** (${actionItemSlice.length} pending):
 ${actionItemsBlock}
 
-**Active Projects** (${projects.length}):
-${projectsBlock}
+**Active Initiatives** (${initiatives.length}):
+${initiativesBlock}
 
-**Deliverables** (${artifacts.length} total):
-${artifactsBlock}
+**Documents** (${documentSlice.length} total):
+${documentsBlock}
 
 **Recent Events** (last ${eventSlice.length}):
 ${eventsBlock}`.trim()
   }
 
   // Build full context first
-  let context = buildContext(events, projects, agreements, artifacts, actionItems)
+  let context = buildContext(events, initiatives, agreements, documents, actionItems)
 
   // Enforce token budget with progressive truncation
   if (estimateTokens(context) > tokenBudget) {
     // Round 1: Truncate events to 3
-    context = buildContext(events.slice(0, 3), projects, agreements, artifacts, actionItems)
+    context = buildContext(events.slice(0, 3), initiatives, agreements, documents, actionItems)
   }
   if (estimateTokens(context) > tokenBudget) {
-    // Round 2: Truncate projects to 5, artifacts to 5, action items to 5
-    context = buildContext(events.slice(0, 3), projects.slice(0, 5), agreements, artifacts.slice(0, 5), actionItems.slice(0, 5))
+    // Round 2: Truncate initiatives to 5, documents to 5, action items to 5
+    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements, documents.slice(0, 5), actionItems.slice(0, 5))
   }
   if (estimateTokens(context) > tokenBudget) {
     // Round 3: Truncate agreements to 3, action items to 3
-    context = buildContext(events.slice(0, 3), projects.slice(0, 5), agreements.slice(0, 3), artifacts.slice(0, 5), actionItems.slice(0, 3))
+    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements.slice(0, 3), documents.slice(0, 5), actionItems.slice(0, 3))
   }
 
   logger.debug('[CustomerContextBuilder] Context built', {
     estimatedTokens: estimateTokens(context),
     agreementCount: agreements.length,
-    projectCount: projects.length,
+    initiativeCount: initiatives.length,
     eventCount: events.length,
   })
 

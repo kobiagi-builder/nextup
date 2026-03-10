@@ -9,13 +9,7 @@ import { useState, useMemo } from 'react'
 import { Plus, ListChecks, ArrowUpDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { MultiSelectFilter } from '../shared/MultiSelectFilter'
 import { useActionItems, useDeleteActionItem, useUpdateActionItem } from '../../hooks'
 import type { ActionItem, ActionItemStatus } from '../../types'
 import {
@@ -38,19 +32,19 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ActionItem | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string>('all')
-  const [typeFilter, setTypeFilter] = useState<string>('all')
+  const [statusFilter, setStatusFilter] = useState<string[]>([])
+  const [typeFilter, setTypeFilter] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<'due_date' | 'created_at'>('due_date')
 
   // Client-side filtering and sorting
   const filteredItems = useMemo(() => {
     let items = [...actionItems]
 
-    if (statusFilter !== 'all') {
-      items = items.filter((i) => i.status === statusFilter)
+    if (statusFilter.length > 0) {
+      items = items.filter((i) => statusFilter.includes(i.status))
     }
-    if (typeFilter !== 'all') {
-      items = items.filter((i) => i.type === typeFilter)
+    if (typeFilter.length > 0) {
+      items = items.filter((i) => typeFilter.includes(i.type))
     }
 
     items.sort((a, b) => {
@@ -131,34 +125,26 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
           </h3>
 
           {/* Status filter */}
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent data-portal-ignore-click-outside>
-              <SelectItem value="all">All Statuses</SelectItem>
-              {ACTION_ITEM_STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>
-                  {ACTION_ITEM_STATUS_LABELS[s]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter
+            label="Status"
+            selected={statusFilter}
+            onChange={setStatusFilter}
+            options={ACTION_ITEM_STATUSES.map((s) => ({
+              value: s,
+              label: ACTION_ITEM_STATUS_LABELS[s],
+            }))}
+          />
 
           {/* Type filter */}
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="h-8 w-[130px] text-xs">
-              <SelectValue placeholder="Type" />
-            </SelectTrigger>
-            <SelectContent data-portal-ignore-click-outside>
-              <SelectItem value="all">All Types</SelectItem>
-              {ACTION_ITEM_TYPES.map((t) => (
-                <SelectItem key={t} value={t}>
-                  {ACTION_ITEM_TYPE_LABELS[t]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <MultiSelectFilter
+            label="Type"
+            selected={typeFilter}
+            onChange={setTypeFilter}
+            options={ACTION_ITEM_TYPES.map((t) => ({
+              value: t,
+              label: ACTION_ITEM_TYPE_LABELS[t],
+            }))}
+          />
 
           {/* Sort toggle */}
           <Button

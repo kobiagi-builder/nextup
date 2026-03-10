@@ -2,7 +2,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 import { logToFile } from '../../../../../lib/logger.js'
 
 export function prioritizeItemsTool(supabase: SupabaseClient, customerId: string) {
@@ -327,9 +327,12 @@ Based on Opportunity Scoring / Gap Analysis:
 - Re-prioritize when significant new data emerges
 - Don't let HiPPO (Highest Paid Person's Opinion) override data
 - Document dissenting views
-- Build in regular priority reviews`,
+- Build in regular priority reviews
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown prioritization analysis content. Aim for 1500-3000 words.'),
         framework: z
@@ -337,10 +340,10 @@ Based on Opportunity Scoring / Gap Analysis:
           .optional()
           .describe('Scoring framework to apply'),
       }),
-      execute: async ({ projectId, title, content, framework }) => {
-        logToFile('TOOL EXECUTED: prioritizeItems', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, framework }) => {
+        logToFile('TOOL EXECUTED: prioritizeItems', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'prioritization',
           title,
           content,

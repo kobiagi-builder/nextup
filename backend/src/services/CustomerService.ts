@@ -15,7 +15,7 @@ import type {
   IcpScore,
   EnrichmentSource,
   DashboardStats,
-  CustomerArtifactSearchResult,
+  CustomerDocumentSearchResult,
   CreateCustomerInput,
   UpdateCustomerInput,
   CustomerEvent,
@@ -90,7 +90,7 @@ export class CustomerService {
         .select('id', { count: 'exact', head: true })
         .eq('customer_id', id),
       this.supabase
-        .from('customer_projects')
+        .from('customer_initiatives')
         .select('id', { count: 'exact', head: true })
         .eq('customer_id', id),
       this.supabase
@@ -108,7 +108,7 @@ export class CustomerService {
       ...customerResult.data,
       agreements_count: agreementsCount.count ?? 0,
       receivables_count: receivablesCount.count ?? 0,
-      projects_count: projectsCount.count ?? 0,
+      initiatives_count: projectsCount.count ?? 0,
       action_items_count: actionItemsCount.count ?? 0,
     } as CustomerWithCounts
   }
@@ -270,7 +270,7 @@ export class CustomerService {
 
   /**
    * List customers with aggregated summary data via RPC function.
-   * Returns active_agreements_count, outstanding_balance, active_projects_count, last_activity.
+   * Returns active_agreements_count, outstanding_balance, active_initiatives_count, last_activity.
    */
   async listWithSummary(params: {
     status?: CustomerStatus
@@ -342,11 +342,11 @@ export class CustomerService {
   }
 
   /**
-   * Search customer artifacts by title for cross-module linking.
+   * Search customer documents by title for cross-module linking.
    */
-  async searchArtifacts(query: string): Promise<CustomerArtifactSearchResult[]> {
+  async searchDocuments(query: string): Promise<CustomerDocumentSearchResult[]> {
     const { data, error } = await this.supabase
-      .from('customer_artifacts')
+      .from('customer_documents')
       .select(`
         id, title, type, status, customer_id,
         customers!inner(name)
@@ -356,8 +356,8 @@ export class CustomerService {
       .limit(20)
 
     if (error) {
-      logger.error('[CustomerService] Error in searchArtifacts', {
-        sourceCode: 'CustomerService.searchArtifacts',
+      logger.error('[CustomerService] Error in searchDocuments', {
+        sourceCode: 'CustomerService.searchDocuments',
         hasError: true,
       })
       throw error
@@ -370,7 +370,7 @@ export class CustomerService {
       status: row.status,
       customer_id: row.customer_id,
       customer_name: row.customers?.name ?? 'Unknown',
-    })) as CustomerArtifactSearchResult[]
+    })) as CustomerDocumentSearchResult[]
   }
 
   // ===========================================================================

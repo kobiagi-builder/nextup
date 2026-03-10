@@ -2,7 +2,7 @@
 import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 import { logToFile } from '../../../../../lib/logger.js'
 
 export function createNarrativeTool(supabase: SupabaseClient, customerId: string) {
@@ -344,9 +344,12 @@ Position storytelling work as **strategic**, not **writing**:
 - Every presentation needs one clear takeaway
 - Practice the transitions between sections
 - **Fractional**: Position as strategic storytelling, not content writing
-- **Fractional**: Coach them to tell the story, don't tell it for them`,
+- **Fractional**: Coach them to tell the story, don't tell it for them
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown narrative content. Aim for 1000-2500 words.'),
         audience: z
@@ -354,10 +357,10 @@ Position storytelling work as **strategic**, not **writing**:
           .optional()
           .describe('Target audience for the narrative (e.g., board, team, investors)'),
       }),
-      execute: async ({ projectId, title, content, audience }) => {
-        logToFile('TOOL EXECUTED: createNarrative', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, audience }) => {
+        logToFile('TOOL EXECUTED: createNarrative', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'narrative',
           title,
           content,

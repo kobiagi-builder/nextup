@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function analyzeProductDataTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -252,9 +252,12 @@ Use this capability when:
 - Make visualizations simple and clear
 - Consider statistical significance for decisions
 - Document assumptions and methodology
-- Present findings, not just data`,
+- Present findings, not just data
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown data analysis content. Aim for 1500-3000 words.'),
         analysisType: z
@@ -262,10 +265,10 @@ Use this capability when:
           .optional()
           .describe('Type of analysis (e.g., funnel, cohort, AARRR, North Star)'),
       }),
-      execute: async ({ projectId, title, content, analysisType }) => {
-        logToFile('TOOL EXECUTED: analyzeProductData', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content, analysisType }) => {
+        logToFile('TOOL EXECUTED: analyzeProductData', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'data_analysis',
           title,
           content,

@@ -8,7 +8,7 @@ import { tool } from 'ai'
 import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { logToFile } from '../../../../../lib/logger.js'
-import { createArtifactWithEvent } from './artifactHelpers.js'
+import { createDocumentWithEvent } from './documentHelpers.js'
 
 export function scopeMvpTool(supabase: SupabaseClient, customerId: string) {
   return {
@@ -286,16 +286,19 @@ As a fractional PM, you're often brought in specifically for zero-to-one work be
 - Remove features until removing more breaks the value
 - Ship in small increments - if it takes more than a week, scope is too large
 - Every feature needs a customer story - if you can't tell it, don't build it
-- **Fractional**: Transfer the framework, not just the output`,
+- **Fractional**: Transfer the framework, not just the output
+- Never exaggerate, inflate, or add optimistic spin. State facts proportionally to the evidence.
+- When evidence is thin or missing, say so explicitly. Do not fill gaps with flattery or speculation.
+- Prefer shorter, accurate output over longer, padded output. Omit sections that lack sufficient evidence.`,
       inputSchema: z.object({
-        projectId: z.string().uuid(),
+        initiativeId: z.string().uuid(),
         title: z.string(),
         content: z.string().describe('Full Markdown MVP scope document. Aim for 1500-3000 words.'),
       }),
-      execute: async ({ projectId, title, content }) => {
-        logToFile('TOOL EXECUTED: scopeMvp', { hasProjectId: !!projectId, title })
-        return createArtifactWithEvent(supabase, customerId, {
-          projectId,
+      execute: async ({ initiativeId, title, content }) => {
+        logToFile('TOOL EXECUTED: scopeMvp', { hasInitiativeId: !!initiativeId, title })
+        return createDocumentWithEvent(supabase, customerId, {
+          initiativeId,
           type: 'mvp_scope',
           title,
           content,

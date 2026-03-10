@@ -86,7 +86,7 @@ export function getDueDateUrgency(
   dateStr: string,
   status?: string
 ): { urgency: DueDateUrgency; className: string } {
-  if (status === 'done' || status === 'cancelled') {
+  if (status === 'done' || status === 'cancelled' || status === 'on_hold') {
     return { urgency: 'done', className: URGENCY_CLASSES.done }
   }
 

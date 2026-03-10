@@ -19,14 +19,14 @@ const createActionItemSchema = z.object({
   type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
   description: z.string().min(1, 'Description is required'),
   due_date: z.string().nullable().optional(),
-  status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional(),
+  status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
 })
 
 const updateActionItemSchema = z.object({
   type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
   description: z.string().min(1).optional(),
   due_date: z.string().nullable().optional(),
-  status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional(),
+  status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
 })
 
 // =============================================================================

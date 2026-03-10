@@ -304,7 +304,12 @@ export function useAIChat(options: UseAIChatOptions): UseAIChatReturn {
         if ('parts' in msg && Array.isArray(msg.parts)) {
           for (const part of msg.parts) {
             if (part && typeof part === 'object' && 'type' in part && part.type === 'text') {
-              textContent += (part as { text: string }).text
+              const partText = (part as { text: string }).text
+              if (textContent && partText) {
+                textContent += '\n\n' + partText
+              } else {
+                textContent += partText
+              }
             }
           }
         } else if ('content' in msg && typeof msg.content === 'string') {

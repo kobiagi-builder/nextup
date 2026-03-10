@@ -10,7 +10,7 @@ import { Link2, Search, X } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
-import { useCustomerArtifactSearch } from '@/features/customers/hooks'
+import { useCustomerDocumentSearch } from '@/features/customers/hooks'
 import type { LinkedCustomerArtifactRef } from '../../types/portfolio'
 
 interface ArtifactReferencesProps {
@@ -37,7 +37,7 @@ export function ArtifactReferences({
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [searchQuery])
 
-  const { data: searchResults = [] } = useCustomerArtifactSearch(debouncedQuery)
+  const { data: searchResults = [] } = useCustomerDocumentSearch(debouncedQuery)
 
   const linkedIds = new Set(linkedArtifacts.map(a => a.id))
   const filteredResults = searchResults.filter(r => !linkedIds.has(r.id))

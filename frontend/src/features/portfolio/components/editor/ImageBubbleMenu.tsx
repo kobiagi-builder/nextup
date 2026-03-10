@@ -39,6 +39,7 @@ export function ImageBubbleMenu({ editor, onCropClick, onAIClick, artifactId }: 
     <>
       <BubbleMenu
         editor={editor}
+        pluginKey="imageBubbleMenu"
         shouldShow={({ editor: e }: { editor: Editor }) => {
           return e.isActive('image')
         }}

@@ -12,6 +12,12 @@ import Image from '@tiptap/extension-image'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Highlight from '@tiptap/extension-highlight'
+import { Table } from '@tiptap/extension-table'
+import { TableRow } from '@tiptap/extension-table-row'
+import { TableHeader } from '@tiptap/extension-table-header'
+import { TableCell } from '@tiptap/extension-table-cell'
+import TextDirection from 'tiptap-text-direction'
+import { InlineStyleCopy } from '@/lib/tiptap/inlineStyleCopy'
 import {
   Bold,
   Italic,
@@ -27,6 +33,7 @@ import {
   Baseline,
   Highlighter,
   Ban,
+  Pilcrow,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useIsMobile } from '@/hooks/use-media-query'
@@ -36,6 +43,7 @@ import { ToneSelector } from '../artifact/ToneSelector'
 import { ImageBubbleMenu } from './ImageBubbleMenu'
 import { ImageCropModal } from './ImageCropModal'
 import { TextSelectionAIButton } from './TextSelectionAIButton'
+import { TableToolbarDropdown } from './TableToolbarDropdown'
 import { registerEditorRef, unregisterEditorRef } from '../../stores/editorSelectionStore'
 import { useCallback, useEffect, useState } from 'react'
 import type { ToneOption } from '../../types/portfolio'
@@ -415,6 +423,38 @@ function EditorToolbar({
         >
           <LinkIcon className="h-4 w-4" />
         </ToolbarButton>
+
+        {/* Table dropdown — hide on mobile */}
+        {!isMobile && (
+          <>
+            <div className="w-px h-6 bg-border mx-1" />
+            <TableToolbarDropdown editor={editor} />
+          </>
+        )}
+
+        {/* RTL toggle */}
+        <div className="w-px h-6 bg-border mx-1" />
+        <ToolbarButton
+          onClick={() => {
+            const currentDir = editor.isActive('heading')
+              ? editor.getAttributes('heading').dir
+              : editor.getAttributes('paragraph').dir
+            if (currentDir === 'rtl') {
+              editor.commands.setTextDirection('ltr')
+            } else {
+              editor.commands.setTextDirection('rtl')
+            }
+          }}
+          isActive={(() => {
+            const dir = editor.isActive('heading')
+              ? editor.getAttributes('heading').dir
+              : editor.getAttributes('paragraph').dir
+            return dir === 'rtl'
+          })()}
+          title="Toggle RTL (Right-to-Left)"
+        >
+          <Pilcrow className="h-4 w-4" />
+        </ToolbarButton>
       </div>
 
       {/* Right side: Tone selector (Phase 1) */}
@@ -482,6 +522,16 @@ export function RichTextEditor({
           class: 'rounded-lg max-w-full h-auto my-4',
         },
       }),
+      Table.configure({
+        resizable: true,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextDirection.configure({
+        types: ['heading', 'paragraph', 'blockquote', 'listItem'],
+      }),
+      InlineStyleCopy,
     ],
     content,
     editable,
@@ -511,10 +561,10 @@ export function RichTextEditor({
           // Code - inline code styling
           'prose-code:text-primary prose-code:bg-muted prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono',
           // Blockquotes - editorial spacing
-          'prose-blockquote:border-l-4 prose-blockquote:border-l-primary prose-blockquote:pl-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-6',
+          'prose-blockquote:border-s-4 prose-blockquote:border-s-primary prose-blockquote:ps-4 prose-blockquote:text-muted-foreground prose-blockquote:italic prose-blockquote:my-6',
           // Lists - improved spacing for readability
-          'prose-ul:text-foreground prose-ul:my-6 prose-ul:pl-6',
-          'prose-ol:text-foreground prose-ol:my-6 prose-ol:pl-6',
+          'prose-ul:text-foreground prose-ul:my-6 prose-ul:ps-6',
+          'prose-ol:text-foreground prose-ol:my-6 prose-ol:ps-6',
           'prose-li:text-foreground prose-li:text-base prose-li:leading-7 prose-li:mb-3',
           // Nested lists - slightly less spacing
           'prose-li>ul:mt-3 prose-li>ul:mb-0',
@@ -672,6 +722,16 @@ export function RichTextContent({
           class: 'rounded-lg max-w-full h-auto my-4',
         },
       }),
+      Table.configure({
+        resizable: false,
+      }),
+      TableRow,
+      TableHeader,
+      TableCell,
+      TextDirection.configure({
+        types: ['heading', 'paragraph', 'blockquote', 'listItem'],
+      }),
+      InlineStyleCopy,
     ],
     content,
     editable: false,

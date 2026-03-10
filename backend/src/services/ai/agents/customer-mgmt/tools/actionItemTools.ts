@@ -20,7 +20,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
         type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).default('follow_up'),
         description: z.string().describe('What needs to happen'),
         due_date: z.string().optional().describe('ISO date string (YYYY-MM-DD) for when this is due'),
-        status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).default('todo'),
+        status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).default('todo'),
       }),
       execute: async ({ type, description, due_date, status }) => {
         logToFile('TOOL EXECUTED: createActionItem', { hasCustomerId: !!customerId, type })
@@ -56,7 +56,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
       description: 'Update the status of an existing action item (e.g., mark as done or in progress)',
       inputSchema: z.object({
         actionItemId: z.string().uuid().describe('The ID of the action item to update'),
-        status: z.enum(['todo', 'in_progress', 'done', 'cancelled']),
+        status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']),
       }),
       execute: async ({ actionItemId, status }) => {
         logToFile('TOOL EXECUTED: updateActionItemStatus', { hasCustomerId: !!customerId, hasActionItemId: !!actionItemId, status })
@@ -86,7 +86,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
     listActionItems: tool({
       description: 'List action items for the current customer. Optionally filter by status.',
       inputSchema: z.object({
-        status: z.enum(['todo', 'in_progress', 'done', 'cancelled']).optional().describe('Filter by status. Omit to list all.'),
+        status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional().describe('Filter by status. Omit to list all.'),
       }),
       execute: async ({ status }) => {
         logToFile('TOOL EXECUTED: listActionItems', { hasCustomerId: !!customerId, statusFilter: status || 'all' })
