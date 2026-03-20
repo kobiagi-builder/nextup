@@ -18,6 +18,7 @@
     "@ai-sdk/anthropic": "^3.0.29",
     "@ai-sdk/google": "^3.0.13",
     "@ai-sdk/openai": "^3.0.18",
+    "@ai-sdk/xai": "^3.0.67",
     "@google/genai": "^1.38.0",
     "@google/generative-ai": "^0.21.0",
     "@supabase/supabase-js": "^2.91.0",

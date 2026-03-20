@@ -10,6 +10,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Search, FileText, MessageSquare, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useFilterStore } from '@/stores/filterStore'
 import {
   Dialog,
   DialogContent,
@@ -41,9 +42,13 @@ const STATUS_FILTERS: { value: ArtifactStatus | 'all'; label: string }[] = [
 export function ContentPage() {
   const navigate = useNavigate()
 
-  // State for filters
-  const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<ArtifactStatus | 'all'>('all')
+  // State for filters (sticky via Zustand store)
+  const { typeFilter: typeFilterRaw, statusFilter: statusFilterRaw } = useFilterStore((s) => s.content)
+  const setContentFilters = useFilterStore((s) => s.setContentFilters)
+  const typeFilter = typeFilterRaw as ArtifactType | 'all'
+  const statusFilter = statusFilterRaw as ArtifactStatus | 'all'
+  const setTypeFilter = (v: ArtifactType | 'all') => setContentFilters({ typeFilter: v })
+  const setStatusFilter = (v: ArtifactStatus | 'all') => setContentFilters({ statusFilter: v })
   const [searchQuery, setSearchQuery] = useState('')
   const [isCreateOpen, setIsCreateOpen] = useState(false)
 

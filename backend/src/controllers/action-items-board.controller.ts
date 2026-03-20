@@ -18,18 +18,20 @@ import { logger } from '../lib/logger.js'
 const dateString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date format (expected YYYY-MM-DD)')
 
 const createBoardActionItemSchema = z.object({
-  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
+  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom']).optional(),
   description: z.string().min(1, 'Description is required'),
   due_date: dateString.nullable().optional(),
   status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
+  reported_by: z.string().optional(),
   customer_id: z.string().uuid().nullable().optional(),
 })
 
 const updateBoardActionItemSchema = z.object({
-  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
+  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom']).optional(),
   description: z.string().min(1).optional(),
   due_date: dateString.nullable().optional(),
   status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
+  reported_by: z.string().nullable().optional(),
   customer_id: z.string().uuid().nullable().optional(),
 })
 

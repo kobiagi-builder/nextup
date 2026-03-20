@@ -15,14 +15,15 @@ import { logToFile } from '../../../../../lib/logger.js'
 export function createActionItemTools(supabase: SupabaseClient, customerId: string) {
   return {
     createActionItem: tool({
-      description: 'Create a new action item for the current customer. Use for follow-ups, proposals, meetings, deliveries, or reviews.',
+      description: 'Create a new action item for the current customer. Use for follow-ups, proposals, meetings, deliveries, reviews, bugs, new features, or enhancements.',
       inputSchema: z.object({
-        type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).default('follow_up'),
+        type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom']).default('follow_up'),
         description: z.string().describe('What needs to happen'),
         due_date: z.string().optional().describe('ISO date string (YYYY-MM-DD) for when this is due'),
         status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).default('todo'),
+        reported_by: z.string().optional().describe('Name of the person who reported or raised this item (e.g., from meeting notes or feedback)'),
       }),
-      execute: async ({ type, description, due_date, status }) => {
+      execute: async ({ type, description, due_date, status, reported_by }) => {
         logToFile('TOOL EXECUTED: createActionItem', { hasCustomerId: !!customerId, type })
 
         // user_id is auto-set by DEFAULT auth.uid() — requires user-scoped Supabase client
@@ -34,6 +35,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
             description,
             due_date: due_date || null,
             status,
+            reported_by: reported_by || null,
           })
           .select()
           .single()
@@ -48,7 +50,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
           description: `Type: ${type}${due_date ? `, Due: ${due_date}` : ''}`,
         })
 
-        return { success: true, actionItem: { id: data.id, type, description, due_date: due_date || null, status } }
+        return { success: true, actionItem: { id: data.id, type, description, due_date: due_date || null, status, reported_by: reported_by || null } }
       },
     }),
 
@@ -93,7 +95,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
 
         let query = supabase
           .from('customer_action_items')
-          .select('id, type, description, due_date, status, created_at')
+          .select('id, type, description, due_date, status, reported_by, created_at')
           .eq('customer_id', customerId)
           .order('due_date', { ascending: true, nullsFirst: false })
 
@@ -114,6 +116,7 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
             description: item.description,
             due_date: item.due_date,
             status: item.status,
+            reported_by: item.reported_by || null,
           })),
         }
       },

@@ -9,6 +9,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Plus, FileText, FilterX } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
+import { useFilterStore } from '@/stores/filterStore'
 import {
   useInitiatives,
   useDeleteInitiative,
@@ -67,17 +68,19 @@ export function DocumentsTab({ customerId }: DocumentsTabProps) {
     })
   }
 
-  // Filter state
-  const [initiativeStatusFilter, setInitiativeStatusFilter] = useState<string[]>([])
-  const [nameSearch, setNameSearch] = useState('')
-  const [documentStatusFilter, setDocumentStatusFilter] = useState<string[]>([])
+  // Filter state (sticky via Zustand store)
+  const { initiativeStatus: initiativeStatusFilter, documentStatus: documentStatusFilter, nameSearch } =
+    useFilterStore((s) => s.getCustomerDocumentsFilters(customerId))
+  const setDocFilters = (filters: Partial<{ initiativeStatus: string[]; documentStatus: string[]; nameSearch: string }>) =>
+    useFilterStore.getState().setCustomerDocumentsFilters(customerId, filters)
+  const setInitiativeStatusFilter = (v: string[]) => setDocFilters({ initiativeStatus: v })
+  const setDocumentStatusFilter = (v: string[]) => setDocFilters({ documentStatus: v })
+  const setNameSearch = (v: string) => setDocFilters({ nameSearch: v })
 
   const hasActiveFilters = !!(initiativeStatusFilter.length > 0 || nameSearch || documentStatusFilter.length > 0)
 
   const clearFilters = () => {
-    setInitiativeStatusFilter([])
-    setNameSearch('')
-    setDocumentStatusFilter([])
+    setDocFilters({ initiativeStatus: [], documentStatus: [], nameSearch: '' })
   }
 
   // Group documents by initiative_id and folder_id

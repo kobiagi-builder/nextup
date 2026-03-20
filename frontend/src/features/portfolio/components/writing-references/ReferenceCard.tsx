@@ -264,7 +264,7 @@ export function ReferenceCard({
             variant="ghost"
             size="icon"
             className={cn(
-              'h-7 w-7 shrink-0 text-muted-foreground/50',
+              'h-7 w-7 shrink-0 text-muted-foreground/70',
               'opacity-0 group-hover:opacity-100 transition-opacity',
               'hover:text-destructive hover:bg-destructive/10'
             )}

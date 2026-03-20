@@ -8,10 +8,10 @@
 // Customer Status
 // =============================================================================
 
-export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant'
+export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant' | 'closed_lost'
 
 export const CUSTOMER_STATUSES: CustomerStatus[] = [
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant', 'closed_lost',
 ]
 
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
@@ -22,6 +22,7 @@ export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
   on_hold: 'On Hold',
   archive: 'Archive',
   not_relevant: 'Not Relevant',
+  closed_lost: 'Closed Lost',
 }
 
 export const CUSTOMER_STATUS_COLORS: Record<CustomerStatus, string> = {
@@ -32,6 +33,7 @@ export const CUSTOMER_STATUS_COLORS: Record<CustomerStatus, string> = {
   on_hold: 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/20',
   archive: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
   not_relevant: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+  closed_lost: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
 }
 
 /** Solid dot colors for dropdown indicators (Tailwind JIT needs literal classes) */
@@ -43,6 +45,7 @@ export const CUSTOMER_STATUS_DOT_COLORS: Record<CustomerStatus, string> = {
   on_hold: 'bg-orange-400',
   archive: 'bg-slate-400',
   not_relevant: 'bg-rose-400',
+  closed_lost: 'bg-red-400',
 }
 
 // =============================================================================
@@ -496,10 +499,10 @@ export interface UpdateInitiativeInput {
 // Action Item Types
 // =============================================================================
 
-export type ActionItemType = 'follow_up' | 'proposal' | 'meeting' | 'delivery' | 'review' | 'custom'
+export type ActionItemType = 'follow_up' | 'proposal' | 'meeting' | 'delivery' | 'review' | 'bug' | 'new_feature' | 'enhancement' | 'custom'
 
 export const ACTION_ITEM_TYPES: ActionItemType[] = [
-  'follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom',
+  'follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom',
 ]
 
 export const ACTION_ITEM_TYPE_LABELS: Record<ActionItemType, string> = {
@@ -508,6 +511,9 @@ export const ACTION_ITEM_TYPE_LABELS: Record<ActionItemType, string> = {
   meeting: 'Meeting',
   delivery: 'Delivery',
   review: 'Review',
+  bug: 'Bug',
+  new_feature: 'New Feature',
+  enhancement: 'Enhancement',
   custom: 'Custom',
 }
 
@@ -517,6 +523,9 @@ export const ACTION_ITEM_TYPE_COLORS: Record<ActionItemType, string> = {
   meeting: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
   delivery: 'bg-green-500/10 text-green-600 dark:text-green-400 border-green-500/20',
   review: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+  bug: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+  new_feature: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+  enhancement: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
   custom: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
 }
 
@@ -550,6 +559,7 @@ export interface ActionItem {
   description: string
   due_date: string | null
   status: ActionItemStatus
+  reported_by: string | null
   created_at: string
   updated_at: string
 }
@@ -563,6 +573,7 @@ export interface CreateActionItemInput {
   description: string
   due_date?: string | null
   status?: ActionItemStatus
+  reported_by?: string | null
 }
 
 export interface UpdateActionItemInput {
@@ -570,6 +581,7 @@ export interface UpdateActionItemInput {
   description?: string
   due_date?: string | null
   status?: ActionItemStatus
+  reported_by?: string | null
 }
 
 // =============================================================================

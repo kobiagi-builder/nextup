@@ -14,6 +14,7 @@ import { z } from 'zod'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { DatePicker } from '@/components/ui/date-picker'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import {
@@ -51,6 +52,7 @@ const actionItemFormSchema = z.object({
   description: z.string().min(1, 'Description is required'),
   due_date: z.string().optional(),
   status: z.string().optional(),
+  reported_by: z.string().optional(),
   customer_id: z.string().nullable().optional(),
 })
 
@@ -88,6 +90,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
       description: '',
       due_date: '',
       status: 'todo',
+      reported_by: '',
       customer_id: null,
     },
   })
@@ -100,6 +103,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
         description: actionItem.description,
         due_date: actionItem.due_date || '',
         status: actionItem.status,
+        reported_by: actionItem.reported_by || '',
         customer_id: actionItem.customer_id || null,
       })
     } else if (!actionItem && open) {
@@ -108,6 +112,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
         description: '',
         due_date: '',
         status: 'todo',
+        reported_by: '',
         customer_id: null,
       })
     }
@@ -119,6 +124,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
       description: data.description,
       due_date: data.due_date || null,
       status: data.status as ActionItem['status'],
+      reported_by: data.reported_by || null,
     }
 
     try {
@@ -156,7 +162,7 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent data-portal-ignore-click-outside className="sm:max-w-md">
+      <DialogContent data-portal-ignore-click-outside className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? 'Edit Action Item' : 'New Action Item'}</DialogTitle>
         </DialogHeader>
@@ -188,8 +194,9 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
               id="action-item-description"
               {...form.register('description')}
               placeholder="What needs to happen?"
-              rows={2}
-              className="mt-1 resize-none"
+              rows={3}
+              className="mt-1 resize-y max-h-[40vh]"
+              style={{ fieldSizing: 'content' } as React.CSSProperties}
               autoFocus
             />
             {form.formState.errors.description && (
@@ -225,6 +232,17 @@ export function ActionItemForm({ customerId, actionItem, open, onOpenChange }: A
               value={form.watch('due_date')}
               onChange={(date) => form.setValue('due_date', date || '', { shouldValidate: true })}
               placeholder="Pick a due date"
+            />
+          </div>
+
+          {/* Reported By */}
+          <div>
+            <Label htmlFor="action-item-reported-by">Reported By</Label>
+            <Input
+              id="action-item-reported-by"
+              {...form.register('reported_by')}
+              placeholder="Who reported this?"
+              className="mt-1"
             />
           </div>
 

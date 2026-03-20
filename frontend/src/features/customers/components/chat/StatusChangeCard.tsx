@@ -22,6 +22,8 @@ const STATUS_LABELS: Record<string, string> = {
   live: 'Live',
   on_hold: 'On Hold',
   archive: 'Archive',
+  not_relevant: 'Not Relevant',
+  closed_lost: 'Closed Lost',
 }
 
 function formatStatus(status: string): string {

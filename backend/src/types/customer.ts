@@ -8,10 +8,10 @@
 // Customer Status
 // =============================================================================
 
-export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant'
+export type CustomerStatus = 'lead' | 'prospect' | 'negotiation' | 'live' | 'on_hold' | 'archive' | 'not_relevant' | 'closed_lost'
 
 export const VALID_CUSTOMER_STATUSES: CustomerStatus[] = [
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant', 'closed_lost',
 ]
 
 // =============================================================================
@@ -398,10 +398,10 @@ export interface UpdateInitiativeInput {
 // Action Item Types
 // =============================================================================
 
-export type ActionItemType = 'follow_up' | 'proposal' | 'meeting' | 'delivery' | 'review' | 'custom'
+export type ActionItemType = 'follow_up' | 'proposal' | 'meeting' | 'delivery' | 'review' | 'bug' | 'new_feature' | 'enhancement' | 'custom'
 
 export const VALID_ACTION_ITEM_TYPES: ActionItemType[] = [
-  'follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom',
+  'follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom',
 ]
 
 export type ActionItemStatus = 'todo' | 'in_progress' | 'on_hold' | 'done' | 'cancelled'
@@ -418,6 +418,7 @@ export interface ActionItem {
   description: string
   due_date: string | null
   status: ActionItemStatus
+  reported_by: string | null
   created_at: string
   updated_at: string
 }
@@ -431,6 +432,7 @@ export interface CreateActionItemInput {
   description: string
   due_date?: string | null
   status?: ActionItemStatus
+  reported_by?: string | null
 }
 
 export interface UpdateActionItemInput {
@@ -438,6 +440,7 @@ export interface UpdateActionItemInput {
   description?: string
   due_date?: string | null
   status?: ActionItemStatus
+  reported_by?: string | null
 }
 
 export interface UpdateBoardActionItemInput {
@@ -445,6 +448,7 @@ export interface UpdateBoardActionItemInput {
   description?: string
   due_date?: string | null
   status?: ActionItemStatus
+  reported_by?: string | null
   customer_id?: string | null
 }
 

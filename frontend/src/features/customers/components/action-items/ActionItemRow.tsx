@@ -105,7 +105,12 @@ export function ActionItemRow({ item, onEdit, onDelete, onStatusChange, onDueDat
             <span className={cn('inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium shrink-0', typeColor)}>
               {typeLabel}
             </span>
-            <p className="text-sm text-foreground line-clamp-2">{item.description}</p>
+            <div className="min-w-0">
+              <p className="text-sm text-foreground line-clamp-2">{item.description}</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Reported by {item.reported_by || '—'}
+              </p>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 shrink-0">

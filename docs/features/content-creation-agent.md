@@ -1,8 +1,8 @@
 # Content Creation Agent
 
 **Created:** 2026-02-19
-**Last Updated:** 2026-02-20
-**Version:** 2.0.0
+**Last Updated:** 2026-03-20
+**Version:** 2.1.0
 **Status:** Complete
 
 ## Overview
@@ -19,9 +19,10 @@ The Content Creation Agent is the core AI feature that powers the automated cont
 4. **Generates** a content skeleton (H1 title + H2 sections) shaped by the storytelling arc
 5. **Pauses** for your approval — you can edit the skeleton and review style analysis
 6. **Writes** full content section-by-section in your voice, with section-aware storytelling guidance
-7. **Humanizes** the content by removing 24+ AI writing patterns
-8. **Creates** images for `[IMAGE: description]` placeholders
-9. Delivers **publish-ready** content
+7. **Humanizes** the content by removing 24+ AI writing patterns (preserving research reference markers)
+8. **Embeds** inline research reference indicators linking sentences to their source research
+9. **Creates** images for `[IMAGE: description]` placeholders
+10. Delivers **publish-ready** content with clickable research citations
 
 ---
 

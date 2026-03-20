@@ -8,6 +8,7 @@
 import { useState, useMemo } from 'react'
 import { Plus, Package, Code, Users, Building } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useFilterStore } from '@/stores/filterStore'
 import {
   Dialog,
   DialogContent,
@@ -30,8 +31,10 @@ const CATEGORIES: { value: SkillCategory | 'all'; label: string; icon: React.Ele
 ]
 
 export function SkillsPage() {
-  // State
-  const [categoryFilter, setCategoryFilter] = useState<SkillCategory | 'all'>('all')
+  // State (sticky via Zustand store)
+  const categoryFilterRaw = useFilterStore((s) => s.skills.categoryFilter)
+  const categoryFilter = categoryFilterRaw as SkillCategory | 'all'
+  const setCategoryFilter = (v: SkillCategory | 'all') => useFilterStore.getState().setSkillsFilters({ categoryFilter: v })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [editingSkill, setEditingSkill] = useState<Skill | null>(null)
 

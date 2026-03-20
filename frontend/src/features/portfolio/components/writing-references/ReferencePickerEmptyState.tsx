@@ -61,7 +61,7 @@ export function ReferencePickerEmptyState({
         Add your first reference
       </Button>
 
-      <p className="text-[11px] text-muted-foreground/60">
+      <p className="text-[11px] text-muted-foreground/70">
         This step is optional
       </p>
     </div>

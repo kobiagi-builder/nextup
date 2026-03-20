@@ -88,7 +88,7 @@ function NavItemComponent({
         // Active vs inactive text color
         isActive
           ? 'text-foreground'
-          : 'text-muted-foreground/50 hover:text-foreground',
+          : 'text-muted-foreground hover:text-foreground',
         // Active state — different indicator for collapsed vs expanded
         isActive && !isCollapsed && [
           'bg-surface-selected',
@@ -143,7 +143,7 @@ function ThemeToggle({ isCollapsed }: { isCollapsed: boolean }) {
       onClick={cycleTheme}
       className={cn(
         'flex items-center rounded-lg transition-all duration-200',
-        'text-muted-foreground/50 hover:text-foreground',
+        'text-muted-foreground hover:text-foreground',
         'hover:bg-surface-hover',
         isCollapsed ? 'justify-center h-10 w-10 mx-auto' : 'gap-3 px-3 py-2 w-full'
       )}
@@ -255,7 +255,7 @@ export function Sidebar() {
                 onClick={signOut}
                 className={cn(
                   'flex items-center rounded-lg transition-all duration-200',
-                  'text-muted-foreground/50 hover:text-foreground',
+                  'text-muted-foreground hover:text-foreground',
                   'hover:bg-surface-hover',
                   'justify-center h-10 w-10 mx-auto'
                 )}
@@ -270,7 +270,7 @@ export function Sidebar() {
             onClick={signOut}
             className={cn(
               'flex items-center gap-3 rounded-lg transition-all duration-200',
-              'text-muted-foreground/50 hover:text-foreground',
+              'text-muted-foreground hover:text-foreground',
               'hover:bg-surface-hover',
               'px-3 py-2 w-full'
             )}

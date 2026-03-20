@@ -1,8 +1,8 @@
 # Rich Text Editor
 
 **Created:** 2026-02-20
-**Last Updated:** 2026-03-09
-**Version:** 1.1.0
+**Last Updated:** 2026-03-20
+**Version:** 1.2.0
 **Status:** Complete
 
 ## Overview
@@ -54,6 +54,11 @@ ArtifactEditor (container)
 | `frontend/src/features/customers/components/projects/CustomerRichTextEditor.tsx` | Simplified TipTap editor for customer documents |
 | `frontend/src/lib/text-direction.ts` | Utility functions for RTL character detection |
 | `frontend/src/lib/markdown.ts` | Markdown/HTML conversion with `preserveDirection` Turndown rule |
+| `frontend/src/lib/tiptap/researchRef.ts` | TipTap custom inline atom node for research reference indicators |
+| `frontend/src/lib/tiptap/inlineStyleCopy.ts` | Clipboard copy with inline styles + ref-indicator stripping |
+| `frontend/src/features/portfolio/components/editor/ResearchRefNodeView.tsx` | React NodeView wrapper for ResearchRef |
+| `frontend/src/features/portfolio/components/editor/ResearchRefCard.tsx` | Radix HoverCard with source details |
+| `frontend/src/features/portfolio/contexts/ResearchContext.ts` | React context for passing research data to NodeViews |
 
 ### TipTap Extensions
 
@@ -64,6 +69,8 @@ ArtifactEditor (container)
 | `Link` | Hyperlink support with auto-detect |
 | `AlignableImage` | Custom Image extension with `data-align` attribute and resize |
 | `TextDirection` | Per-block RTL/LTR direction via `dir` attribute on paragraph, heading, blockquote, listItem |
+| `ResearchRef` | Inline atom node for research reference indicators with hover cards (see [Inline Research References](inline-research-references.md)) |
+| `InlineStyleCopy` | Intercepts copy events to write inline-styled HTML for external paste targets; strips `.ref-indicator` elements |
 
 ### AlignableImage Extension
 
@@ -237,3 +244,4 @@ The `ArtifactEditor` component also manages collapse/expand state for the editor
 - [Content Improvement](content-improvement.md) — AI text/image improvement tools
 - [Image Generation](image-generation.md) — Image approval and regeneration workflow
 - [Foundations Approval](foundations-approval.md) — Skeleton editing in FoundationsSection uses a separate RichTextEditor instance
+- [Inline Research References](inline-research-references.md) — Superscript indicators linking sentences to research sources

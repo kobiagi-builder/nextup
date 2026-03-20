@@ -190,7 +190,7 @@ export function FolderManager({ customerId, folders }: FolderManagerProps) {
                     {folder.name}
                   </span>
                   {folder.is_system ? (
-                    <Lock className="h-3.5 w-3.5 text-muted-foreground/50" data-testid="folder-lock-icon" />
+                    <Lock className="h-3.5 w-3.5 text-muted-foreground/70" data-testid="folder-lock-icon" />
                   ) : (
                     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button

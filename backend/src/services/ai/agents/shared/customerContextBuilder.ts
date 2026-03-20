@@ -71,14 +71,17 @@ export async function buildCustomerContext(
   supabase: SupabaseClient,
   tokenBudget: number = 3000
 ): Promise<string> {
-  const [customerResult, agreementsResult, receivablesResult, initiativesResult, eventsResult, documentsResult, actionItemsResult] = await Promise.all([
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+
+  const [customerResult, agreementsResult, receivablesResult, initiativesResult, eventsResult, documentsResult, actionItemsResult, completedActionItemsResult] = await Promise.all([
     supabase.from('customers').select('*').eq('id', customerId).single(),
     supabase.from('customer_agreements').select('*').eq('customer_id', customerId).order('created_at', { ascending: false }),
     supabase.from('customer_receivables').select('type, amount, status').eq('customer_id', customerId),
     supabase.from('customer_initiatives').select('id, name, status, description, agreement_id').eq('customer_id', customerId).order('updated_at', { ascending: false }),
     supabase.from('customer_events').select('*').eq('customer_id', customerId).order('event_date', { ascending: false }).limit(10),
     supabase.from('customer_documents').select('title, type, status').eq('customer_id', customerId).order('updated_at', { ascending: false }).limit(10),
-    supabase.from('customer_action_items').select('id, type, description, due_date, status').eq('customer_id', customerId).in('status', ['todo', 'in_progress']).order('due_date', { ascending: true, nullsFirst: false }).limit(10),
+    supabase.from('customer_action_items').select('id, type, description, due_date, status, reported_by').eq('customer_id', customerId).in('status', ['todo', 'in_progress']).order('due_date', { ascending: true, nullsFirst: false }).limit(10),
+    supabase.from('customer_action_items').select('id, type, description, due_date, status, reported_by, updated_at').eq('customer_id', customerId).in('status', ['done', 'cancelled']).gte('updated_at', thirtyDaysAgo).order('updated_at', { ascending: false }).limit(10),
   ])
 
   if (customerResult.error || !customerResult.data) {
@@ -96,6 +99,7 @@ export async function buildCustomerContext(
   const events = eventsResult.data || []
   const documents = documentsResult.data || []
   const actionItems = actionItemsResult.data || []
+  const completedActionItems = completedActionItemsResult.data || []
 
   // Compute financial summary
   const totalInvoiced = receivables
@@ -118,6 +122,7 @@ export async function buildCustomerContext(
     agreementSlice: typeof agreements,
     documentSlice: typeof documents,
     actionItemSlice: typeof actionItems,
+    completedActionItemSlice: typeof completedActionItems = completedActionItems,
   ): string {
     const teamBlock = team.length > 0
       ? team.map(t => `- ${t.name} (${t.role || 'No role'})${t.notes ? ` - ${t.notes}` : ''}`).join('\n')
@@ -147,8 +152,12 @@ export async function buildCustomerContext(
       : '- No documents'
 
     const actionItemsBlock = actionItemSlice.length > 0
-      ? actionItemSlice.map((ai: any) => `- [${ai.type}] ${ai.description}${ai.due_date ? ` (due: ${ai.due_date})` : ''} [${ai.status}]`).join('\n')
+      ? actionItemSlice.map((ai: any) => `- [${ai.type}] ${ai.description}${ai.reported_by ? ` (reported by: ${ai.reported_by})` : ''}${ai.due_date ? ` (due: ${ai.due_date})` : ''} [${ai.status}]`).join('\n')
       : '- No pending action items'
+
+    const completedActionItemsBlock = completedActionItemSlice.length > 0
+      ? completedActionItemSlice.map((ai: any) => `- [${ai.type}] ${ai.description}${ai.reported_by ? ` (reported by: ${ai.reported_by})` : ''} [${ai.status}]${ai.updated_at ? ` (completed: ${ai.updated_at.slice(0, 10)})` : ''}`).join('\n')
+      : '- No recently completed action items'
 
     return `## Current Customer Context
 
@@ -182,6 +191,9 @@ ${healthBlock}
 **Action Items** (${actionItemSlice.length} pending):
 ${actionItemsBlock}
 
+**Recently Completed/Cancelled Action Items** (last 30 days):
+${completedActionItemsBlock}
+
 **Active Initiatives** (${initiatives.length}):
 ${initiativesBlock}
 
@@ -198,15 +210,15 @@ ${eventsBlock}`.trim()
   // Enforce token budget with progressive truncation
   if (estimateTokens(context) > tokenBudget) {
     // Round 1: Truncate events to 3
-    context = buildContext(events.slice(0, 3), initiatives, agreements, documents, actionItems)
+    context = buildContext(events.slice(0, 3), initiatives, agreements, documents, actionItems, completedActionItems)
   }
   if (estimateTokens(context) > tokenBudget) {
-    // Round 2: Truncate initiatives to 5, documents to 5, action items to 5
-    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements, documents.slice(0, 5), actionItems.slice(0, 5))
+    // Round 2: Truncate initiatives to 5, documents to 5, action items to 5, completed to 5
+    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements, documents.slice(0, 5), actionItems.slice(0, 5), completedActionItems.slice(0, 5))
   }
   if (estimateTokens(context) > tokenBudget) {
-    // Round 3: Truncate agreements to 3, action items to 3
-    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements.slice(0, 3), documents.slice(0, 5), actionItems.slice(0, 3))
+    // Round 3: Truncate agreements to 3, action items to 3, completed to 3
+    context = buildContext(events.slice(0, 3), initiatives.slice(0, 5), agreements.slice(0, 3), documents.slice(0, 5), actionItems.slice(0, 3), completedActionItems.slice(0, 3))
   }
 
   logger.debug('[CustomerContextBuilder] Context built', {

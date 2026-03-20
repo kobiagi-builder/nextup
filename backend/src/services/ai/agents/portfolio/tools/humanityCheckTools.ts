@@ -6,6 +6,7 @@ import { getSupabase } from "../../../../../lib/requestContext.js";
 import { mockService, type HumanityApplyResponse, type HumanityCheckResponse } from "../../../mocks/index.js";
 import { generateMockTraceId } from '../../../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../../../types/contentAgent.js';
+import type { WritingCharacteristics } from '../../../../../types/portfolio.js';
 
 /**
  * Humanity Check Tools for Content Creation Agent (Phase 2)
@@ -43,7 +44,51 @@ function logPhase2(
 /**
  * Build the comprehensive humanity check prompt based on the humanizer skill
  */
-export function buildHumanityCheckPrompt(content: string, tone: string, authorBrief?: string): string {
+export function buildHumanityCheckPrompt(content: string, tone: string, authorBrief?: string, characteristics?: WritingCharacteristics): string {
+  // Build style preservation rules from writing characteristics (Issue 4 fix)
+  const stylePreservationRules: string[] = [];
+  if (characteristics?.emoji_usage) {
+    const v = String(characteristics.emoji_usage.value).toLowerCase();
+    if (v !== 'none') {
+      stylePreservationRules.push(`- **Emojis**: The author's writing references USE emojis (${v}${characteristics.emoji_usage.reasoning ? ` — ${characteristics.emoji_usage.reasoning}` : ''}). PRESERVE emoji usage — do NOT strip them. This is the author's intentional style, not an AI pattern.`);
+    }
+  }
+  if (characteristics?.special_formatting) {
+    stylePreservationRules.push(`- **Formatting**: Preserve formatting patterns matching the author's style: ${characteristics.special_formatting.value}${characteristics.special_formatting.reasoning ? ` — ${characteristics.special_formatting.reasoning}` : ''}`);
+  }
+  if (characteristics?.list_usage) {
+    const v = String(characteristics.list_usage.value).toLowerCase();
+    if (v.includes('heavy') || v.includes('frequent')) {
+      stylePreservationRules.push(`- **Lists**: The author frequently uses bullet/numbered lists in their references. Preserve this formatting pattern.`);
+    }
+  }
+  if (characteristics?.hashtag_usage) {
+    const v = String(characteristics.hashtag_usage.value).toLowerCase();
+    if (v !== 'none') {
+      stylePreservationRules.push(`- **Hashtags**: The author uses hashtags (${v}). Preserve them.`);
+    }
+  }
+  if (characteristics?.paragraph_length) {
+    stylePreservationRules.push(`- **Paragraph length**: The author's style uses ${characteristics.paragraph_length.value} paragraphs. Preserve this pattern.`);
+  }
+  if (characteristics?.whitespace_pattern) {
+    stylePreservationRules.push(`- **Whitespace**: The author's style uses ${characteristics.whitespace_pattern.value}. Preserve this pattern.`);
+  }
+
+  const stylePreservationSection = stylePreservationRules.length > 0
+    ? `
+## Style Preservation (from writing reference analysis — HIGHEST PRIORITY)
+The following style elements were detected in the author's writing references and MUST be preserved — they are the author's intentional style, NOT AI patterns:
+
+${stylePreservationRules.join('\n')}
+
+When you encounter these patterns in the content, KEEP them. Only remove patterns that are clearly AI-generated and NOT listed here.
+
+---
+
+`
+    : '';
+
   const authorProtectionSection = authorBrief
     ? `
 ## Author's Core Message (Protect the author's voice)
@@ -66,7 +111,7 @@ When humanizing:
     : '';
 
   return `You are a writing editor that identifies and removes signs of AI-generated text to make writing sound more natural and human. This guide is based on Wikipedia's "Signs of AI writing" page.
-${authorProtectionSection}
+${stylePreservationSection}${authorProtectionSection}
 
 ## Your Task
 
@@ -112,6 +157,29 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 - KEEP: "to be fair", "here's the thing" → Human voice markers
 - REMOVE: "In today's rapidly evolving..." → AI throat-clearing
 - KEEP: "I used to think... but then..." → Authentic thinking-out-loud
+
+---
+
+### Source Attribution Patterns (REMOVE these)
+Research-based content should read as the author's own knowledge. Remove ALL attribution patterns:
+
+- "According to [Source]..." → Rewrite as a direct statement the author knows
+- "[Source] found that..." → State the finding directly
+- "Research shows..." / "Studies indicate..." → State the point as fact or opinion
+- "A Reddit discussion revealed..." → Remove source, keep the insight
+- "Per [Source]..." / "Data from [Source] shows..." → State directly
+
+The author should sound like someone who KNOWS this topic deeply, not someone reporting on what others found.
+
+---
+
+### Reference Markers (PRESERVE EXACTLY)
+The content may contain {{ref:N}} markers (e.g., {{ref:1}}, {{ref:3}}) that link sentences to research sources. These are structural metadata, NOT content. Rules:
+- NEVER remove, modify, or reposition {{ref:N}} markers
+- When rewriting a sentence, keep its {{ref:N}} marker(s) at the END of the rewritten sentence
+- Markers always go AFTER terminal punctuation: "Rewritten sentence.{{ref:3}}"
+- Treat markers as invisible — they do not affect readability, tone, or AI pattern detection
+- Do NOT interpret {{ref:N}} as an AI pattern to remove
 
 ---
 
@@ -208,9 +276,9 @@ Avoiding AI patterns is only half the job. Sterile, voiceless writing is just as
 **Fix:** Use sentence case (capitalize only first word and proper nouns).
 
 ### 17. Emojis
-**Problem:** Decorating headings or bullet points with emojis.
+**Problem:** Decorating headings or bullet points with emojis when not part of the author's style.
 
-**Fix:** Remove emojis unless tone specifically requires them.
+**Fix:** Remove emojis UNLESS the "Style Preservation" section above explicitly marks emoji_usage as the author's style. If emoji usage is preserved, keep emojis in their original positions and patterns. Only remove emojis when no style preservation rule protects them.
 
 ### 18. Curly Quotation Marks
 **Problem:** Using curly quotes ("...") instead of straight quotes ("...").
@@ -438,8 +506,27 @@ export const applyHumanityCheck = tool({
         }
       }
 
+      // Fetch writing characteristics for style preservation (Issue 4 fix)
+      let humanityCharacteristics: WritingCharacteristics | undefined;
+      {
+        const { data: charData } = await getSupabase()
+          .from('artifact_writing_characteristics')
+          .select('characteristics')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (charData?.characteristics) {
+          humanityCharacteristics = charData.characteristics as WritingCharacteristics;
+          logPhase2('CHARACTERISTICS_FETCH', 'Writing characteristics loaded for style preservation', {
+            traceId,
+            characteristicsCount: Object.keys(humanityCharacteristics).length,
+            hasEmojiUsage: !!humanityCharacteristics.emoji_usage,
+          });
+        }
+      }
+
       const promptStartTime = Date.now();
-      const prompt = buildHumanityCheckPrompt(content, tone, authorBrief);
+      const prompt = buildHumanityCheckPrompt(content, tone, authorBrief, humanityCharacteristics);
       const promptDuration = Date.now() - promptStartTime;
 
       logPhase2('PROMPT_BUILD', 'Prompt built successfully', {

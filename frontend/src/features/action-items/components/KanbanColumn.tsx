@@ -31,9 +31,10 @@ interface KanbanColumnProps {
   status: ActionItemStatus
   items: ActionItemWithCustomer[]
   onCardClick?: (item: ActionItemWithCustomer) => void
+  onStatusChange?: (id: string, status: ActionItemStatus) => void
 }
 
-export function KanbanColumn({ status, items, onCardClick }: KanbanColumnProps) {
+export function KanbanColumn({ status, items, onCardClick, onStatusChange }: KanbanColumnProps) {
   const { isOver, setNodeRef } = useDroppable({ id: status })
 
   const label = ACTION_ITEM_STATUS_LABELS[status]
@@ -63,10 +64,10 @@ export function KanbanColumn({ status, items, onCardClick }: KanbanColumnProps) 
       {/* Column Body */}
       <div className="flex-1 overflow-y-auto px-2 pb-2 space-y-2 pt-2">
         {items.length === 0 ? (
-          <p className="text-xs text-muted-foreground/60 text-center py-8">No items</p>
+          <p className="text-xs text-muted-foreground/70 text-center py-8">No items</p>
         ) : (
           items.map((item) => (
-            <KanbanCard key={item.id} item={item} onClick={onCardClick} />
+            <KanbanCard key={item.id} item={item} onClick={onCardClick} onStatusChange={onStatusChange} />
           ))
         )}
       </div>

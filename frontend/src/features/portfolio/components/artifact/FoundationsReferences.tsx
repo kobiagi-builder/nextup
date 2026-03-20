@@ -133,7 +133,7 @@ export function FoundationsReferences({
                   <SourceIcon className={`h-3 w-3 ${source.color}`} />
                   <span className="truncate">{ref.name}</span>
                   {ref.word_count > 0 && (
-                    <span className="text-muted-foreground/50 tabular-nums shrink-0">
+                    <span className="text-muted-foreground tabular-nums shrink-0">
                       {ref.word_count.toLocaleString()}w
                     </span>
                   )}

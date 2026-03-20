@@ -42,6 +42,7 @@ import { useScreenContext } from '@/hooks/useScreenContext'
 import { useEditorSelectionStore, getEditorRef } from '../stores/editorSelectionStore'
 import { supabase } from '@/lib/supabase'
 import { useToast } from '@/hooks/use-toast'
+import { ResearchContext } from '../contexts/ResearchContext'
 
 // =============================================================================
 // Component
@@ -975,6 +976,7 @@ Source Artifact ID: ${sourceId}`
         {/* Phase 4: Foundations Section - Between Research and Editor */}
         {/* Shows writing characteristics + editable skeleton during foundations workflow */}
         <div className={isFoundationsCollapsed ? 'h-auto' : 'h-1/3 min-h-[300px]'}>
+          <ResearchContext.Provider value={research}>
           <FoundationsSection
             artifactId={artifact.id}
             status={artifact.status}
@@ -994,7 +996,13 @@ Source Artifact ID: ${sourceId}`
             reanalyzeButtonLabel={
               isPostCreation ? 'Regenerate with new references' : undefined
             }
+            onTextAIClick={() => openChat({
+              contextKey: `artifact:${id}`,
+              screenContext,
+              onContentImproved: handleContentImproved,
+            })}
           />
+          </ResearchContext.Provider>
         </div>
 
         {/* Writing/Humanizing/Visuals Phase: Show shimmer loader instead of editor */}
@@ -1020,7 +1028,7 @@ Source Artifact ID: ${sourceId}`
             <div className="space-y-3">
               <MessageSquare className="h-12 w-12 text-muted-foreground/30 mx-auto" />
               <p className="text-sm text-muted-foreground">Your interview answers will shape this case study</p>
-              <p className="text-xs text-muted-foreground/60">Answer the questions in the AI Assistant panel</p>
+              <p className="text-xs text-muted-foreground/70">Answer the questions in the AI Assistant panel</p>
             </div>
           </div>
         )}
@@ -1029,6 +1037,7 @@ Source Artifact ID: ${sourceId}`
         {/* Phase 4: HIDE editor during skeleton workflow + writing (shimmer shown above) */}
         {/* Content area should only appear AFTER writing completes */}
         {!['foundations', 'skeleton', 'foundations_approval', 'writing', 'humanity_checking', 'creating_visuals', 'interviewing'].includes(artifact.status) && (
+          <ResearchContext.Provider value={research}>
           <div className={isEditorCollapsed ? 'h-auto' : 'flex-1'}>
             <ArtifactEditor
               artifactId={artifact.id}
@@ -1060,6 +1069,7 @@ Source Artifact ID: ${sourceId}`
               })}
             />
           </div>
+          </ResearchContext.Provider>
         )}
       </div>
 

@@ -90,6 +90,7 @@ export function KanbanBoard({ items, onStatusChange, onCardClick }: KanbanBoardP
             status={status}
             items={columnItems[status]}
             onCardClick={onCardClick}
+            onStatusChange={onStatusChange}
           />
         ))}
       </div>

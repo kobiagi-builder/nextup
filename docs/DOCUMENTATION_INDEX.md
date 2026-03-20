@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-10
-**Version:** 29.3.0
-**Total Documentation Files:** 70+
-**Status:** Complete (ICP Consolidation into user_context.customers)
+**Last Updated:** 2026-03-20
+**Version:** 30.0.0
+**Total Documentation Files:** 71+
+**Status:** Complete (Inline Research References)
 
 ## Overview
 
@@ -81,7 +81,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 5: Features (17 files)
+## Layer 5: Features (18 files)
 
 **Location:** `docs/features/`
 
@@ -104,6 +104,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 | [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
 | [action-items-kanban.md](./features/action-items-kanban.md) | Cross-customer Kanban board: 4-column drag-and-drop (dnd-kit), customer filter, inline create/edit, optimistic updates, feature-flagged (`action_items_kanban`), symmetric RLS (v1.0.0) |
+| [inline-research-references.md](./features/inline-research-references.md) | Inline superscript reference indicators in AI-generated content: `{{ref:N}}` marker generation during LLM writing, humanizer preservation, HTML conversion with UUIDs, TipTap ResearchRef atom node, Radix HoverCard with source details, clipboard stripping (v1.0.0) |
 
 ---
 
@@ -271,7 +272,7 @@ Social Post:    draft → ready
 | API endpoints | 62 (22 AI/content/onboarding + 39 customer + 1 customer AI) |
 | Database tables | 23 (11 content + 7 customer + 1 document_folders + 1 ICP settings [deprecated] + 1 onboarding + 1 team role filters + 1 agent_interaction_logs) + 5 functions |
 | Error categories | 13 |
-| Documentation files | 69+ |
+| Documentation files | 71+ |
 
 ### Key Implementation Files
 
@@ -305,10 +306,14 @@ Social Post:    draft → ready
 | Onboarding Routes | `backend/src/routes/onboarding.ts` |
 | OnboardingGate | `frontend/src/components/auth/OnboardingGate.tsx` |
 | Onboarding Wizard Store | `frontend/src/features/onboarding/stores/onboardingWizardStore.ts` |
+| Reference Marker Utils | `backend/src/services/ai/agents/portfolio/tools/referenceMarkerUtils.ts` |
+| ResearchRef TipTap Node | `frontend/src/lib/tiptap/researchRef.ts` |
+| ResearchRefCard | `frontend/src/features/portfolio/components/editor/ResearchRefCard.tsx` |
 
 ---
 
 **Version History:**
+- **30.0.0** (2026-03-20) — Inline Research References: Added inline-research-references.md (feature doc, v1.0.0). Updated rich-text-editor.md (v1.2.0, ResearchRef + InlineStyleCopy extensions, 6 new key files). Updated content-creation-agent.md (v2.1.0, ref marker generation + humanizer preservation in pipeline). New backend files: referenceMarkerUtils.ts (marker utilities), contentWritingTools.ts prompt changes, humanityCheckTools.ts preservation instruction. New frontend files: researchRef.ts (TipTap node), ResearchRefNodeView.tsx, ResearchRefCard.tsx (hover card), ResearchContext.ts, hover-card.tsx (shadcn). 14 unit tests. 1 new doc file, 3 updated.
 - **29.3.0** (2026-03-10) — ICP Consolidation: Merged `icp_settings` data into `user_context.customers` JSONB. Updated customer-management.md (v13.0.0, ICP data source, scoring weights 55%/45%, removed IcpSettingsService/icpSettingsKeys/IcpSettingsSection references), customer-endpoints.md (v9.0.0, deprecated `/api/icp-settings` section with migration note, removed icpSettings controller/service/route from headers), database-schema-reference.md (v10.0.0, deprecated icp_settings table #19, updated user_context.customers JSONB structure with 4 ICP fields, removed from ER diagram), profile-page.md (v2.0.0, 4 Customers section fields, single save path note), onboarding-wizard.md (v2.2.0, MarketStep 4 ICP fields). customer-management-flow.md and customer-agents-reference.md required no changes. 0 new doc files, 6 updated.
 - **29.2.0** (2026-03-09) — RTL/Hebrew Support: Added `tiptap-text-direction` extension to both `RichTextEditor` and `CustomerRichTextEditor`. Added RTL toggle button (Pilcrow icon) to both editor toolbars. Added CSS logical properties (border-s, ps) for blockquotes/lists, RTL ProseMirror alignment overrides, and Heebo font in `index.css`. Added `preserveDirection` Turndown rule in `markdown.ts` to preserve `dir` attributes through HTML→Markdown round-trips. Created `frontend/src/lib/text-direction.ts` with `detectTextDirection` and `containsRTL` utilities. 28 new tests (10 unit text-direction, 6 unit markdown-rtl, 8 integration RichTextEditor-rtl, 4 E2E hebrew-rtl-editor). Updated rich-text-editor.md (v1.1.0, RTL/Hebrew Support section). 0 new doc files, 2 updated.
 - **29.1.0** (2026-03-09) — Analytical Integrity Directive: Added anti-exaggeration directives to both agent system prompts (CM + PM) and all 18 content-generation tool descriptions. Fixed "presentation-ready" → "professional and well-structured" in PM system prompt. Updated customer-agents-reference.md (v7.1.0, Analytical Integrity section), customer-ai-chat.md (v2.5.0, Analytical Integrity section). 0 new doc files, 3 updated.

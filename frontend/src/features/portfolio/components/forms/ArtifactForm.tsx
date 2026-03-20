@@ -177,7 +177,7 @@ export function ArtifactForm({
                 </span>
               )}
               {selectedReferenceIds.length === 0 && (
-                <span className="text-[11px] text-muted-foreground/60">(optional)</span>
+                <span className="text-[11px] text-muted-foreground/70">(optional)</span>
               )}
             </div>
             <ChevronDown

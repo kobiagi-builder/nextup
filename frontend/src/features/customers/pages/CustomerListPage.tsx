@@ -58,10 +58,13 @@ export function CustomerListPage() {
   const [customerToArchive, setCustomerToArchive] = useState<string | null>(null)
 
   // Read filters from URL (comma-separated for multi-select)
-  const statusParam = searchParams.get('status') || ''
-  const statusFilter: CustomerStatus[] = statusParam
+  // Default: all statuses except not_relevant, archive, closed_lost
+  const EXCLUDED_STATUSES: CustomerStatus[] = ['not_relevant', 'archive', 'closed_lost']
+  const DEFAULT_STATUS_FILTER: CustomerStatus[] = CUSTOMER_STATUSES.filter(s => !EXCLUDED_STATUSES.includes(s))
+  const statusParam = searchParams.get('status')
+  const statusFilter: CustomerStatus[] = statusParam !== null
     ? statusParam.split(',').filter(Boolean) as CustomerStatus[]
-    : []
+    : DEFAULT_STATUS_FILTER
   const searchQuery = searchParams.get('q') || ''
   const sortBy = searchParams.get('sort') || 'updated_at'
   const icpParam = searchParams.get('icp') || ''

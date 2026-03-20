@@ -16,9 +16,9 @@ import { buildCustomerContext } from '../../shared/customerContextBuilder.js'
 export function createCustomerMgmtTools(supabase: SupabaseClient, customerId: string) {
   return {
     updateCustomerStatus: tool({
-      description: 'Update the customer lifecycle status (lead, prospect, negotiation, live, on_hold, archive)',
+      description: 'Update the customer lifecycle status (lead, prospect, negotiation, live, on_hold, archive, not_relevant, closed_lost)',
       inputSchema: z.object({
-        newStatus: z.enum(['lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive']),
+        newStatus: z.enum(['lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant', 'closed_lost']),
         reason: z.string().describe('Brief explanation for the status change'),
       }),
       execute: async ({ newStatus, reason }) => {
@@ -85,9 +85,9 @@ Field definitions:
     }),
 
     createEventLogEntry: tool({
-      description: 'Log a customer interaction event (meeting, call, workshop, decision, delivery, feedback, escalation, win, update, analysis, planning)',
+      description: 'Log a customer interaction event (meeting, call, email, note, status_change, milestone, workshop, decision, delivery, feedback, escalation, win, update, analysis, planning, other)',
       inputSchema: z.object({
-        eventType: z.enum(['meeting', 'call', 'workshop', 'decision', 'delivery', 'feedback', 'escalation', 'win', 'update', 'analysis', 'planning']),
+        eventType: z.enum(['meeting', 'call', 'email', 'note', 'status_change', 'milestone', 'workshop', 'decision', 'delivery', 'feedback', 'escalation', 'win', 'update', 'analysis', 'planning', 'other']),
         title: z.string(),
         description: z.string().optional(),
         participants: z.array(z.string()).optional(),

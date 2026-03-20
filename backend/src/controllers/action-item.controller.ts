@@ -16,17 +16,19 @@ import { logger } from '../lib/logger.js'
 // =============================================================================
 
 const createActionItemSchema = z.object({
-  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
+  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom']).optional(),
   description: z.string().min(1, 'Description is required'),
   due_date: z.string().nullable().optional(),
   status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
+  reported_by: z.string().optional(),
 })
 
 const updateActionItemSchema = z.object({
-  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'custom']).optional(),
+  type: z.enum(['follow_up', 'proposal', 'meeting', 'delivery', 'review', 'bug', 'new_feature', 'enhancement', 'custom']).optional(),
   description: z.string().min(1).optional(),
   due_date: z.string().nullable().optional(),
   status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']).optional(),
+  reported_by: z.string().nullable().optional(),
 })
 
 // =============================================================================

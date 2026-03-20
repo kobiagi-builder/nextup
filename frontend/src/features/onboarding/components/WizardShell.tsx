@@ -4,6 +4,9 @@
  * Step router + progress bar for the onboarding wizard.
  * Renders the correct step component based on currentStep from the store.
  * Step numbering: 0=Welcome, 1=Import, 2=Profile, 3=Market, 4=Voice, 5=Completion
+ *
+ * In edit mode (?edit=true from Profile page), skips Welcome/Import steps
+ * and navigates back to /profile on skip/completion.
  */
 
 import { useState } from 'react'
@@ -20,7 +23,11 @@ import { MarketStep } from './MarketStep'
 import { VoiceStep } from './VoiceStep'
 import { CompletionStep } from './CompletionStep'
 
-export function WizardShell() {
+interface WizardShellProps {
+  isEditMode?: boolean
+}
+
+export function WizardShell({ isEditMode = false }: WizardShellProps) {
   const currentStep = useOnboardingWizardStore((s) => s.currentStep)
   const navigate = useNavigate()
   const saveProgress = useSaveOnboardingProgress()
@@ -31,15 +38,17 @@ export function WizardShell() {
 
   const handleSkipConfirm = async () => {
     setSkipDialogOpen(false)
-    try {
-      await saveProgress.mutateAsync({
-        current_step: currentStep,
-        completed_at: new Date().toISOString(),
-      })
-    } catch {
-      // Non-blocking — navigate to portfolio even if save fails
+    if (!isEditMode) {
+      try {
+        await saveProgress.mutateAsync({
+          current_step: currentStep,
+          completed_at: new Date().toISOString(),
+        })
+      } catch {
+        // Non-blocking — navigate even if save fails
+      }
     }
-    navigate('/portfolio')
+    navigate(isEditMode ? '/profile' : '/portfolio')
   }
 
   return (
@@ -57,7 +66,7 @@ export function WizardShell() {
                 onClick={() => setSkipDialogOpen(true)}
                 className="text-xs text-muted-foreground hover:text-foreground transition-colors"
               >
-                Skip for now
+                {isEditMode ? 'Cancel' : 'Skip for now'}
               </button>
             )}
           </div>
@@ -76,7 +85,7 @@ export function WizardShell() {
           {currentStep === 2 && <ProfileStep />}
           {currentStep === 3 && <MarketStep />}
           {currentStep === 4 && <VoiceStep />}
-          {currentStep === 5 && <CompletionStep />}
+          {currentStep === 5 && <CompletionStep isEditMode={isEditMode} />}
         </WizardLayout>
 
         {/* Skip confirmation dialog (shared between header link + Escape key) */}

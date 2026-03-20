@@ -83,7 +83,11 @@ function CompletionRow({ icon: Icon, text, done, className, style }: CompletionR
   )
 }
 
-export function CompletionStep() {
+interface CompletionStepProps {
+  isEditMode?: boolean
+}
+
+export function CompletionStep({ isEditMode = false }: CompletionStepProps) {
   const navigate = useNavigate()
   const reducedMotion = useReducedMotion()
   const firstName = useFirstName()
@@ -132,7 +136,7 @@ export function CompletionStep() {
 
   const handleGoToPortfolio = () => {
     reset()
-    navigate('/portfolio', { replace: true })
+    navigate(isEditMode ? '/profile' : '/portfolio', { replace: true })
   }
 
   const referenceCount = examples?.length ?? 0
@@ -184,7 +188,7 @@ export function CompletionStep() {
         className="text-[1.875rem] font-semibold tracking-tight mt-3 onboarding-animate-fade-up"
         style={d(400)}
       >
-        Your profile is ready. Let's get to work.
+        {isEditMode ? 'Profile updated successfully!' : "Your profile is ready. Let's get to work."}
       </h1>
 
       {/* Completion summary rows */}
@@ -205,7 +209,7 @@ export function CompletionStep() {
         style={d(1000)}
       >
         <Button size="lg" onClick={handleGoToPortfolio} className="gap-2">
-          Go to my portfolio
+          {isEditMode ? 'Back to profile' : 'Go to my portfolio'}
           <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

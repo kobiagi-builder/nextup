@@ -10,6 +10,7 @@ import { Plus, ListChecks, ArrowUpDown } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { MultiSelectFilter } from '../shared/MultiSelectFilter'
+import { useFilterStore } from '@/stores/filterStore'
 import { useActionItems, useDeleteActionItem, useUpdateActionItem } from '../../hooks'
 import type { ActionItem, ActionItemStatus } from '../../types'
 import {
@@ -32,9 +33,12 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
 
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ActionItem | null>(null)
-  const [statusFilter, setStatusFilter] = useState<string[]>([])
-  const [typeFilter, setTypeFilter] = useState<string[]>([])
-  const [sortBy, setSortBy] = useState<'due_date' | 'created_at'>('due_date')
+  const { status: statusFilter, type: typeFilter, sortBy } = useFilterStore((s) => s.getCustomerActionItemsFilters(customerId))
+  const setFilters = (filters: Partial<{ status: string[]; type: string[]; sortBy: 'due_date' | 'created_at' }>) =>
+    useFilterStore.getState().setCustomerActionItemsFilters(customerId, filters)
+  const setStatusFilter = (v: string[]) => setFilters({ status: v })
+  const setTypeFilter = (v: string[]) => setFilters({ type: v })
+  const setSortBy = (v: 'due_date' | 'created_at') => setFilters({ sortBy: v })
 
   // Client-side filtering and sorting
   const filteredItems = useMemo(() => {

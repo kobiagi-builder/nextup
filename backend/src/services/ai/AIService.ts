@@ -28,7 +28,8 @@ import * as contentImprovementTools from './agents/portfolio/tools/contentImprov
 import * as socialPostTools from './agents/portfolio/tools/socialPostTools.js'
 import * as interviewTools from './agents/portfolio/tools/interviewTools.js'
 import * as storytellingTools from './agents/portfolio/tools/storytellingTools.js'
-import * as trendingTopicsTools from './agents/portfolio/tools/trendingTopicsTools.js'
+import * as writingCharacteristicsTools from './agents/portfolio/tools/writingCharacteristicsTools.js'
+import * as trendingTopicsRouter from './agents/portfolio/tools/trendingTopicsRouter.js'
 import * as followUpTopicsTools from './agents/portfolio/tools/followUpTopicsTools.js'
 import { pipelineExecutor } from './PipelineExecutor.js'
 import type { UserContext } from '../../types/portfolio.js'
@@ -117,6 +118,8 @@ const AVAILABLE_TOOLS: Record<string, any> = {
   suggestArtifactIdeas: contentTools.suggestArtifactIdeas,
   // Research tools (Phase 1)
   conductDeepResearch: researchTools.conductDeepResearch,
+  // Writing characteristics analysis (Phase 4 - style analysis before skeleton)
+  analyzeWritingCharacteristics: writingCharacteristicsTools.analyzeWritingCharacteristics,
   // Skeleton tools (Phase 1)
   generateContentSkeleton: skeletonTools.generateContentSkeleton,
   // Content writing tools (Phase 2)
@@ -145,7 +148,7 @@ const AVAILABLE_TOOLS: Record<string, any> = {
   // Storytelling analysis tools
   analyzeStorytellingStructure: storytellingTools.analyzeStorytellingStructure,
   // Trending topics tools (topic type: "trending")
-  researchTrendingTopics: trendingTopicsTools.researchTrendingTopics,
+  researchTrendingTopics: trendingTopicsRouter.researchTrendingTopics,
   // Follow-up topics tools (topic type: "continue_series")
   analyzeFollowUpTopics: followUpTopicsTools.analyzeFollowUpTopics,
   // Response tools

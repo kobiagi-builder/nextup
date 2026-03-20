@@ -8,6 +8,7 @@ import { mockService, type SkeletonToolResponse } from '../../../mocks/index.js'
 import { generateMockTraceId } from '../../../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../../../types/contentAgent.js';
 import type { WritingCharacteristics, StorytellingGuidance } from '../../../../../types/portfolio.js';
+import { convertRefMarkersToHTML, buildResearchItemsForRef } from './referenceMarkerUtils.js';
 
 /**
  * Skeleton Generation Tools for Content Creation Agent (Phase 1)
@@ -127,56 +128,48 @@ function getCharacteristicsGuidance(characteristics?: WritingCharacteristics): s
 
   const guidance: string[] = ['## Writing Style Characteristics (apply to skeleton structure)'];
 
+  // Helper: format with reasoning for specificity
+  const fmt = (label: string, char: { value: string | number | boolean | string[]; reasoning?: string }) => {
+    const val = Array.isArray(char.value) ? char.value.join('; ') : char.value;
+    return char.reasoning ? `- **${label}**: ${val} — ${char.reasoning}` : `- **${label}**: ${val}`;
+  };
+
   // Extract relevant characteristics for skeleton
   const structureChar = characteristics.structure_preference || characteristics.structure;
-  if (structureChar) {
-    guidance.push(`- Structure: ${structureChar.value} (confidence: ${structureChar.confidence})`);
-  }
+  if (structureChar) guidance.push(fmt('Structure', structureChar));
 
   const depthChar = characteristics.depth || characteristics.depth_preference;
-  if (depthChar) {
-    guidance.push(`- Depth: ${depthChar.value} - adjust section count accordingly`);
-  }
+  if (depthChar) guidance.push(fmt('Depth', depthChar) + ' - adjust section count accordingly');
 
   const lengthChar = characteristics.length_preference || characteristics.length;
-  if (lengthChar) {
-    guidance.push(`- Length preference: ${lengthChar.value}`);
-  }
+  if (lengthChar) guidance.push(fmt('Length preference', lengthChar));
 
   const visualsChar = characteristics.use_of_visuals || characteristics.visuals;
-  if (visualsChar) {
-    guidance.push(`- Visuals usage: ${visualsChar.value} - adjust image placeholder count`);
-  }
+  if (visualsChar) guidance.push(fmt('Visuals usage', visualsChar) + ' - adjust image placeholder count');
 
   const formattingChar = characteristics.formatting_preferences || characteristics.formatting;
-  if (formattingChar) {
-    guidance.push(`- Formatting: ${formattingChar.value}`);
-  }
+  if (formattingChar) guidance.push(fmt('Formatting', formattingChar));
 
   const audienceChar = characteristics.audience_assumption || characteristics.audience;
-  if (audienceChar) {
-    guidance.push(`- Target audience level: ${audienceChar.value}`);
-  }
+  if (audienceChar) guidance.push(fmt('Target audience level', audienceChar));
 
   const hookChar = characteristics.hook_style;
-  if (hookChar) {
-    guidance.push(`- Hook style: ${hookChar.value}`);
-  }
+  if (hookChar) guidance.push(fmt('Hook style', hookChar));
 
   const metaphorChar = characteristics.central_metaphor_strategy;
-  if (metaphorChar) {
-    guidance.push(`- Central metaphor: ${metaphorChar.value}`);
-  }
+  if (metaphorChar) guidance.push(fmt('Central metaphor', metaphorChar));
 
   const closingChar = characteristics.closing_type;
-  if (closingChar) {
-    guidance.push(`- Closing type: ${closingChar.value}`);
-  }
+  if (closingChar) guidance.push(fmt('Closing type', closingChar));
 
   const counterArgChar = characteristics.counter_argument_approach;
-  if (counterArgChar) {
-    guidance.push(`- Counter-arguments: ${counterArgChar.value}`);
-  }
+  if (counterArgChar) guidance.push(fmt('Counter-arguments', counterArgChar));
+
+  // New formatting characteristics (Issue 3)
+  if (characteristics.emoji_usage) guidance.push(fmt('Emoji usage', characteristics.emoji_usage));
+  if (characteristics.paragraph_length) guidance.push(fmt('Paragraph style', characteristics.paragraph_length));
+  if (characteristics.list_usage) guidance.push(fmt('List usage', characteristics.list_usage));
+  if (characteristics.whitespace_pattern) guidance.push(fmt('Whitespace pattern', characteristics.whitespace_pattern));
 
   if (guidance.length === 1) {
     return ''; // Only header, no actual characteristics
@@ -246,9 +239,12 @@ function buildSkeletonPrompt(
   // Build author's vision section if brief is available
   const authorVisionSection = authorBrief
     ? `
-## Author's Vision (PRIMARY GUIDE for structure and argument flow)
+## Author's Vision & Research Integration
 
-The author has a specific narrative in mind. Use this as your primary guide for structuring the skeleton. You may enhance with research findings, but the core argument, key examples, specific analogies, and intended angle MUST be preserved in the skeleton structure.
+The author has a specific narrative in mind. INTEGRATE research findings INTO the author's narrative to make it credible and evidence-rich.
+
+- The author's vision provides **direction**: the argument flow, key examples, analogies, and intended angle
+- Research provides **evidence**: specific data points, statistics, expert findings, and concrete examples that make the argument credible
 
 ${authorBrief}
 
@@ -256,16 +252,16 @@ When creating the skeleton:
 - Structure sections around the author's key arguments, not generic subtopics
 - Preserve the author's specific examples and analogies as section focal points
 - Keep the author's intended hook and CTA direction
-- Use research to SUPPORT the author's narrative, not replace it
+- ABSORB research findings as your own knowledge — use their ideas, data, and conclusions to make the argument richer and more specific
 - If the author mentions specific data points, companies, or events, ensure they appear in the skeleton
-- For SHOWCASES: The brief comes from a structured interview — treat stakeholder dynamics, emotional moments, and specific observations as essential skeleton elements (not optional color)
+- For SHOWCASES: The brief comes from a structured interview — treat stakeholder dynamics, emotional moments, and specific observations as essential skeleton elements (not optional color). Showcases use personal evidence, NOT external research.
 
 `
     : '';
 
   const researchLabel = authorBrief
-    ? 'Research context (use these insights to SUPPORT the author\'s narrative above):'
-    : 'Research context (use these insights to inform structure):';
+    ? 'Research context (ABSORB these ideas and data as your own knowledge to enrich the author\'s narrative):'
+    : 'Research context (ABSORB these ideas and data as your own knowledge — see research integration requirements below):';
 
   const basePrompt = `You are creating a content skeleton (NOT final content) for a ${artifactType}.
 ${authorVisionSection}
@@ -312,13 +308,30 @@ ${storytellingGuidance}
 
 8. **Closing**: NOT a summary. End with: diagnostic questions the reader can apply to their own situation, a provocative reframe, or a reflective question.
 
+## Research Integration Requirements
+- ABSORB research findings as your own knowledge — do NOT cite or attribute sources directly
+- Use research ideas, conclusions, data points, and reasoning as the FOUNDATION of your argument
+- When research provides specific numbers, company names, or patterns that strengthen your thesis, weave them in naturally as things you know — not as things you're quoting
+- Each H2 section should be INFORMED by research: adopt its reasoning, build on its conclusions, use its evidence as your own
+- If research contradicts your argument, acknowledge it as a caveat (builds credibility)
+- Do NOT use attribution phrases like "According to...", "Research shows...", "[Source] found..." — write as a knowledgeable author, not a researcher citing papers
+
+### Reference Markers
+After each sentence or bullet point that was directly informed by a specific research item, append a marker: {{ref:N}} where N is the research item number from the research context above.
+
+Rules:
+- Only mark points where research DIRECTLY contributed (specific data, ideas, reasoning, examples)
+- Do NOT mark every point — only those with clear research lineage
+- A point can have multiple markers: "Key insight here.{{ref:2}}{{ref:5}}"
+- Place markers AFTER terminal punctuation: "End of sentence.{{ref:3}}"
+- Typical density: 30-50% of skeleton points should have markers
+
 ## Key Constraints
 - Sections build on each other - NOT interchangeable topic blocks
 - At least ONE named example (company, person, event) must appear
 - Include at least ONE moment of intellectual honesty (caveat, limitation)
 - If the article introduces a new concept, show it through example BEFORE naming it (earned naming)
 - Use placeholders like [Write hook here] and [IMAGE: description]
-- Reference research sources like "According to [Source]..."
 - Keep total length under 2000 characters.`;
   }
 
@@ -341,6 +354,17 @@ ${storytellingGuidance}
 6. Post Image: [IMAGE: Describe the visual that should accompany this post - should enhance the message and stop scrollers]
 
 7. Hashtags: #hashtag1 #hashtag2 #hashtag3 (3-5 relevant tags)
+
+## Research Integration
+- ABSORB research findings as your own knowledge — do NOT cite or attribute sources
+- At least 1 key point should be INFORMED by a specific research finding, data point, or conclusion
+- Weave research insights naturally as things you know, not things you're quoting
+
+### Reference Markers
+After each point or sentence directly informed by a specific research item, append: {{ref:N}} where N is the research item number from the context above.
+- Only mark points with clear research lineage
+- Place markers AFTER punctuation: "Key insight.{{ref:3}}"
+- Typical density: 30-50% of points should have markers
 
 Use placeholders and keep concise (suitable for LinkedIn/Twitter). Include ONE image placeholder at the end (before hashtags) describing the visual that would accompany the post. Total length under 1500 characters.`;
   }
@@ -642,21 +666,40 @@ export const generateContentSkeleton = tool({
       });
 
       // 4. Call Claude API
+      const skeletonTokenLimits: Record<string, number> = {
+        blog: 3000,
+        showcase: 3500,
+        social_post: 2000,
+      };
+
       const { text: skeleton } = await generateText({
         model: anthropic('claude-sonnet-4-20250514'),
         prompt,
         temperature: 0.7, // Balanced creativity and consistency
-        maxOutputTokens: 2000, // Enough for detailed skeleton
+        maxOutputTokens: skeletonTokenLimits[artifactType] || 3000,
       });
 
       logger.debug('[GenerateContentSkeleton] Skeleton generated', {
         skeletonLength: skeleton.length
       });
 
+      // 4.5 Post-processing: Convert {{ref:N}} markers to HTML spans
+      let processedSkeleton = skeleton;
+      if (researchResults && researchResults.length > 0 && artifactType !== 'showcase') {
+        const refItems = buildResearchItemsForRef(researchResults);
+        processedSkeleton = convertRefMarkersToHTML(processedSkeleton, refItems);
+
+        const refIndicatorCount = (processedSkeleton.match(/ref-indicator/g) || []).length;
+        logger.debug('[GenerateContentSkeleton] Reference markers converted', {
+          refIndicatorCount,
+          artifactId,
+        });
+      }
+
       // 5. Validate skeleton length and truncate if needed
       // Blogs/showcases need more room for section headers + descriptions
       const maxLength = artifactType === 'social_post' ? 2000 : 6000;
-      let finalSkeleton = skeleton;
+      let finalSkeleton = processedSkeleton;
       let warning: string | undefined;
 
       if (skeleton.length > maxLength) {

@@ -10,6 +10,8 @@ import { generateMockTraceId } from '../../../mocks/utils/dynamicReplacer.js';
 import type { ToolOutput } from '../../../types/contentAgent.js';
 import type { WritingCharacteristics, StorytellingGuidance } from '../../../../../types/portfolio.js';
 import { buildHumanityCheckPrompt } from './humanityCheckTools.js';
+import { analyzeWritingCharacteristics } from './writingCharacteristicsTools.js';
+import { convertRefMarkersToHTML, buildResearchItemsForRef } from './referenceMarkerUtils.js';
 
 /**
  * Content Writing Tools for Content Creation Agent (Phase 2)
@@ -152,91 +154,132 @@ function stripSkeletonMarkers(content: string): string {
 
 /**
  * Extract characteristics guidance for content writing (Phase 4)
+ * Includes reasoning from Claude's analysis so Gemini gets specific instructions,
+ * not just generic labels like "professional".
  */
-function getWritingCharacteristicsGuidance(characteristics?: WritingCharacteristics): string {
+function getWritingCharacteristicsGuidance(
+  characteristics?: WritingCharacteristics,
+  summary?: string,
+  recommendations?: string,
+  styleExcerpts?: string
+): string {
   if (!characteristics || Object.keys(characteristics).length === 0) {
     return '';
   }
 
-  const guidance: string[] = ['## Writing Style Characteristics (apply throughout)'];
+  const guidance: string[] = ['## Writing Style Characteristics (CRITICAL — apply throughout, these come from the author\'s actual writing references)'];
 
-  // Extract relevant characteristics for content writing
-  const toneChar = characteristics.tone;
-  if (toneChar) {
-    guidance.push(`- Tone: ${toneChar.value}`);
+  // Helper: format a characteristic with its reasoning for specificity
+  const fmt = (label: string, char: { value: string | number | boolean | string[]; reasoning?: string }) => {
+    const val = Array.isArray(char.value) ? char.value.join('; ') : char.value;
+    return char.reasoning ? `- **${label}**: ${val} — ${char.reasoning}` : `- **${label}**: ${val}`;
+  };
+
+  // Core writing characteristics
+  if (characteristics.tone) guidance.push(fmt('Tone', characteristics.tone));
+  if (characteristics.voice) guidance.push(fmt('Voice', characteristics.voice));
+  if (characteristics.sentence_structure) guidance.push(fmt('Sentence structure', characteristics.sentence_structure));
+  if (characteristics.vocabulary_complexity) guidance.push(fmt('Vocabulary', characteristics.vocabulary_complexity));
+  if (characteristics.pacing) guidance.push(fmt('Pacing', characteristics.pacing));
+  if (characteristics.use_of_evidence) guidance.push(fmt('Evidence usage', characteristics.use_of_evidence));
+  if (characteristics.use_of_examples) guidance.push(fmt('Examples usage', characteristics.use_of_examples));
+  if (characteristics.cta_style) guidance.push(fmt('Call-to-action style', characteristics.cta_style));
+  if (characteristics.emotional_appeal) guidance.push(fmt('Emotional appeal', characteristics.emotional_appeal));
+  if (characteristics.audience_assumption) guidance.push(fmt('Target audience level', characteristics.audience_assumption));
+
+  // Voice characteristics
+  if (characteristics.intellectual_honesty_level) guidance.push(fmt('Intellectual honesty', characteristics.intellectual_honesty_level));
+  if (characteristics.vulnerability_frequency) guidance.push(fmt('Vulnerability/admissions', characteristics.vulnerability_frequency));
+  if (characteristics.humor_level) guidance.push(fmt('Humor', characteristics.humor_level));
+  if (characteristics.rhetorical_question_usage) guidance.push(fmt('Rhetorical questions', characteristics.rhetorical_question_usage));
+  if (characteristics.conversational_markers) guidance.push(fmt('Conversational markers', characteristics.conversational_markers));
+  if (characteristics.reader_as_peer_level) guidance.push(fmt('Reader treatment', characteristics.reader_as_peer_level));
+  if (characteristics.example_development_depth) guidance.push(fmt('Example development', characteristics.example_development_depth));
+  if (characteristics.distinctive_phrasing) guidance.push(fmt('Signature phrases', characteristics.distinctive_phrasing));
+
+  // Formatting & visual style characteristics (Issue 3 — new characteristics)
+  if (characteristics.emoji_usage) guidance.push(fmt('Emoji usage', characteristics.emoji_usage));
+  if (characteristics.special_formatting) guidance.push(fmt('Special formatting', characteristics.special_formatting));
+  if (characteristics.paragraph_length) guidance.push(fmt('Paragraph length', characteristics.paragraph_length));
+  if (characteristics.list_usage) guidance.push(fmt('List usage', characteristics.list_usage));
+  if (characteristics.hashtag_usage) guidance.push(fmt('Hashtag usage', characteristics.hashtag_usage));
+  if (characteristics.whitespace_pattern) guidance.push(fmt('Whitespace pattern', characteristics.whitespace_pattern));
+
+  // Include any other characteristics not explicitly listed above
+  const knownKeys = new Set([
+    'tone', 'voice', 'sentence_structure', 'vocabulary_complexity', 'pacing',
+    'use_of_evidence', 'use_of_examples', 'cta_style', 'emotional_appeal',
+    'audience_assumption', 'intellectual_honesty_level', 'vulnerability_frequency',
+    'humor_level', 'rhetorical_question_usage', 'conversational_markers',
+    'reader_as_peer_level', 'example_development_depth', 'distinctive_phrasing',
+    'emoji_usage', 'special_formatting', 'paragraph_length', 'list_usage',
+    'hashtag_usage', 'whitespace_pattern',
+  ]);
+  for (const [key, char] of Object.entries(characteristics)) {
+    if (!knownKeys.has(key) && char?.value !== undefined) {
+      guidance.push(fmt(key.replace(/_/g, ' '), char));
+    }
   }
-
-  const voiceChar = characteristics.voice;
-  if (voiceChar) {
-    guidance.push(`- Voice: ${voiceChar.value} (e.g., first-person, we/our, third-person)`);
-  }
-
-  const sentenceChar = characteristics.sentence_structure;
-  if (sentenceChar) {
-    guidance.push(`- Sentence structure: ${sentenceChar.value}`);
-  }
-
-  const vocabChar = characteristics.vocabulary_complexity;
-  if (vocabChar) {
-    guidance.push(`- Vocabulary: ${vocabChar.value}`);
-  }
-
-  const pacingChar = characteristics.pacing;
-  if (pacingChar) {
-    guidance.push(`- Pacing: ${pacingChar.value}`);
-  }
-
-  const evidenceChar = characteristics.use_of_evidence;
-  if (evidenceChar) {
-    guidance.push(`- Evidence usage: ${evidenceChar.value}`);
-  }
-
-  const examplesChar = characteristics.use_of_examples;
-  if (examplesChar) {
-    guidance.push(`- Examples usage: ${examplesChar.value}`);
-  }
-
-  const ctaChar = characteristics.cta_style;
-  if (ctaChar) {
-    guidance.push(`- Call-to-action style: ${ctaChar.value}`);
-  }
-
-  const emotionalChar = characteristics.emotional_appeal;
-  if (emotionalChar) {
-    guidance.push(`- Emotional appeal: ${emotionalChar.value}`);
-  }
-
-  const audienceChar = characteristics.audience_assumption;
-  if (audienceChar) {
-    guidance.push(`- Target audience level: ${audienceChar.value}`);
-  }
-
-  const honestyChar = characteristics.intellectual_honesty_level;
-  if (honestyChar) guidance.push(`- Intellectual honesty: ${honestyChar.value}`);
-
-  const vulnerabilityChar = characteristics.vulnerability_frequency;
-  if (vulnerabilityChar) guidance.push(`- Vulnerability/admissions: ${vulnerabilityChar.value}`);
-
-  const humorChar = characteristics.humor_level;
-  if (humorChar) guidance.push(`- Humor: ${humorChar.value}`);
-
-  const rhetoricalChar = characteristics.rhetorical_question_usage;
-  if (rhetoricalChar) guidance.push(`- Rhetorical questions: ${rhetoricalChar.value}`);
-
-  const conversationalChar = characteristics.conversational_markers;
-  if (conversationalChar) guidance.push(`- Conversational markers: ${conversationalChar.value}`);
-
-  const peerChar = characteristics.reader_as_peer_level;
-  if (peerChar) guidance.push(`- Reader treatment: ${peerChar.value}`);
-
-  const exampleDepthChar = characteristics.example_development_depth;
-  if (exampleDepthChar) guidance.push(`- Example development: ${exampleDepthChar.value}`);
-
-  const phrasesChar = characteristics.distinctive_phrasing;
-  if (phrasesChar) guidance.push(`- Signature phrases: ${Array.isArray(phrasesChar.value) ? phrasesChar.value.join('; ') : phrasesChar.value}`);
 
   if (guidance.length === 1) {
     return ''; // Only header, no actual characteristics
+  }
+
+  // Build CRITICAL formatting enforcement section — these are hard requirements, not suggestions.
+  // Gemini tends to ignore formatting characteristics when they're buried in a long list,
+  // so we extract the most impactful ones and state them as non-negotiable rules.
+  const criticalRules: string[] = [];
+
+  const emojiChar = characteristics.emoji_usage;
+  if (emojiChar) {
+    const val = String(emojiChar.value).toLowerCase();
+    if (val.includes('frequent') || val.includes('heavy')) {
+      criticalRules.push(`- **EMOJIS ARE REQUIRED**: The author uses emojis frequently. You MUST include emojis throughout the content — in section headers, bullet points, inline emphasis, and key takeaways. Aim for 10-20 emojis across the piece. Patterns: ${emojiChar.reasoning || 'section headers, inline emphasis, bullet decoration'}`);
+    } else if (val.includes('occasional') || val.includes('moderate')) {
+      criticalRules.push(`- **EMOJIS**: Include 3-8 emojis in strategic positions (headers, key points). ${emojiChar.reasoning || ''}`);
+    }
+  }
+
+  const fmtChar = characteristics.special_formatting;
+  if (fmtChar) {
+    const val = String(fmtChar.value).toLowerCase();
+    if (val.includes('bold') || val.includes('heavy')) {
+      criticalRules.push(`- **BOLD TEXT IS REQUIRED**: Use **bold** for key terms, concepts, and emphasis throughout. The author's style uses bold heavily. ${fmtChar.reasoning || ''}`);
+    }
+    if (val.includes('caps') || val.includes('all caps')) {
+      criticalRules.push(`- **ALL CAPS**: Use occasional ALL CAPS for dramatic emphasis on key words (1-3 instances per section).`);
+    }
+  }
+
+  const hashtagChar = characteristics.hashtag_usage;
+  if (hashtagChar) {
+    const val = String(hashtagChar.value).toLowerCase();
+    if (val !== 'none') {
+      criticalRules.push(`- **HASHTAGS**: Include hashtags at the end of the content (${hashtagChar.value}). ${hashtagChar.reasoning || ''}`);
+    }
+  }
+
+  const listChar = characteristics.list_usage;
+  if (listChar) {
+    const val = String(listChar.value).toLowerCase();
+    if (val.includes('heavy') || val.includes('frequent')) {
+      criticalRules.push(`- **LISTS**: Use bullet/numbered lists frequently — the author's style is list-heavy. ${listChar.reasoning || ''}`);
+    }
+  }
+
+  if (criticalRules.length > 0) {
+    guidance.push(`\n### CRITICAL FORMATTING RULES (non-negotiable — these define the author's visual style)\nThe following formatting patterns are NOT optional. They come from the author's actual writing and MUST appear in the output. Content without these patterns will be rejected.\n${criticalRules.join('\n')}`);
+  }
+
+  // Append summary, recommendations, and style excerpts for richer guidance
+  if (summary) {
+    guidance.push(`\n### Style Summary\n${summary}`);
+  }
+  if (recommendations) {
+    guidance.push(`\n### Style Recommendations\n${recommendations}`);
+  }
+  if (styleExcerpts) {
+    guidance.push(`\n### Style Examples from Author's References (match this voice and formatting)\n${styleExcerpts}`);
   }
 
   return '\n' + guidance.join('\n') + '\n';
@@ -325,11 +368,15 @@ function buildContentPrompt(
   authorBrief?: string,
   storytelling?: StorytellingGuidance,
   sectionIndex?: number,
-  totalSections?: number
+  totalSections?: number,
+  charSummary?: string,
+  charRecommendations?: string,
+  charStyleExcerpts?: string
 ): string {
   const toneModifier = toneModifiers[tone];
-  const characteristicsGuidance = getWritingCharacteristicsGuidance(characteristics);
+  const characteristicsGuidance = getWritingCharacteristicsGuidance(characteristics, charSummary, charRecommendations, charStyleExcerpts);
   const storytellingWritingGuidance = getStorytellingWritingGuidance(storytelling, isFirstSection, sectionIndex, totalSections);
+  const hasCharacteristics = characteristics && Object.keys(characteristics).length > 0;
 
   const authorIntentSection = authorBrief
     ? `
@@ -356,14 +403,39 @@ Write compelling content for this section of a ${artifactType}.
 Heading: ${sectionHeading}
 Placeholder/Notes: ${sectionPlaceholder}
 ${authorIntentSection}
-## Research Context (incorporate naturally)
-${researchContext || 'No specific research available. Write based on general knowledge.'}
+## Research Context (ABSORB as your own knowledge)
+${researchContext || 'WARNING: No research data found. Still write specific, evidence-based content using concrete examples and real data. Do NOT write generic filler. Use named examples (companies, people, events) and specific mechanisms.'}
 
-## Tone Requirements
+${artifactType !== 'showcase' ? `### Research Integration Rules
+- ABSORB research as your own knowledge — do NOT cite sources or use attribution phrases
+- Use the ideas, conclusions, data points, reasoning, and patterns from research as the FOUNDATION of your writing
+- When research provides specific numbers, company names, or concrete examples that strengthen your point, use them naturally as things you know
+- Do NOT write "According to...", "Research shows...", "[Source] found..." — write as a knowledgeable author
+- If research contradicts your point, acknowledge it honestly — this builds credibility
+
+### Reference Markers
+After each sentence that was directly informed by, drawn from, or inspired by a specific research item, append a marker: {{ref:N}} where N is the research item number from the context above.
+
+Rules:
+- Only mark sentences where research DIRECTLY contributed (specific data, ideas, reasoning, examples)
+- Do NOT mark every sentence — only those with clear research lineage
+- A sentence can have multiple markers: "Sentence text.{{ref:2}}{{ref:5}}"
+- Place markers AFTER terminal punctuation: "End of sentence.{{ref:3}}"
+- If a sentence synthesizes from your own knowledge without research influence, do NOT add a marker
+- Typical density: 30-50% of sentences should have markers (not every sentence, not too few)
+` : ''}## Tone Requirements
 ${toneModifier}
 ${characteristicsGuidance}
 ${storytellingWritingGuidance}
 ## Writing Guidelines
+${hasCharacteristics ? `
+**IMPORTANT**: The "Writing Style Characteristics" section above takes PRIORITY over the default guidelines below. If the characteristics specify a different paragraph style, formatting pattern, emoji usage, or voice than the defaults — FOLLOW THE CHARACTERISTICS. The characteristics come from the author's actual writing references and represent their real style.
+` : ''}
+### Always Apply (never acceptable regardless of style)
+- No throat-clearing: "In today's rapidly evolving landscape..."
+- No empty transitions: "Let's dive in", "Moving on to..."
+- No generic conclusions: "The future looks bright"
+- Never use vague attribution: "Research shows...", "Studies indicate...", "Experts argue..." — instead, state the finding as your own knowledge
 
 ### Example Development (for every example used)
 1. Claim: State the point
@@ -371,22 +443,14 @@ ${storytellingWritingGuidance}
 3. Mechanism: Explain WHY it worked/failed, not just THAT it did
 4. Implication: "This means..." or "The lesson here is..."
 
-### Paragraph Rhythm
-- Mix short paragraphs (1-2 sentences for emphasis) with longer ones (3-5 sentences)
+### Defaults (characteristics override these when they conflict)
+- Paragraph rhythm: Mix short paragraphs (1-2 sentences for emphasis) with longer ones (3-5 sentences)
 - After a bold claim, follow with a concrete example in the NEXT sentence
 - Sentence fragments for emphasis. Like this. Sparingly.
-
-### Voice and Honesty
-- Credit sources by name: "As [Author] found in..." NOT "Research shows..."
 - Include at least one honest caveat per section: "To be fair...", "This isn't always..."
 - Treat the reader as a peer who is smart but hasn't considered this angle yet
 - Occasional conversational markers: "Here's the thing.", "And yet.", "Look."
-
-### What NOT to do
-- No throat-clearing: "In today's rapidly evolving landscape..."
-- No empty transitions: "Let's dive in", "Moving on to..."
 - No summary sentences at the end of each section
-- No generic conclusions: "The future looks bright"
 
 ${artifactType === 'blog' ? '- Aim for 250-450 words per section' : ''}
 ${artifactType === 'social_post' ? '- Keep it concise and punchy (150-280 characters)' : ''}
@@ -507,6 +571,91 @@ You MUST use proper HTML formatting:
 - Italic: <em>text</em>
 
 Write ONLY the content for this section (plus the image placeholder at the end). Do not include section headings, meta-commentary, or skeleton marker labels.`;
+}
+
+// =============================================================================
+// Research-to-Section Mapping
+// =============================================================================
+
+/**
+ * Map research results to the most relevant sections using Haiku.
+ * Returns a Record<sectionHeading, relevantResearchContext>.
+ * Falls back to full research context for all sections on failure.
+ */
+async function mapResearchToSections(
+  sections: Array<{ heading: string; placeholder: string }>,
+  researchResults: Array<{ source_name: string; excerpt: string; source_type?: string }>,
+  traceId: string
+): Promise<Record<string, string>> {
+  const fullContext = researchResults
+    .map((r, i) => `[${i + 1}] ${r.source_name}: ${r.excerpt}`)
+    .join('\n\n');
+
+  // If no research or single section, return same context for all
+  if (!researchResults.length || sections.length <= 1) {
+    return Object.fromEntries(sections.map(s => [s.heading, fullContext]));
+  }
+
+  try {
+    const prompt = `Map each research finding to the most relevant content section(s).
+
+Sections:
+${sections.map((s, i) => `${i + 1}. "${s.heading}" — ${s.placeholder.substring(0, 150)}`).join('\n')}
+
+Research findings:
+${researchResults.map((r, i) => `[${i + 1}] ${r.source_name}: ${r.excerpt.substring(0, 200)}`).join('\n')}
+
+Return JSON: { "mapping": { "<section_heading>": [<research_indices>] } }
+Each research item should map to 1-3 sections where it is most relevant. Every section should have at least 1 research item.
+Return ONLY the JSON, no other text.`;
+
+    const { text } = await generateText({
+      model: anthropic('claude-haiku-4-5-20251001'),
+      prompt,
+      temperature: 0,
+      maxOutputTokens: 500,
+    });
+
+    // Strip markdown fences (Haiku wraps JSON in ```json ... ```)
+    const cleaned = text.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+    const mapping: Record<string, number[]> = parsed.mapping || parsed;
+
+    // Build per-section research context
+    const result: Record<string, string> = {};
+    for (const section of sections) {
+      const indices = mapping[section.heading];
+      if (indices && Array.isArray(indices) && indices.length > 0) {
+        result[section.heading] = indices
+          .filter(idx => idx >= 1 && idx <= researchResults.length)
+          .map(idx => {
+            const r = researchResults[idx - 1];
+            return `[${idx}] ${r.source_name}: ${r.excerpt}`;
+          })
+          .join('\n\n');
+      }
+      // Fallback: if no mapping or empty, use full context
+      if (!result[section.heading]) {
+        result[section.heading] = fullContext;
+      }
+    }
+
+    logPhase2('RESEARCH_MAPPING', 'Research-to-section mapping completed', {
+      traceId,
+      sectionCount: sections.length,
+      researchCount: researchResults.length,
+      mappedSections: Object.keys(result).length,
+    });
+
+    return result;
+  } catch (error) {
+    // Fallback: return full research context for all sections
+    logger.warn('[mapResearchToSections] Mapping failed, using full context for all sections', {
+      traceId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return Object.fromEntries(sections.map(s => [s.heading, fullContext]));
+  }
 }
 
 // =============================================================================
@@ -687,6 +836,32 @@ export const writeContentSection = tool({
       }
 
       // =======================================================================
+      // TRACE: Step 2.7 - Fetch Writing Characteristics (Issue 8 fix)
+      // =======================================================================
+      let characteristicsForSection: WritingCharacteristics | undefined;
+      let sectionCharSummary: string | undefined;
+      let sectionCharRecommendations: string | undefined;
+      let sectionCharStyleExcerpts: string | undefined;
+      {
+        const { data: charData } = await getSupabase()
+          .from('artifact_writing_characteristics')
+          .select('characteristics, summary, recommendations, style_excerpts')
+          .eq('artifact_id', artifactId)
+          .single();
+
+        if (charData?.characteristics) {
+          characteristicsForSection = charData.characteristics as WritingCharacteristics;
+          sectionCharSummary = charData.summary ?? undefined;
+          sectionCharRecommendations = charData.recommendations ?? undefined;
+          sectionCharStyleExcerpts = charData.style_excerpts ?? undefined;
+          logPhase2('CHARACTERISTICS_FETCH', 'Writing characteristics loaded for standalone section', {
+            traceId,
+            characteristicsCount: Object.keys(characteristicsForSection).length,
+          });
+        }
+      }
+
+      // =======================================================================
       // TRACE: Step 3 - Build Content Generation Prompt
       // =======================================================================
       const prompt = buildContentPrompt(
@@ -696,9 +871,14 @@ export const writeContentSection = tool({
         artifactType,
         researchContext,
         false,  // isFirstSection - standalone tool doesn't know section position
-        undefined,  // characteristics - not fetched in standalone mode
+        characteristicsForSection,
         authorBriefForSection,
-        storytellingForSection
+        storytellingForSection,
+        undefined,  // sectionIndex
+        undefined,  // totalSections
+        sectionCharSummary,
+        sectionCharRecommendations,
+        sectionCharStyleExcerpts
       );
 
       logPhase2('PROMPT_BUILD', 'Content generation prompt built', {
@@ -748,7 +928,19 @@ export const writeContentSection = tool({
       // =======================================================================
       // Post-processing: Strip skeleton markers
       // =======================================================================
-      const cleanedContent = stripSkeletonMarkers(generatedContent);
+      let cleanedContent = stripSkeletonMarkers(generatedContent);
+
+      // =======================================================================
+      // Post-processing: Convert {{ref:N}} markers to HTML spans
+      // Note: writeContentSection does NOT run humanization — that happens via
+      // a separate humanityCheck tool call. In writeFullContent, markers survive
+      // humanization first and THEN get converted. Here we convert immediately
+      // since this tool's output is final.
+      // =======================================================================
+      if (researchResults && researchResults.length > 0 && artifactType !== 'showcase') {
+        const refItems = buildResearchItemsForRef(researchResults);
+        cleanedContent = convertRefMarkersToHTML(cleanedContent, refItems);
+      }
 
       // =======================================================================
       // TRACE: Exit Point - Success
@@ -1123,6 +1315,9 @@ export const writeFullContent = tool({
       // TRACE: Step 4.5 - Fetch Writing Characteristics (Phase 4)
       // =======================================================================
       let writingCharacteristics: WritingCharacteristics | undefined;
+      let charSummary: string | undefined;
+      let charRecommendations: string | undefined;
+      let charStyleExcerpts: string | undefined;
       if (useWritingCharacteristics) {
         logPhase2('CHARACTERISTICS_FETCH', 'Fetching writing characteristics (Phase 4)', {
           traceId,
@@ -1131,25 +1326,65 @@ export const writeFullContent = tool({
 
         const { data: charData } = await getSupabase()
           .from('artifact_writing_characteristics')
-          .select('characteristics')
+          .select('characteristics, summary, recommendations, style_excerpts')
           .eq('artifact_id', artifactId)
           .single();
 
         if (charData?.characteristics) {
           writingCharacteristics = charData.characteristics as WritingCharacteristics;
+          charSummary = charData.summary ?? undefined;
+          charRecommendations = charData.recommendations ?? undefined;
+          charStyleExcerpts = charData.style_excerpts ?? undefined;
           logPhase2('CHARACTERISTICS_FETCH', 'Writing characteristics loaded', {
             traceId,
             characteristicsCount: Object.keys(writingCharacteristics).length,
+            hasSummary: !!charSummary,
+            hasStyleExcerpts: !!charStyleExcerpts,
           });
           logger.debug('[WriteFullContent] Writing characteristics loaded', {
             traceId,
             characteristicsCount: Object.keys(writingCharacteristics).length,
           });
         } else {
-          logPhase2('CHARACTERISTICS_FETCH', 'No writing characteristics found, using defaults', {
+          // Auto-trigger characteristics analysis if references are available
+          logPhase2('CHARACTERISTICS_FETCH', 'No writing characteristics found, auto-triggering analysis', {
             traceId,
             artifactId,
           });
+
+          try {
+            const analysisResult = await analyzeWritingCharacteristics.execute!({
+              artifactId,
+              artifactType: artifactType as 'blog' | 'social_post' | 'showcase',
+            }, {} as any);
+
+            if (analysisResult?.success) {
+              // Re-fetch the freshly stored characteristics
+              const { data: freshCharData } = await getSupabase()
+                .from('artifact_writing_characteristics')
+                .select('characteristics, summary, recommendations, style_excerpts')
+                .eq('artifact_id', artifactId)
+                .single();
+
+              if (freshCharData?.characteristics) {
+                writingCharacteristics = freshCharData.characteristics as WritingCharacteristics;
+                charSummary = freshCharData.summary ?? undefined;
+                charRecommendations = freshCharData.recommendations ?? undefined;
+                charStyleExcerpts = freshCharData.style_excerpts ?? undefined;
+                logPhase2('CHARACTERISTICS_FETCH', 'Auto-analysis complete, characteristics loaded', {
+                  traceId,
+                  characteristicsCount: Object.keys(writingCharacteristics).length,
+                  hasSummary: !!charSummary,
+                  hasStyleExcerpts: !!charStyleExcerpts,
+                });
+              }
+            }
+          } catch (analysisError) {
+            logger.warn('[WriteFullContent] Auto characteristics analysis failed, continuing with defaults', {
+              traceId,
+              error: analysisError instanceof Error ? analysisError.message : String(analysisError),
+            });
+          }
         }
       }
 
@@ -1203,6 +1438,15 @@ export const writeFullContent = tool({
       }
 
       // =======================================================================
+      // TRACE: Step 4.8 - Map Research to Sections
+      // =======================================================================
+      const sectionResearchMap = await mapResearchToSections(
+        sections.map(s => ({ heading: s.heading, placeholder: s.placeholder })),
+        researchResults || [],
+        traceId
+      );
+
+      // =======================================================================
       // TRACE: Step 5 - Write Content for Each Section
       // =======================================================================
       logPhase2('SECTIONS_WRITE_START', `Starting to write ${sections.length} sections`, {
@@ -1231,18 +1475,22 @@ export const writeFullContent = tool({
         });
 
         try {
+          const sectionResearch = sectionResearchMap[section.heading] || researchContext;
           const prompt = buildContentPrompt(
             section.heading,
             section.placeholder,
             tone,
             artifactType,
-            researchContext,
+            sectionResearch,
             i === 0,  // isFirstSection - first section gets featured/hero image
             writingCharacteristics,  // Phase 4: Pass writing characteristics
             authorBrief,  // Author's original intent as north star
             storytellingData,  // Storytelling guidance for narrative structure
             i,  // sectionIndex
-            sections.length  // totalSections
+            sections.length,  // totalSections
+            charSummary,
+            charRecommendations,
+            charStyleExcerpts
           );
 
           logPhase2('GEMINI_API_CALL', `Calling Gemini for section "${section.heading}"`, {
@@ -1259,6 +1507,19 @@ export const writeFullContent = tool({
           });
 
           // =================================================================
+          // DEBUG: Log raw Gemini output for ref-marker tracking
+          // =================================================================
+          const rawRefMarkerCount = (generatedContent.match(/\{\{ref:\d+\}\}/g) || []).length;
+          logPhase2('REF_MARKERS_RAW', `Raw Gemini output ref-marker count`, {
+            traceId,
+            sectionHeading: section.heading,
+            rawRefMarkerCount,
+            hasResearch: !!(researchResults && researchResults.length > 0),
+            isShowcase: artifactType === 'showcase',
+            contentSnippet: generatedContent.substring(0, 300),
+          });
+
+          // =================================================================
           // Per-section humanization: remove AI patterns immediately
           // =================================================================
           let finalContent = generatedContent;
@@ -1269,7 +1530,7 @@ export const writeFullContent = tool({
               originalLength: generatedContent.length,
             });
 
-            const humanizePrompt = buildHumanityCheckPrompt(generatedContent, tone, authorBrief);
+            const humanizePrompt = buildHumanityCheckPrompt(generatedContent, tone, authorBrief, writingCharacteristics);
             const { text: humanizedContent } = await generateText({
               model: anthropic('claude-sonnet-4-20250514'),
               prompt: humanizePrompt,
@@ -1299,6 +1560,29 @@ export const writeFullContent = tool({
           // Post-processing: Strip skeleton markers that slipped through
           // =================================================================
           finalContent = stripSkeletonMarkers(finalContent);
+
+          // =================================================================
+          // Post-processing: Convert {{ref:N}} markers to HTML spans
+          // =================================================================
+          if (researchResults && researchResults.length > 0 && artifactType !== 'showcase') {
+            const postHumanizeRefCount = (finalContent.match(/\{\{ref:\d+\}\}/g) || []).length;
+            logPhase2('REF_MARKERS_POST_HUMANIZE', `Post-humanization ref-marker count`, {
+              traceId,
+              sectionHeading: section.heading,
+              postHumanizeRefCount,
+              rawRefMarkerCount,
+            });
+
+            const refItems = buildResearchItemsForRef(researchResults);
+            finalContent = convertRefMarkersToHTML(finalContent, refItems);
+
+            const refIndicatorCount = (finalContent.match(/ref-indicator/g) || []).length;
+            logPhase2('REF_MARKERS_CONVERTED', `Ref markers converted to HTML`, {
+              traceId,
+              sectionHeading: section.heading,
+              refIndicatorCount,
+            });
+          }
 
           const sectionDuration = Date.now() - sectionStartTime;
           const wordCount = Math.round(finalContent.split(/\s+/).length);

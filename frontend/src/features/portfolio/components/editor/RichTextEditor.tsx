@@ -18,6 +18,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { TableCell } from '@tiptap/extension-table-cell'
 import TextDirection from 'tiptap-text-direction'
 import { InlineStyleCopy } from '@/lib/tiptap/inlineStyleCopy'
+import { ResearchRef } from '@/lib/tiptap/researchRef'
 import {
   Bold,
   Italic,
@@ -532,6 +533,7 @@ export function RichTextEditor({
         types: ['heading', 'paragraph', 'blockquote', 'listItem'],
       }),
       InlineStyleCopy,
+      ResearchRef,
     ],
     content,
     editable,
@@ -732,6 +734,7 @@ export function RichTextContent({
         types: ['heading', 'paragraph', 'blockquote', 'listItem'],
       }),
       InlineStyleCopy,
+      ResearchRef,
     ],
     content,
     editable: false,

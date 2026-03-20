@@ -57,6 +57,8 @@ export interface FoundationsSectionProps {
   reanalyzeLoading?: boolean
   /** Custom label for the re-analyze button (e.g. "Regenerate with new references") */
   reanalyzeButtonLabel?: string
+  /** Called when user clicks AI button on text selection in skeleton editor */
+  onTextAIClick?: () => void
 }
 
 const NOOP = () => {}
@@ -108,6 +110,7 @@ export function FoundationsSection({
   onReanalyze,
   reanalyzeLoading = false,
   reanalyzeButtonLabel,
+  onTextAIClick,
 }: FoundationsSectionProps) {
   // Use external state if provided, otherwise use internal state
   const [internalIsCollapsed, setInternalIsCollapsed] = useState(true)
@@ -298,6 +301,8 @@ export function FoundationsSection({
                 'min-h-[200px]',
                 !isSkeletonEditable && 'opacity-70'
               )}
+              artifactId={artifactId}
+              onTextAIClick={isSkeletonEditable ? onTextAIClick : undefined}
               data-testid="skeleton-tiptap-editor"
             />
             <p className="text-xs text-muted-foreground">

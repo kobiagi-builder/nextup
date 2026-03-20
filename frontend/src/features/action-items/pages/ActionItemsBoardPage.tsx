@@ -10,17 +10,28 @@ import { ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ActionItemForm } from '@/features/customers/components/action-items/ActionItemForm'
+import { useFilterStore } from '@/stores/filterStore'
 import { BoardToolbar } from '../components/BoardToolbar'
 import { KanbanBoard } from '../components/KanbanBoard'
 import {
   useActionItemsBoard,
   useUpdateBoardActionItem,
 } from '../hooks/useActionItemsBoard'
-import type { ActionItemStatus, ActionItemWithCustomer } from '../types'
-import type { ActionItem } from '../types'
+import {
+  ACTION_ITEM_TYPE_LABELS,
+  ACTION_ITEM_STATUS_LABELS,
+} from '../types'
+import type { ActionItemStatus, ActionItemType, ActionItemWithCustomer, ActionItem } from '../types'
 
 export function ActionItemsBoardPage() {
-  const [filterCustomerId, setFilterCustomerId] = useState<string | undefined>()
+  const boardFilters = useFilterStore((s) => s.actionItemsBoard)
+  const filterCustomerId = boardFilters.customerId
+  const filterTypes = boardFilters.types ?? []
+  const searchQuery = boardFilters.searchQuery ?? ''
+  const setFilters = useFilterStore((s) => s.setActionItemsBoardFilters)
+  const setFilterCustomerId = (id: string | undefined) => setFilters({ customerId: id })
+  const setFilterTypes = (types: string[]) => setFilters({ types })
+  const setSearchQuery = (q: string) => setFilters({ searchQuery: q })
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ActionItem | null>(null)
 
@@ -30,6 +41,34 @@ export function ActionItemsBoardPage() {
   )
 
   const { data: items, isLoading } = useActionItemsBoard(filters)
+
+  const filteredItems = useMemo(() => {
+    if (!items) return items
+    let result = items
+
+    if (filterTypes.length > 0) {
+      result = result.filter((item) => filterTypes.includes(item.type))
+    }
+
+    const query = searchQuery.trim().toLowerCase()
+    if (query) {
+      result = result.filter((item) => {
+        const searchable = [
+          item.description,
+          item.type,
+          ACTION_ITEM_TYPE_LABELS[item.type],
+          item.status,
+          ACTION_ITEM_STATUS_LABELS[item.status],
+          item.reported_by,
+          item.customer_name,
+          item.due_date,
+        ]
+        return searchable.some((field) => field?.toLowerCase().includes(query))
+      })
+    }
+
+    return result
+  }, [items, filterTypes, searchQuery])
   const updateMutation = useUpdateBoardActionItem(filters)
 
   function handleStatusChange(id: string, status: ActionItemStatus) {
@@ -87,16 +126,24 @@ export function ActionItemsBoardPage() {
   }
 
   const hasItems = items && items.length > 0
+  const hasFilteredItems = filteredItems && filteredItems.length > 0
+  const hasActiveFilters = !!filterCustomerId || filterTypes.length > 0 || !!searchQuery.trim()
 
-  // Empty board state
-  if (!hasItems && !filterCustomerId) {
+  const toolbarProps = {
+    selectedCustomerId: filterCustomerId,
+    onCustomerFilterChange: setFilterCustomerId,
+    selectedTypes: filterTypes,
+    onTypeFilterChange: setFilterTypes,
+    searchQuery,
+    onSearchChange: setSearchQuery,
+    onAddItem: handleAddItem,
+  }
+
+  // Empty board state (no items at all, no filters active)
+  if (!hasItems && !hasActiveFilters) {
     return (
       <div className="flex flex-col h-full">
-        <BoardToolbar
-          selectedCustomerId={filterCustomerId}
-          onCustomerFilterChange={setFilterCustomerId}
-          onAddItem={handleAddItem}
-        />
+        <BoardToolbar {...toolbarProps} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
             <ListChecks className="h-12 w-12 text-muted-foreground/50 mx-auto" />
@@ -115,19 +162,15 @@ export function ActionItemsBoardPage() {
   }
 
   // Empty filter results
-  if (!hasItems && filterCustomerId) {
+  if (!hasFilteredItems && hasActiveFilters) {
     return (
       <div className="flex flex-col h-full">
-        <BoardToolbar
-          selectedCustomerId={filterCustomerId}
-          onCustomerFilterChange={setFilterCustomerId}
-          onAddItem={handleAddItem}
-        />
+        <BoardToolbar {...toolbarProps} />
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center space-y-3">
-            <p className="text-sm text-muted-foreground">No action items for this customer</p>
-            <Button variant="ghost" onClick={() => setFilterCustomerId(undefined)}>
-              Clear Filter
+            <p className="text-sm text-muted-foreground">No action items match the current filters</p>
+            <Button variant="ghost" onClick={() => setFilters({ customerId: undefined, types: [], searchQuery: '' })}>
+              Clear Filters
             </Button>
           </div>
         </div>
@@ -142,14 +185,10 @@ export function ActionItemsBoardPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <BoardToolbar
-        selectedCustomerId={filterCustomerId}
-        onCustomerFilterChange={setFilterCustomerId}
-        onAddItem={handleAddItem}
-      />
+      <BoardToolbar {...toolbarProps} />
       <div className="flex-1 overflow-hidden px-6 pb-6 pt-4">
         <KanbanBoard
-          items={items || []}
+          items={filteredItems || []}
           onStatusChange={handleStatusChange}
           onCardClick={handleCardClick}
         />

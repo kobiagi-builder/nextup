@@ -21,7 +21,7 @@ import type { Customer, CustomerIcp, TeamMember, TeamRoleFilter } from '../types
 // =============================================================================
 
 const customerStatusSchema = z.enum([
-  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant',
+  'lead', 'prospect', 'negotiation', 'live', 'on_hold', 'archive', 'not_relevant', 'closed_lost',
 ])
 
 const teamMemberSchema = z.object({

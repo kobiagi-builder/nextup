@@ -9,7 +9,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Loader2, AlertCircle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -45,8 +45,10 @@ const COLLAPSED_FIELD_KEYS = [
 
 export function ProfileStep() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { toast } = useToast()
   const reducedMotion = useReducedMotion()
+  const editParam = searchParams.get('edit') === 'true' ? '&edit=true' : ''
 
   const formData = useOnboardingWizardStore((s) => s.formData)
   const extractionStatus = useOnboardingWizardStore((s) => s.extractionStatus)
@@ -208,13 +210,13 @@ export function ProfileStep() {
 
     setNavigationDirection('forward')
     setStep(3)
-    navigate('/onboarding?step=3')
+    navigate(`/onboarding?step=3${editParam}`)
   }
 
   const handleBack = () => {
     setNavigationDirection('backward')
     setStep(1)
-    navigate('/onboarding?step=1', { replace: true })
+    navigate(`/onboarding?step=1${editParam}`, { replace: true })
   }
 
   // Helper to get visibility from waterfall entries

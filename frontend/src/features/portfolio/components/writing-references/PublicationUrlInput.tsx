@@ -129,7 +129,7 @@ export function PublicationUrlInput({
               className={cn(
                 'inline-flex items-center px-2 py-0.5 rounded-md',
                 'text-[11px] font-medium',
-                'bg-secondary/50 text-muted-foreground/60'
+                'bg-secondary/50 text-muted-foreground/70'
               )}
             >
               + any URL

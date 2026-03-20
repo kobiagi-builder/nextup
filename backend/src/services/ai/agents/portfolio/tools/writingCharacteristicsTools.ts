@@ -28,6 +28,11 @@ import type {
  * with value, confidence, source, and reasoning.
  */
 
+// Writing example character budgets — enough to capture style patterns
+// that emerge in body/middle/end of references (emoji usage, formatting, etc.)
+const PER_EXAMPLE_CHAR_LIMIT = 5000;
+const TOTAL_EXAMPLES_CHAR_LIMIT = 25000;
+
 /**
  * Build the writing characteristics analysis prompt
  */
@@ -85,6 +90,14 @@ Analyze the above context and generate writing characteristics. Be flexible - yo
 - length_preference (concise, moderate, comprehensive)
 - use_of_visuals (heavy, moderate, minimal)
 
+**Formatting & visual style characteristics** (CRITICAL — analyze carefully from writing examples):
+- emoji_usage (none, rare, occasional, frequent — note specific patterns: section headers, inline emphasis, bullet decoration, paragraph openers)
+- special_formatting (bold for emphasis, italic for nuance, ALL CAPS, blockquotes, line breaks between sentences)
+- paragraph_length (short_punchy, medium, long_flowing, mixed — note the dominant pattern)
+- list_usage (heavy_bullet_lists, numbered_steps, occasional_lists, prose_only)
+- hashtag_usage (none, closing_only, inline, heavy — especially for social posts)
+- whitespace_pattern (dense_paragraphs, generous_spacing, single_sentence_paragraphs)
+
 **Additional voice characteristics** (analyze from writing examples when available):
 - hook_style (question, bold_claim, story, statistic, contrarian_statement)
 - central_metaphor_strategy (single_extended, multiple_brief, none)
@@ -110,6 +123,7 @@ Return a valid JSON object where each key is a characteristic name and the value
 Also include:
 - _summary: A 2-3 sentence human-readable summary of the writing style
 - _recommendations: Specific recommendations for content generation based on these characteristics
+- _style_excerpts: Array of 3-5 short excerpts (50-150 chars each) copied VERBATIM from the writing examples that best demonstrate the identified style patterns. Each excerpt should show a specific characteristic in action. Format: [{"characteristic": "emoji_usage", "excerpt": "Here's the thing 🎯 — most teams...", "demonstrates": "inline emoji after conversational marker"}]. If no writing examples are provided, omit this field.
 
 Example format:
 {
@@ -137,7 +151,7 @@ Return ONLY the JSON object, no markdown code blocks or additional text.`;
  */
 function parseCharacteristicsResponse(
   response: string
-): { characteristics: WritingCharacteristics; summary: string; recommendations: string } {
+): { characteristics: WritingCharacteristics; summary: string; recommendations: string; styleExcerpts: string } {
   try {
     // Try to extract JSON from the response
     let jsonStr = response.trim();
@@ -149,9 +163,16 @@ function parseCharacteristicsResponse(
 
     const parsed = JSON.parse(jsonStr);
 
-    // Extract summary and recommendations
+    // Extract summary, recommendations, and style excerpts
     const summary = parsed._summary || 'Writing style analysis complete.';
     const recommendations = parsed._recommendations || 'No specific recommendations.';
+    const styleExcerpts = Array.isArray(parsed._style_excerpts)
+      ? parsed._style_excerpts
+          .map((ex: { characteristic?: string; excerpt?: string; demonstrates?: string }) =>
+            `- [${ex.characteristic || 'style'}]: "${ex.excerpt || ''}" — ${ex.demonstrates || ''}`
+          )
+          .join('\n')
+      : '';
 
     // Remove meta fields and keep only characteristics
     const characteristics: WritingCharacteristics = {};
@@ -170,7 +191,7 @@ function parseCharacteristicsResponse(
       }
     }
 
-    return { characteristics, summary, recommendations };
+    return { characteristics, summary, recommendations, styleExcerpts };
   } catch (error) {
     logger.warn('[ParseCharacteristicsResponse] Failed to parse response, using defaults', {
       error: error instanceof Error ? error.message : String(error),
@@ -182,6 +203,7 @@ function parseCharacteristicsResponse(
       characteristics: getDefaultCharacteristics(),
       summary: 'Default writing style applied due to parsing error.',
       recommendations: 'Using balanced, professional defaults. Consider providing writing examples for better personalization.',
+      styleExcerpts: '',
     };
   }
 }
@@ -441,9 +463,27 @@ export const analyzeWritingCharacteristics = tool({
 
       const { data: writingExamples } = await writingExamplesQuery;
 
+      // Build writing examples context with smart budget allocation (Issue 1, 5)
+      const exampleBudget = writingExamples && writingExamples.length <= 3
+        ? PER_EXAMPLE_CHAR_LIMIT
+        : Math.floor(TOTAL_EXAMPLES_CHAR_LIMIT / (writingExamples?.length || 1));
+
       const writingExamplesContext = writingExamples && writingExamples.length > 0
         ? writingExamples
-            .map((ex, i) => `### Example ${i + 1}: ${ex.name}\n${ex.content.substring(0, 1000)}...`)
+            .map((ex, i) => {
+              // Include analyzed_characteristics if available (Issue 5)
+              const priorAnalysis = ex.analyzed_characteristics
+                && typeof ex.analyzed_characteristics === 'object'
+                && Object.keys(ex.analyzed_characteristics).length > 0
+                ? `\n**Prior Style Analysis**: ${JSON.stringify(ex.analyzed_characteristics)}`
+                : '';
+              const priorAnalysisLen = priorAnalysis.length;
+              const contentBudget = Math.max(1000, exampleBudget - priorAnalysisLen);
+              const content = ex.content.length > contentBudget
+                ? ex.content.substring(0, contentBudget) + '\n[...truncated]'
+                : ex.content;
+              return `### Example ${i + 1}: ${ex.name}\n${content}${priorAnalysis}`;
+            })
             .join('\n\n')
         : '';
 
@@ -517,7 +557,7 @@ export const analyzeWritingCharacteristics = tool({
         model: anthropic('claude-sonnet-4-20250514'),
         prompt,
         temperature: 0.3, // Lower temperature for more consistent analysis
-        maxOutputTokens: 2000,
+        maxOutputTokens: 4000, // Increased to accommodate style excerpts and formatting characteristics
       });
 
       logger.debug('[AnalyzeWritingCharacteristics] Claude response received', {
@@ -525,13 +565,14 @@ export const analyzeWritingCharacteristics = tool({
       });
 
       // 6. Parse and validate characteristics
-      const { characteristics, summary, recommendations } = parseCharacteristicsResponse(response);
+      const { characteristics, summary, recommendations, styleExcerpts } = parseCharacteristicsResponse(response);
 
       logger.debug('[AnalyzeWritingCharacteristics] Characteristics parsed', {
         characteristicsCount: Object.keys(characteristics).length,
+        hasStyleExcerpts: !!styleExcerpts,
       });
 
-      // 7. Store in database
+      // 7. Store in database (including style_excerpts for cross-model style guidance)
       const { error: insertError } = await getSupabase()
         .from('artifact_writing_characteristics')
         .upsert({
@@ -539,6 +580,7 @@ export const analyzeWritingCharacteristics = tool({
           characteristics,
           summary,
           recommendations,
+          style_excerpts: styleExcerpts || null,
           updated_at: new Date().toISOString(),
         }, {
           onConflict: 'artifact_id',

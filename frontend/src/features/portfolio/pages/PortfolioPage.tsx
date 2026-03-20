@@ -11,6 +11,7 @@ import { Link } from 'react-router-dom'
 import { Plus, Search, FileText, MessageSquare, Trophy, PanelLeftOpen, PanelLeftClose, ArrowRight, Sparkles, LayoutGrid, Bot } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useFilterStore } from '@/stores/filterStore'
 import {
   Dialog,
   DialogContent,
@@ -55,10 +56,14 @@ const STATUS_FILTERS: { value: ArtifactStatus | 'all'; label: string }[] = [
 export function PortfolioPage() {
   const navigate = useNavigate()
 
-  // State for filters
-  const [typeFilter, setTypeFilter] = useState<ArtifactType | 'all'>('all')
-  const [statusFilter, setStatusFilter] = useState<ArtifactStatus | 'all'>('all')
-  const [searchQuery, setSearchQuery] = useState('')
+  // State for filters (sticky via Zustand store)
+  const { typeFilter: typeFilterRaw, statusFilter: statusFilterRaw, searchQuery } = useFilterStore((s) => s.portfolio)
+  const setPortfolioFilters = useFilterStore((s) => s.setPortfolioFilters)
+  const typeFilter = typeFilterRaw as ArtifactType | 'all'
+  const statusFilter = statusFilterRaw as ArtifactStatus | 'all'
+  const setTypeFilter = (v: ArtifactType | 'all') => setPortfolioFilters({ typeFilter: v })
+  const setStatusFilter = (v: ArtifactStatus | 'all') => setPortfolioFilters({ statusFilter: v })
+  const setSearchQuery = (v: string) => setPortfolioFilters({ searchQuery: v })
   const [isCreateOpen, setIsCreateOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null)
 

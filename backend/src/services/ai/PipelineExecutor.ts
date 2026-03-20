@@ -86,7 +86,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
       // Fetch artifact to get required fields
       const { data: artifact } = await getSupabase()
         .from('artifacts')
-        .select('type, title')
+        .select('type, title, content')
         .eq('id', artifactId)
         .single();
 
@@ -100,6 +100,7 @@ const PIPELINE_STEPS: PipelineStep[] = [
       return conductDeepResearch.execute!({
         artifactId,
         topic: artifact.title || 'Content',
+        topicDescription: artifact.content || undefined,
         artifactType: artifact.type as 'blog' | 'social_post' | 'showcase',
       }, {} as any);
     },

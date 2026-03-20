@@ -101,7 +101,7 @@ export class CompanyClassificationService {
 
     const uniqueEntries = Array.from(uniqueMap.entries())
     const total = uniqueEntries.length
-    let processed = 0
+    const resolved = new Set<string>()
 
     // --- Layer 0: Deterministic ---
     const unresolvedAfterL0: ClassificationInput[] = []
@@ -110,11 +110,11 @@ export class CompanyClassificationService {
       const result = this.classifyDeterministic(input)
       if (result) {
         this.cache.set(key, result)
+        resolved.add(key)
       } else {
         unresolvedAfterL0.push(input)
       }
-      processed++
-      onProgress?.(processed, total)
+      onProgress?.(resolved.size, total)
     }
 
     logger.debug('[CompanyClassification] Layer 0 complete', {
@@ -132,12 +132,12 @@ export class CompanyClassificationService {
 
         if (result) {
           this.cache.set(key, result)
+          resolved.add(key)
         } else {
           unresolvedAfterL1.push(input)
         }
 
-        processed++
-        onProgress?.(processed, total)
+        onProgress?.(resolved.size, total)
 
         // Rate limit between Tavily calls
         if (unresolvedAfterL0.indexOf(input) < unresolvedAfterL0.length - 1) {

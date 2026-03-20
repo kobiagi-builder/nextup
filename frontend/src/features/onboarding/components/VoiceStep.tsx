@@ -6,7 +6,7 @@
  * writing-references feature.
  */
 
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { PenLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
@@ -17,7 +17,9 @@ import { OnboardingReferenceUpload } from './OnboardingReferenceUpload'
 
 export function VoiceStep() {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { toast } = useToast()
+  const editParam = searchParams.get('edit') === 'true' ? '&edit=true' : ''
 
   const formData = useOnboardingWizardStore((s) => s.formData)
   const setStep = useOnboardingWizardStore((s) => s.setStep)
@@ -45,13 +47,13 @@ export function VoiceStep() {
 
     setNavigationDirection('forward')
     setStep(5)
-    navigate('/onboarding?step=5')
+    navigate(`/onboarding?step=5${editParam}`)
   }
 
   const handleBack = () => {
     setNavigationDirection('backward')
     setStep(3)
-    navigate('/onboarding?step=3', { replace: true })
+    navigate(`/onboarding?step=3${editParam}`, { replace: true })
   }
 
   return (

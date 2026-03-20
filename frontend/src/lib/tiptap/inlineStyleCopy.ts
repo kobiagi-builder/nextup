@@ -57,6 +57,9 @@ function handleCopyEvent(
     serializer.serializeFragment(slice.content, { document: tempDoc }),
   )
 
+  // Strip research reference indicators before copy
+  container.querySelectorAll('.ref-indicator').forEach(el => el.remove())
+
   // Apply inline styles for external paste targets
   applyInlineStyles(container)
 

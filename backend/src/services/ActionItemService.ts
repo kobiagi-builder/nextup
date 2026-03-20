@@ -111,6 +111,7 @@ export class ActionItemService {
         description: input.description,
         due_date: input.due_date || null,
         status: input.status || 'todo',
+        reported_by: input.reported_by || null,
       })
       .select()
       .single()
@@ -142,6 +143,7 @@ export class ActionItemService {
         description: input.description,
         due_date: input.due_date || null,
         status: input.status || 'todo',
+        reported_by: input.reported_by || null,
       })
       .select()
       .single()
@@ -167,6 +169,7 @@ export class ActionItemService {
     if (input.description !== undefined) updates.description = input.description
     if (input.due_date !== undefined) updates.due_date = input.due_date
     if (input.status !== undefined) updates.status = input.status
+    if (input.reported_by !== undefined) updates.reported_by = input.reported_by
 
     const { data, error } = await this.supabase
       .from('customer_action_items')
@@ -196,6 +199,7 @@ export class ActionItemService {
     if (input.description !== undefined) updates.description = input.description
     if (input.due_date !== undefined) updates.due_date = input.due_date
     if (input.status !== undefined) updates.status = input.status
+    if (input.reported_by !== undefined) updates.reported_by = input.reported_by
     if (input.customer_id !== undefined) updates.customer_id = input.customer_id
 
     const { data, error } = await this.supabase

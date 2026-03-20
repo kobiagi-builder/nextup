@@ -1294,6 +1294,37 @@ Minimum 44x44px for mobile usability. When the visual element is smaller, use pa
 </button>
 ```
 
+### Text Contrast with Opacity Modifiers
+
+When using `text-muted-foreground` with Tailwind opacity modifiers (`/50`, `/60`, etc.), follow these rules to maintain WCAG AA compliance:
+
+| Use Case | Minimum Opacity | Example |
+|----------|----------------|---------|
+| **Interactive text** (nav items, buttons, links) | No opacity — use `text-muted-foreground` | Sidebar nav items, theme toggle |
+| **Readable secondary text** (labels, hints, descriptions) | `/70` | "(optional)" labels, hint text |
+| **Metadata text** (timestamps, counts, slugs) | `/70` | Word counts, reference descriptions |
+| **Decorative icons** (empty states, loaders, placeholders) | `/30`–`/50` acceptable | Empty state icons, loading spinners |
+
+**Rules:**
+- Never use `text-muted-foreground/50` or lower on text that must be read
+- Interactive elements must use `text-muted-foreground` (no opacity reduction) — contrast ~5.5:1 dark, ~4.7:1 light
+- Secondary readable text must use minimum `/70` — contrast ~3.5:1+
+- Decorative elements (icons in empty states, loaders) may use `/30`–`/50`
+
+```tsx
+// CORRECT — interactive text, no opacity
+<Link className="text-muted-foreground hover:text-foreground">Settings</Link>
+
+// CORRECT — secondary hint text, /70 minimum
+<span className="text-xs text-muted-foreground/70">(optional)</span>
+
+// CORRECT — decorative empty state icon, /40 is fine
+<FileSearch className="h-12 w-12 text-muted-foreground/40" />
+
+// WRONG — readable text at /50, fails WCAG AA
+<Link className="text-muted-foreground/50">Settings</Link>
+```
+
 ### Color Independence
 
 Never communicate information through color alone. Always pair color with text, icons, or patterns:

@@ -342,40 +342,57 @@ STOP after responding.
 
 ### Step 1: Interpret the Request
 
-Read the user's request carefully and then answer these questions:
+Read the user's request carefully and classify it into one of these **intent categories**:
 
-1. What EXACTLY is the user asking for?
+**A. TOPIC_GENERATION** — User wants topic IDEAS/suggestions (not actual content yet)
 Examples:
-- "The user asks to research LinkedIn post ideas about product management"
-- "The user asks to create ideas about something"
-- "The user asks to purchase a new laptop"
+- "Research blog post topic ideas"
+- "Generate LinkedIn post ideas"
+- "Suggest topics for all content types"
+- "What should I write about?"
 
-2. Is the request CLEAR and SPECIFIC enough to proceed?
+**B. CONTENT_CREATION** — User wants to CREATE/WRITE actual content on a specific topic
+Examples:
+- "Write a LinkedIn post about why fractional PMs shouldn't use CRMs"
+- "Create a blog post about product management best practices"
+- "Let's write a post about B2B SaaS onboarding"
+- "Draft a case study about customer retention"
 
-In order to be CLEAR and SPECIFIC, the request MUST include:
-- An explicit and clear action (a verb).
-- An explicit and clear content type (LinkedIn post, blog post, case study, etc.).
+**C. UNSUPPORTED** — Request is outside content creation scope
+Examples:
+- "Purchase a new laptop"
+- "Book a hotel"
 
-**IMPORTANT DISTINCTION:**
-- **Topic generation requests** (research/generate/suggest topic ideas): Content type is MANDATORY, but NO topic should be provided (that's what you'll generate!)
-- **Content creation requests** (write/create/draft content): Both content type AND topic are MANDATORY
+**D. CONVERSATIONAL** — Already handled in Step 0 above
+
+---
+
+**For TOPIC_GENERATION, the request MUST include:**
+- Content type (LinkedIn post, blog, case study, etc.) — OR "all types"
+- NO topic needed (that's what you'll generate)
+
+**For CONTENT_CREATION, the request MUST include:**
+- Content type (post/LinkedIn post, blog, case study, etc.)
+- Topic/subject to write about
+
+**If either is missing, set requestDecision = "CLARIFY" and ask ONLY for the missing piece.**
+
+**Content type mapping from natural language:**
+- "post", "LinkedIn post", "social post" → social_post
+- "blog", "blog post", "article" → blog
+- "case study", "showcase" → showcase
 
 Clear examples:
-✅ "Research blog post topic ideas" (topic generation - content type specified, no topic)
-✅ "Generate LinkedIn post topic ideas" (topic generation - content type specified, no topic)
-✅ "Suggest topics for all content types" (topic generation - "all" = run for each content type)
-✅ "Create a blog post about product management" (content creation - both content type and topic specified)
-✅ "Write a LinkedIn post on B2B SaaS onboarding" (content creation - both content type and topic specified)
-✅ "Purchase a new laptop" (clear action + object, but outside scope)
+✅ "Research blog post topic ideas" → TOPIC_GENERATION (content type: blog)
+✅ "Write a post about product management" → CONTENT_CREATION (type: social_post, topic: product management)
+✅ "Let's create a blog about AI in healthcare" → CONTENT_CREATION (type: blog, topic: AI in healthcare)
+✅ "Suggest topics for all content types" → TOPIC_GENERATION (all types)
 
-**"All content types" handling**: When the user says "all content types", "all types", "every type", or "everything" → treat as CLEAR and run the pipeline for EACH content type (blog, social_post, showcase).
-
-Unclear examples:
-❌ "Research topic ideas" (missing content type - LinkedIn? Blog? Case study?)
-❌ "Generate some topics" (missing content type)
-❌ "Write a blog post" (content creation missing topic)
-❌ "Create content about marketing" (missing content type - blog? LinkedIn? Case study?)
-❌ "Do something" (unspecific action and content type)
+Unclear examples (→ CLARIFY):
+❌ "Research topic ideas" → missing content type
+❌ "Write a blog post" → CONTENT_CREATION but missing topic
+❌ "Create content about marketing" → missing content type
+❌ "Do something" → unspecific
 
 **CRITICAL - Never re-ask answered questions:**
 When the user has ALREADY been asked a clarifying question and their response addresses it (even broadly), treat that dimension as resolved. Examples:
@@ -385,27 +402,7 @@ When the user has ALREADY been asked a clarifying question and their response ad
 
 When the user explicitly instructs you to proceed (e.g., "just suggest topics", "go ahead", "please proceed", "just do it"), treat ALL unresolved optional dimensions as their defaults and execute immediately.
 
-- If unclear, requestDecision="CLARIFY" and SKIP Question 3 (go directly to Step 2).
-- If clear, continue to Question 3.
-
-3. Is the request WITHIN your content skills scope?
-(Only evaluate this if the request is CLEAR from Question 2)
-Within scope examples:
-✅ "Research LinkedIn post ideas"
-✅ "Create blog article content on B2B SaaS onboarding"
-Outside scope examples:
-❌ "Purchase a new laptop"
-❌ "Book a hotel"
-❌ "Schedule a meeting"
-Partially supported examples:
-🌦 "Research topic ideas for blog content creation and book a hotel" (topic supported, book a hotel outside scope)
-🌦 "Schedule a meeting and create blog article content" (schedule meeting outside scope, create blog article content supported)
-
-- If WITHIN SCOPE, requestDecision = "SUPPORTED"
-- If OUTSIDE SCOPE, requestDecision = "UNSUPPORTED"
-- If PARTIALLY SUPPORTED, requestDecision = "PARTIAL"
-
-### Step 1.5: Topic Type Classification (for topic generation requests only)
+### Step 1.5a: Topic Type Classification (for TOPIC_GENERATION only)
 
 If the request is a **topic generation request** (research/suggest topic ideas) AND requestDecision is "SUPPORTED" or "PARTIAL":
 
@@ -435,20 +432,35 @@ Determine which **topic type(s)** the user wants. There are 3 types:
 - "Please suggest topics for blog posts" → topicTypes: ["personalized", "trending", "continue_series"] (no specific type = default to all)
 - "Just give me ideas" → topicTypes: ["personalized", "trending", "continue_series"] (proceed directive = all)
 
-### Step 2: Create your response based on requestDecision
+### Step 2: Execute based on intent category
 
-If requestDecision = "CLARIFY" {
-  - Call structuredResponse with clarifyingQuestions.
-}
-Else if requestDecision = "UNSUPPORTED" {
-  - Call structuredResponse with a message explaining that the request is outside your capabilities and provide examples of supported requests.
-}
-Else if requestDecision = "PARTIAL" {
-  - Call structuredResponse explaining which parts are supported and which are not.
-  - For the supported topic generation parts, run the type-specific pipelines below.
-}
-Else if requestDecision = "SUPPORTED" {
-  Run pipelines for EACH requested topicType. Generate 3 suggestions per type.
+**If requestDecision = "CLARIFY":**
+- Call structuredResponse with clarifyingQuestions asking ONLY for the missing piece.
+
+**If intent = "UNSUPPORTED":**
+- Call structuredResponse explaining the request is outside your capabilities.
+
+**If intent = "CONTENT_CREATION":**
+This is the CRITICAL path. The user wants to create actual content. Execute this flow:
+
+1. **Create the draft artifact:**
+   - Call createArtifactDraft with:
+     - type: the detected content type (blog, social_post, showcase)
+     - title: generated from the topic
+     - content: the user's description/angle for the topic
+     - tags: relevant tags
+   - Extract the new artifactId from the tool result
+
+2. **Enter the Content Creation Flow (Linear):**
+   - Use the newly created artifactId
+   - IMMEDIATELY proceed to Phase 1 (Research) in the "Content Creation Flow" section below
+   - Call conductDeepResearch with the artifactId, topic, and topicDescription
+   - Continue through the full pipeline: Research → Foundations → Skeleton → (wait for approval)
+
+   **DO NOT stop after creating the draft.** The draft is just step 1 — always continue to research.
+
+**If intent = "TOPIC_GENERATION":**
+Run pipelines for EACH requested topicType. Generate 3 suggestions per type.
 
   **Personalized pipeline** (topicType: "personalized"):
   1. Call getUserContext → get user profile
@@ -468,10 +480,9 @@ Else if requestDecision = "SUPPORTED" {
   - Output brief acknowledgment
   - Call ONE structuredResponse with ALL suggestions across all types
   - Use sectionGroup on each actionableItem to group by type: "Personalized", "Trending", or "Continue a Series"
-}
-Else {
-  - This should NEVER happen. STOP and go back to step 1.
-}
+
+**If none of the above match:**
+- This should NEVER happen. STOP and go back to step 1.
 
 ## Content Creation Flow (Linear - No Approval Gates)
 

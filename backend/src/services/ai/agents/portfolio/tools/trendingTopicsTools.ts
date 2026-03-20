@@ -15,9 +15,9 @@ import { hackerNewsClient, DEFAULT_PM_KEYWORDS } from '../../../../../lib/hacker
 // Types
 // =============================================================================
 
-interface NormalizedTopic {
+export interface NormalizedTopic {
   title: string
-  source: 'tavily' | 'hacker_news'
+  source: 'tavily' | 'hacker_news' | 'x_twitter' | 'web'
   url: string
   snippet: string
   score: number

@@ -375,12 +375,16 @@ export async function streamCustomerChat(req: Request, res: Response) {
             toolChoice: 'auto',
             maxTokens: 16384,
             stopWhen: [
-              // Hard ceiling: never exceed 8 total steps
-              stepCountIs(8),
-              // Soft limit: stop after 4 steps that contain tool calls
+              // Hard ceiling: never exceed 10 total steps
+              stepCountIs(10),
+              // Soft limit: stop after 4 tool-using steps, but ONLY if the last
+              // step was text-only (no tool calls). This guarantees the LLM always
+              // gets a final step to communicate results back to the user.
               ({ steps }: { steps: Array<{ toolCalls: unknown[] }> }) => {
                 const toolSteps = steps.filter(s => s.toolCalls.length > 0).length
-                return toolSteps >= 4
+                const lastStep = steps[steps.length - 1]
+                const lastStepWasTextOnly = lastStep && lastStep.toolCalls.length === 0
+                return toolSteps >= 4 && lastStepWasTextOnly
               },
             ],
             abortSignal: abortController.signal,

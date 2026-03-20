@@ -35,7 +35,6 @@ export function OnboardingField({
 }: OnboardingFieldProps) {
   const showSkeleton = extractionStatus === 'extracting' && !visible
   const showAiBadge = provenance === 'ai'
-  const showNeedsInputBadge = provenance === 'empty' && extractionStatus === 'complete'
 
   const handleFocus = useCallback((e: React.FocusEvent<HTMLElement>) => {
     setTimeout(() => {
@@ -57,8 +56,7 @@ export function OnboardingField({
       <div className="flex items-center justify-between">
         <Label htmlFor={fieldKey}>{label}</Label>
         <div className="flex items-center gap-1.5">
-          {showAiBadge && <AiExtractedBadge variant="extracted" />}
-          {showNeedsInputBadge && <AiExtractedBadge variant="needs-input" />}
+          {showAiBadge && <AiExtractedBadge />}
         </div>
       </div>
       {description && (

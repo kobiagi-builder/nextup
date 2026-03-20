@@ -81,7 +81,7 @@ export function FolderSection({
 
           {/* System folders show lock, custom folders show action menu */}
           {folder.is_system ? (
-            <Lock className="h-3.5 w-3.5 text-muted-foreground/50 flex-shrink-0" data-testid="folder-lock-icon" />
+            <Lock className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" data-testid="folder-lock-icon" />
           ) : (
             <div
               className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity"
