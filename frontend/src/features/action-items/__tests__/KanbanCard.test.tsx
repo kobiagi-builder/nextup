@@ -48,6 +48,7 @@ const baseItem: ActionItemWithCustomer = {
   created_at: '2026-03-01T00:00:00Z',
   updated_at: '2026-03-01T00:00:00Z',
   customer_name: 'Acme Corp',
+  reported_by: null,
 }
 
 beforeEach(() => {

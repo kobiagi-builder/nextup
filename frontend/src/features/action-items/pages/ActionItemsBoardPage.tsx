@@ -21,7 +21,7 @@ import {
   ACTION_ITEM_TYPE_LABELS,
   ACTION_ITEM_STATUS_LABELS,
 } from '../types'
-import type { ActionItemStatus, ActionItemType, ActionItemWithCustomer, ActionItem } from '../types'
+import type { ActionItemStatus, ActionItemWithCustomer, ActionItem } from '../types'
 
 export function ActionItemsBoardPage() {
   const boardFilters = useFilterStore((s) => s.actionItemsBoard)

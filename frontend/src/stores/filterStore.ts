@@ -143,7 +143,7 @@ export const useFilterStore = create<FilterState>()(
           skills: { categoryFilter: 'all' },
           customerActionItems: {},
           customerDocuments: {},
-        } as FilterState
+        } as unknown as FilterState
       },
     }
   )

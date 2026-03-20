@@ -34,6 +34,10 @@ describe('BoardToolbar', () => {
     render(
       <BoardToolbar
         onCustomerFilterChange={vi.fn()}
+        selectedTypes={[]}
+        onTypeFilterChange={vi.fn()}
+        searchQuery=""
+        onSearchChange={vi.fn()}
         onAddItem={vi.fn()}
       />
     )
@@ -46,6 +50,10 @@ describe('BoardToolbar', () => {
     render(
       <BoardToolbar
         onCustomerFilterChange={vi.fn()}
+        selectedTypes={[]}
+        onTypeFilterChange={vi.fn()}
+        searchQuery=""
+        onSearchChange={vi.fn()}
         onAddItem={handleAdd}
       />
     )
@@ -62,6 +70,10 @@ describe('BoardToolbar', () => {
     render(
       <BoardToolbar
         onCustomerFilterChange={vi.fn()}
+        selectedTypes={[]}
+        onTypeFilterChange={vi.fn()}
+        searchQuery=""
+        onSearchChange={vi.fn()}
         onAddItem={vi.fn()}
       />
     )
@@ -74,6 +86,10 @@ describe('BoardToolbar', () => {
     render(
       <BoardToolbar
         onCustomerFilterChange={vi.fn()}
+        selectedTypes={[]}
+        onTypeFilterChange={vi.fn()}
+        searchQuery=""
+        onSearchChange={vi.fn()}
         onAddItem={vi.fn()}
       />
     )
