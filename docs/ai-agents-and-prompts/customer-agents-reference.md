@@ -1,9 +1,9 @@
 # Customer AI Agents Reference
 
 **Created:** 2026-02-25
-**Last Updated:** 2026-03-09
-**Version:** 7.1.0
-**Status:** Complete (Initiative/Document Rename + Anti-Duplication + Step Budget + Interaction Logging + Initiative Inference + Meeting Notes Analysis + Analytical Integrity)
+**Last Updated:** 2026-03-21
+**Version:** 8.1.0
+**Status:** Complete (Initiative/Document Rename + Anti-Duplication + Step Budget + Interaction Logging + Initiative Inference + Meeting Notes Analysis + Analytical Integrity + Action Item Execution Phase 1+2)
 
 ---
 
@@ -40,6 +40,7 @@ backend/src/services/ai/agents/
 │   └── tools/
 │       ├── customerMgmtTools.ts     (4 tools)
 │       ├── actionItemTools.ts       (3 tools)
+│       ├── executeActionItemTool.ts  (1 tool)
 │       └── analyzeMeetingNotesTool.ts (1 tool)
 ├── product-mgmt/
 │   ├── prompt/
@@ -266,6 +267,39 @@ Re-fetch full customer context mid-conversation (for long conversations where da
   // Returns: full customer context string (same format as system prompt context)
 }
 ```
+
+#### executeActionItem
+
+Execute an action item by fetching its details and full customer context. Returns an execution brief with the objective, instructions, and customer context. The agent then uses its available tools to fulfill the objective, or hands off to the Product Management Agent for product-scope tasks.
+
+**File:** `backend/src/services/ai/agents/customer-mgmt/tools/executeActionItemTool.ts`
+
+```typescript
+{
+  parameters: z.object({
+    actionItemId: z.string().uuid(), // The action item to execute
+  }),
+  returns: {
+    success: boolean,
+    brief: string,        // Markdown execution brief with Objective, Instructions, Customer Context
+    actionItemId: string,
+    customerId: string,
+  }
+}
+```
+
+**Flow:**
+1. Fetches action item from `customer_action_items` and verifies `customer_id` matches
+2. Updates status to `in_progress` (safety net — frontend may have already done this)
+3. Calls `buildCustomerContext(customerId, supabase)` for full context
+4. Builds execution brief with objective, routing instructions, and context
+5. Logs "Execution started" event to `customer_events`
+6. Returns brief for the agent to process
+
+**Routing criteria in the execution brief:**
+- Customer-scope: relationship management, communication, event logging, customer info updates → Execute directly
+- Product-scope: competitive analysis, market research, roadmap, strategy, product specs → Handoff to PM Agent
+- Human-only: scheduling, phone calls, contracts → Decline (revert to `todo`)
 
 #### analyzeMeetingNotes
 
@@ -835,6 +869,12 @@ Progressive truncation (3 rounds):
 ---
 
 ## Version History
+
+**v8.1.0** (2026-03-21)
+- Extended `updateActionItemStatus` tool with optional `document_id` (UUID) and `execution_summary` (string) params, only applied when status is `done`
+- Updated execution brief instructions (step 6) to tell agent to include `document_id` and `execution_summary` on completion
+- `ActionItemService.listAll` now joins `customer_documents` for `document_title` on board view cards
+- Database: `customer_action_items` table gained `document_id` (FK to `customer_documents`, ON DELETE SET NULL) and `execution_summary` (TEXT) columns
 
 **v7.0.0** (2026-03-09)
 - Added `analyzeMeetingNotes` tool to both agents with agent-specific analysis flavoring

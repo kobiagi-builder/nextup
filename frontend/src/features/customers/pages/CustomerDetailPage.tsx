@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import { ArrowLeft, Bot, Check, MessageSquareOff, X } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -34,7 +34,8 @@ export function CustomerDetailPage() {
   const updateStatus = useUpdateCustomerStatus()
 
   const { setActiveCustomer, setActiveTab, activeTab } = useCustomerStore()
-  const { openCustomerChat } = useCustomerChat(id ?? '', customer?.name ?? 'Customer')
+  const location = useLocation()
+  const { openCustomerChat, openCustomerChatWithMessage } = useCustomerChat(id ?? '', customer?.name ?? 'Customer')
   const { isOpen: isChatOpen, closeChat } = useChatLayoutStore()
 
   // Editable name state
@@ -67,6 +68,37 @@ export function CustomerDetailPage() {
     }
     prevEnrichmentRef.current = enrichmentUpdatedAt
   }, [enrichmentUpdatedAt, isEnriching])
+
+  // State for opening a specific document from navigation
+  const [openDocumentId, setOpenDocumentId] = useState<string | null>(null)
+
+  // Handle execute action item navigation from board page
+  useEffect(() => {
+    const navState = location.state as Record<string, unknown> | null
+    if (!navState || !id) return
+
+    const execState = navState.executeActionItem as
+      | { initialMessage: string; customerName: string }
+      | undefined
+    if (execState) {
+      // Clear state to prevent re-triggering on re-render
+      window.history.replaceState({}, '')
+      // Delay to let AppShell's close-on-navigate effect run first
+      setTimeout(() => {
+        openCustomerChatWithMessage(execState.initialMessage)
+      }, 150)
+      return
+    }
+
+    // Handle document navigation from action item doc link
+    const docId = navState.openDocumentId as string | undefined
+    const switchTab = navState.switchToTab as string | undefined
+    if (docId && switchTab) {
+      window.history.replaceState({}, '')
+      setActiveTab(switchTab as CustomerTab)
+      setOpenDocumentId(docId)
+    }
+  }, [location.state, id, openCustomerChatWithMessage, setActiveTab])
 
   const handleStatusChange = async (status: CustomerStatus) => {
     if (!id) return
@@ -284,11 +316,15 @@ export function CustomerDetailPage() {
           </TabsContent>
 
           <TabsContent value="action_items" className="px-6 py-6 mt-0">
-            <ActionItemsTab customerId={customer.id} />
+            <ActionItemsTab customerId={customer.id} customerName={customer.name} />
           </TabsContent>
 
           <TabsContent value="documents" className="px-6 py-6 mt-0">
-            <DocumentsTab customerId={customer.id} />
+            <DocumentsTab
+              customerId={customer.id}
+              openDocumentId={openDocumentId}
+              onOpenDocumentHandled={() => setOpenDocumentId(null)}
+            />
           </TabsContent>
 
           <TabsContent value="agreements" className="px-6 py-6 mt-0">

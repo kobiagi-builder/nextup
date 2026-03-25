@@ -70,7 +70,7 @@ export class ActionItemService {
   }): Promise<ActionItemWithCustomer[]> {
     let query = this.supabase
       .from('customer_action_items')
-      .select('*, customers(name)')
+      .select('*, customers(name), document:customer_documents(title)')
       .eq('user_id', userId)
       .order('due_date', { ascending: true, nullsFirst: false })
       .order('created_at', { ascending: false })
@@ -96,6 +96,8 @@ export class ActionItemService {
       ...item,
       customer_name: item.customers?.name || null,
       customers: undefined,
+      document_title: item.document?.title || null,
+      document: undefined,
     })) as ActionItemWithCustomer[]
   }
 

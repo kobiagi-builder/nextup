@@ -55,17 +55,25 @@ export function createActionItemTools(supabase: SupabaseClient, customerId: stri
     }),
 
     updateActionItemStatus: tool({
-      description: 'Update the status of an existing action item (e.g., mark as done or in progress)',
+      description: 'Update the status of an existing action item (e.g., mark as done or in progress). When setting status to done after execution, optionally include document_id and execution_summary.',
       inputSchema: z.object({
         actionItemId: z.string().uuid().describe('The ID of the action item to update'),
         status: z.enum(['todo', 'in_progress', 'on_hold', 'done', 'cancelled']),
+        document_id: z.string().uuid().optional().describe('ID of a document created during execution (only when status is done)'),
+        execution_summary: z.string().optional().describe('Brief summary of what was accomplished (only when status is done)'),
       }),
-      execute: async ({ actionItemId, status }) => {
+      execute: async ({ actionItemId, status, document_id, execution_summary }) => {
         logToFile('TOOL EXECUTED: updateActionItemStatus', { hasCustomerId: !!customerId, hasActionItemId: !!actionItemId, status })
+
+        const update: Record<string, unknown> = { status }
+        if (status === 'done') {
+          if (document_id) update.document_id = document_id
+          if (execution_summary) update.execution_summary = execution_summary
+        }
 
         const { data, error } = await supabase
           .from('customer_action_items')
-          .update({ status })
+          .update(update)
           .eq('id', actionItemId)
           .eq('customer_id', customerId)
           .select('id, description, type, status')

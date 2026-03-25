@@ -18,6 +18,9 @@ dist-ssr
 .env.local
 .env.*.local
 backend/.env
+
+# MCP config (contains API keys)
+.mcp.json
 frontend/.env.local
 
 # Editor directories and files

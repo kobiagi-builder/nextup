@@ -7,6 +7,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import { api } from '@/lib/api'
 import type { Json, TableInsert, TableUpdate } from '@/types/supabase'
 import type {
   Artifact,
@@ -253,16 +254,7 @@ export function useDeleteArtifact() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/artifacts/${id}`,
-        { method: 'DELETE' }
-      )
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({ error: 'Delete failed' }))
-        throw new Error(body.error || `HTTP ${response.status}`)
-      }
-
+      await api.delete(`/api/artifacts/${id}`)
       return id
     },
     onSuccess: (id) => {

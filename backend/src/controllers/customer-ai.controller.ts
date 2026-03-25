@@ -21,6 +21,7 @@ import { getCustomerMgmtSystemPrompt } from '../services/ai/agents/customer-mgmt
 import { getProductMgmtSystemPrompt } from '../services/ai/agents/product-mgmt/prompt/productAgentPrompts.js'
 import { createCustomerMgmtTools } from '../services/ai/agents/customer-mgmt/tools/customerMgmtTools.js'
 import { createActionItemTools } from '../services/ai/agents/customer-mgmt/tools/actionItemTools.js'
+import { createExecuteActionItemTool } from '../services/ai/agents/customer-mgmt/tools/executeActionItemTool.js'
 import { createProductMgmtTools } from '../services/ai/agents/product-mgmt/tools/productMgmtTools.js'
 import { createProductStrategyTool } from '../services/ai/agents/product-mgmt/tools/createProductStrategyTool.js'
 import { evaluateBuildStrategyTool } from '../services/ai/agents/product-mgmt/tools/evaluateBuildStrategyTool.js'
@@ -228,7 +229,7 @@ function buildAgentTools(
         ...conductPMResearchTool(supabase, customerId),
         ...pmAnalyzeMeetingNotesTool(supabase, customerId),
       }
-    : { ...sharedTools, ...createCustomerMgmtTools(supabase, customerId), ...createActionItemTools(supabase, customerId), ...cmAnalyzeMeetingNotesTool(supabase, customerId) }
+    : { ...sharedTools, ...createCustomerMgmtTools(supabase, customerId), ...createActionItemTools(supabase, customerId), ...createExecuteActionItemTool(supabase, customerId), ...cmAnalyzeMeetingNotesTool(supabase, customerId) }
 
   if (!includeHandoff) return domainTools
 

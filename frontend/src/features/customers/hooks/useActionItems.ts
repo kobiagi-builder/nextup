@@ -41,13 +41,17 @@ export function useActionItems(customerId: string | null) {
 
       const { data, error } = await supabase
         .from('customer_action_items')
-        .select('*')
+        .select('*, document:customer_documents(title)')
         .eq('customer_id', customerId)
         .order('due_date', { ascending: true, nullsFirst: false })
         .order('created_at', { ascending: false })
 
       if (error) throw error
-      return (data ?? []) as unknown as ActionItem[]
+      return (data ?? []).map((item: any) => ({
+        ...item,
+        document_title: item.document?.title || null,
+        document: undefined,
+      })) as unknown as ActionItem[]
     },
     enabled: !!customerId,
   })

@@ -1,10 +1,10 @@
 # Documentation Index
 
 **Created:** 2026-01-26
-**Last Updated:** 2026-03-20
-**Version:** 30.0.0
-**Total Documentation Files:** 71+
-**Status:** Complete (Inline Research References)
+**Last Updated:** 2026-03-21
+**Version:** 32.0.0
+**Total Documentation Files:** 73+
+**Status:** Complete (Action Item Execution Phase 2)
 
 ## Overview
 
@@ -29,7 +29,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 2: User Flows (10 files)
+## Layer 2: User Flows (11 files)
 
 **Location:** `docs/flows/`
 
@@ -45,6 +45,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [writing-style-setup-flow.md](./flows/writing-style-setup-flow.md) | Writing references management: 4 upload methods, per-artifact-type, async extraction |
 | [customer-management-flow.md](./flows/customer-management-flow.md) | Customer CRUD, filtering, status changes, archiving; Flows 9-14: Agreements + Receivables; Flows 15-20: Initiatives + Documents (flat view with collapsible sections, folder sections, client-side filter bar); Flows 21-23: Search, Enriched Cards, Cross-Module Linking; Flow 24: Auto Team Extraction |
 | [onboarding-flow.md](./flows/onboarding-flow.md) | New-user onboarding wizard: 6 steps, AI extraction, waterfall reveal, step transitions, skip dialog, mobile layout, celebration sequence (Phase 1 + 2) |
+| [action-item-execution-flow.md](./flows/action-item-execution-flow.md) | One-click AI execution: trigger message, agent routing (CM/PM), cross-page navigation, execution brief, status lifecycle, document navigation, execution summary toggle, loading animation (Phase 1 + 2) |
 
 ---
 
@@ -81,7 +82,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 
 ---
 
-## Layer 5: Features (18 files)
+## Layer 5: Features (19 files)
 
 **Location:** `docs/features/`
 
@@ -104,6 +105,7 @@ This index catalogs all product documentation for the NextUp platform. Documenta
 | [onboarding-wizard.md](./features/onboarding-wizard.md) | Guided new-user setup: AI extraction, field provenance, waterfall reveal, CSS animations, ChipToggle priorities, mobile layouts, celebration sequence, accessibility (reduced motion, ARIA) (Phase 1 + 2) |
 | [reference-picker.md](./features/reference-picker.md) | Multi-select writing reference picker: ArtifactForm picker, topic suggestion dialog, FoundationsReferences compact/expanded with re-analyze, post-creation content regeneration with confirmation modal, backend `POST /re-analyze-foundations` endpoint (reanalyze + regenerate routing), `PipelineExecutor.reanalyzeFoundations` + `regenerateContent` (Phase 1 + 2 + 3) |
 | [action-items-kanban.md](./features/action-items-kanban.md) | Cross-customer Kanban board: 4-column drag-and-drop (dnd-kit), customer filter, inline create/edit, optimistic updates, feature-flagged (`action_items_kanban`), symmetric RLS (v1.0.0) |
+| [action-item-execution.md](./features/action-item-execution.md) | One-click AI execution: Zap button, executeActionItem tool, agent routing (CM/PM), cross-page navigation, document links on done items, collapsible execution summaries, ExecutionStore (one-at-a-time lock), loading animations, document navigation via state, 69+ unit tests + 14 integration + 12 E2E (Phase 1 + 2) |
 | [inline-research-references.md](./features/inline-research-references.md) | Inline superscript reference indicators in AI-generated content: `{{ref:N}}` marker generation during LLM writing, humanizer preservation, HTML conversion with UUIDs, TipTap ResearchRef atom node, Radix HoverCard with source details, clipboard stripping (v1.0.0) |
 
 ---

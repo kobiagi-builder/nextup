@@ -3,11 +3,14 @@
  *
  * Draggable action item card for the Kanban board.
  * Shows type badge, due date, description, and customer name.
+ * Phase 2: loading animation, document icon on done items.
  */
 
 import { useDraggable } from '@dnd-kit/core'
-import { Calendar, Check, Pause, Users } from 'lucide-react'
+import { Calendar, Check, FileText, Pause, Users, Zap } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { useExecutionStore } from '@/stores/executionStore'
 import { getDueDateUrgency, formatDueDateShort } from '@/features/customers/utils/format'
 import {
   ACTION_ITEM_TYPE_LABELS,
@@ -19,14 +22,20 @@ interface KanbanCardProps {
   item: ActionItemWithCustomer
   onClick?: (item: ActionItemWithCustomer) => void
   onStatusChange?: (id: string, status: ActionItemStatus) => void
+  onExecute?: (item: ActionItemWithCustomer) => void
+  isExecuting?: boolean
   isDragOverlay?: boolean
 }
 
-export function KanbanCard({ item, onClick, onStatusChange, isDragOverlay }: KanbanCardProps) {
+export function KanbanCard({ item, onClick, onStatusChange, onExecute, isExecuting, isDragOverlay }: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: item.id,
     disabled: isDragOverlay,
   })
+  const navigate = useNavigate()
+
+  const globalExecutingId = useExecutionStore((s) => s.executingItemId)
+  const isExecutingThis = globalExecutingId === item.id
 
   const typeLabel = ACTION_ITEM_TYPE_LABELS[item.type] || item.type
   const typeColor = ACTION_ITEM_TYPE_COLORS[item.type]
@@ -44,7 +53,8 @@ export function KanbanCard({ item, onClick, onStatusChange, isDragOverlay }: Kan
       className={cn(
         'rounded-lg border bg-card p-3 cursor-grab active:cursor-grabbing',
         'hover:border-border transition-colors',
-        isOverdue ? 'border-destructive/50' : 'border-border/50',
+        isExecutingThis && 'border-primary/30 animate-pulse',
+        isOverdue && !isExecutingThis ? 'border-destructive/50' : !isExecutingThis ? 'border-border/50' : '',
         isDragging && 'opacity-40',
         isDragOverlay && 'shadow-lg rotate-[2deg] scale-[1.02] ring-2 ring-primary/20',
       )}
@@ -78,26 +88,71 @@ export function KanbanCard({ item, onClick, onStatusChange, isDragOverlay }: Kan
             {item.customer_name || 'General'}
           </span>
         </div>
-        {item.status === 'in_progress' && onStatusChange && (
-          <div className="flex items-center gap-1 shrink-0">
+
+        <div className="flex items-center gap-1 shrink-0">
+          {/* Document icon — on done items with a linked document */}
+          {item.status === 'done' && item.document_id && item.customer_id && (
             <button
               type="button"
-              title="On Hold"
-              onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'on_hold') }}
-              className="p-1 rounded hover:bg-yellow-500/15 text-muted-foreground hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+              title={item.document_title || 'View Document'}
+              onClick={(e) => {
+                e.stopPropagation()
+                navigate(`/customers/${item.customer_id}`, {
+                  state: { openDocumentId: item.document_id, switchToTab: 'documents' },
+                })
+              }}
+              className="p-1 text-primary hover:text-primary/80 transition-colors"
             >
-              <Pause className="h-3.5 w-3.5" />
+              <FileText className="h-3.5 w-3.5" />
             </button>
+          )}
+
+          {/* Execute button — only on todo items */}
+          {item.status === 'todo' && onExecute && (
             <button
               type="button"
-              title="Done"
-              onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'done') }}
-              className="p-1 rounded hover:bg-green-500/15 text-muted-foreground hover:text-green-600 dark:hover:text-green-400 transition-colors"
+              title="Execute with AI"
+              onClick={(e) => { e.stopPropagation(); onExecute(item) }}
+              disabled={isExecuting}
+              className={cn(
+                'p-1 rounded transition-colors',
+                'text-muted-foreground hover:bg-primary/10 hover:text-primary',
+                'disabled:opacity-50 disabled:cursor-not-allowed'
+              )}
             >
-              <Check className="h-3.5 w-3.5" />
+              <Zap className="h-3.5 w-3.5" />
             </button>
-          </div>
-        )}
+          )}
+
+          {/* Executing indicator */}
+          {isExecutingThis && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary animate-pulse">
+              <Zap className="h-3 w-3" />
+            </span>
+          )}
+
+          {/* Quick status actions — in_progress items */}
+          {item.status === 'in_progress' && !isExecutingThis && onStatusChange && (
+            <>
+              <button
+                type="button"
+                title="On Hold"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'on_hold') }}
+                className="p-1 rounded hover:bg-yellow-500/15 text-muted-foreground hover:text-yellow-600 dark:hover:text-yellow-400 transition-colors"
+              >
+                <Pause className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                title="Done"
+                onClick={(e) => { e.stopPropagation(); onStatusChange(item.id, 'done') }}
+                className="p-1 rounded hover:bg-green-500/15 text-muted-foreground hover:text-green-600 dark:hover:text-green-400 transition-colors"
+              >
+                <Check className="h-3.5 w-3.5" />
+              </button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   )

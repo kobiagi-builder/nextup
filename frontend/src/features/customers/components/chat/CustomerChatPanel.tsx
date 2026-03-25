@@ -41,6 +41,7 @@ export interface CustomerChatPanelProps {
   suggestions?: Array<{ text: string }>
   className?: string
   height?: string | number
+  initialMessage?: string
 }
 
 // =============================================================================
@@ -55,10 +56,12 @@ export function CustomerChatPanel({
   suggestions,
   className,
   height = '100%',
+  initialMessage,
 }: CustomerChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const userHasScrolledUpRef = useRef(false)
+  const initialMessageSentRef = useRef(false)
   const queryClient = useQueryClient()
 
   // File attachment support
@@ -86,6 +89,17 @@ export function CustomerChatPanel({
     endpoint,
     onCustomerDataChanged: handleCustomerDataChanged,
   })
+
+  // Auto-send initial message on mount (e.g., action item execution trigger)
+  useEffect(() => {
+    if (initialMessage && !initialMessageSentRef.current) {
+      initialMessageSentRef.current = true
+      const timer = setTimeout(() => {
+        sendMessage(initialMessage)
+      }, 100)
+      return () => clearTimeout(timer)
+    }
+  }, [initialMessage, sendMessage])
 
   // Track user scroll position to avoid hijacking scroll during streaming
   useEffect(() => {

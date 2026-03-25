@@ -15,25 +15,32 @@ export function useCustomerChat(customerId: string, customerName: string) {
   const openChat = useChatLayoutStore((s) => s.openChat)
   const activeTab = useCustomerStore((s) => s.activeTab)
 
-  const openCustomerChat = useCallback(() => {
-    openChat({
-      title: `AI Assistant \u2022 ${customerName}`,
-      contextKey: `customer:${customerId}`,
-      endpoint: `${API_URL}/api/ai/customer/chat/stream`,
-      screenContext: {
-        currentPage: 'customer' as const,
-        customerId,
-        customerName,
-        activeTab: activeTab || 'overview',
-      },
-      suggestions: [
-        { text: "What's the engagement status of this customer?" },
-        { text: 'Help me draft a follow-up email' },
-        { text: '@product Create a product strategy artifact' },
-        { text: 'What agreements are expiring soon?' },
-      ],
-    })
-  }, [customerId, customerName, activeTab, openChat])
+  const buildChatConfig = useCallback((initialMessage?: string) => ({
+    title: `AI Assistant \u2022 ${customerName}`,
+    contextKey: `customer:${customerId}`,
+    endpoint: `${API_URL}/api/ai/customer/chat/stream`,
+    screenContext: {
+      currentPage: 'customer' as const,
+      customerId,
+      customerName,
+      activeTab: activeTab || 'overview',
+    },
+    suggestions: [
+      { text: "What's the engagement status of this customer?" },
+      { text: 'Help me draft a follow-up email' },
+      { text: '@product Create a product strategy artifact' },
+      { text: 'What agreements are expiring soon?' },
+    ],
+    ...(initialMessage ? { initialMessage } : {}),
+  }), [customerId, customerName, activeTab])
 
-  return { openCustomerChat }
+  const openCustomerChat = useCallback(() => {
+    openChat(buildChatConfig())
+  }, [openChat, buildChatConfig])
+
+  const openCustomerChatWithMessage = useCallback((message: string) => {
+    openChat(buildChatConfig(message))
+  }, [openChat, buildChatConfig])
+
+  return { openCustomerChat, openCustomerChatWithMessage }
 }

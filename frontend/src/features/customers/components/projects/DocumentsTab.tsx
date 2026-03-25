@@ -5,7 +5,7 @@
  * and folder sections. Includes client-side filter bar.
  */
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { Plus, FileText, FilterX } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
@@ -33,6 +33,8 @@ import { DocumentEditor } from './DocumentEditor'
 
 interface DocumentsTabProps {
   customerId: string
+  openDocumentId?: string | null
+  onOpenDocumentHandled?: () => void
 }
 
 const STATUS_ORDER: Record<InitiativeStatus, number> = {
@@ -43,7 +45,7 @@ const STATUS_ORDER: Record<InitiativeStatus, number> = {
   archived: 4,
 }
 
-export function DocumentsTab({ customerId }: DocumentsTabProps) {
+export function DocumentsTab({ customerId, openDocumentId, onOpenDocumentHandled }: DocumentsTabProps) {
   const { data: initiatives = [], isLoading: initiativesLoading } = useInitiatives(customerId)
   const { data: documents = [], isLoading: documentsLoading } = useCustomerDocuments(customerId)
   const { data: folders = [], isLoading: foldersLoading } = useDocumentFolders(customerId)
@@ -58,6 +60,17 @@ export function DocumentsTab({ customerId }: DocumentsTabProps) {
   const [documentFormInitiativeId, setDocumentFormInitiativeId] = useState<string | undefined>()
   const [editingDocument, setEditingDocument] = useState<CustomerDocument | null>(null)
 
+  // Auto-open document from navigation state (e.g., clicking doc link on action item)
+  useEffect(() => {
+    if (openDocumentId && documents.length > 0) {
+      const doc = documents.find((d) => d.id === openDocumentId)
+      if (doc) {
+        setEditingDocument(doc)
+        onOpenDocumentHandled?.()
+      }
+    }
+  }, [openDocumentId, documents, onOpenDocumentHandled])
+
   // Collapse state (session only)
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(new Set())
   const toggleSection = (id: string) => {
@@ -69,8 +82,10 @@ export function DocumentsTab({ customerId }: DocumentsTabProps) {
   }
 
   // Filter state (sticky via Zustand store)
-  const { initiativeStatus: initiativeStatusFilter, documentStatus: documentStatusFilter, nameSearch } =
-    useFilterStore((s) => s.getCustomerDocumentsFilters(customerId))
+  const docFiltersState = useFilterStore((s) => s.customerDocuments[customerId])
+  const initiativeStatusFilter = docFiltersState?.initiativeStatus ?? []
+  const documentStatusFilter = docFiltersState?.documentStatus ?? []
+  const nameSearch = docFiltersState?.nameSearch ?? ''
   const setDocFilters = (filters: Partial<{ initiativeStatus: string[]; documentStatus: string[]; nameSearch: string }>) =>
     useFilterStore.getState().setCustomerDocumentsFilters(customerId, filters)
   const setInitiativeStatusFilter = (v: string[]) => setDocFilters({ initiativeStatus: v })

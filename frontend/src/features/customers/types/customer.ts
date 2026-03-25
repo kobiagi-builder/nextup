@@ -560,12 +560,16 @@ export interface ActionItem {
   due_date: string | null
   status: ActionItemStatus
   reported_by: string | null
+  document_id: string | null
+  execution_summary: string | null
+  document_title?: string | null
   created_at: string
   updated_at: string
 }
 
 export interface ActionItemWithCustomer extends ActionItem {
   customer_name: string | null
+  document_title: string | null
 }
 
 export interface CreateActionItemInput {

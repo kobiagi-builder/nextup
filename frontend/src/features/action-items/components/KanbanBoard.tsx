@@ -26,9 +26,11 @@ interface KanbanBoardProps {
   items: ActionItemWithCustomer[]
   onStatusChange: (id: string, status: ActionItemStatus) => void
   onCardClick?: (item: ActionItemWithCustomer) => void
+  onExecute?: (item: ActionItemWithCustomer) => void
+  isExecuting?: boolean
 }
 
-export function KanbanBoard({ items, onStatusChange, onCardClick }: KanbanBoardProps) {
+export function KanbanBoard({ items, onStatusChange, onCardClick, onExecute, isExecuting }: KanbanBoardProps) {
   const [activeItem, setActiveItem] = useState<ActionItemWithCustomer | null>(null)
 
   const sensors = useSensors(
@@ -91,6 +93,8 @@ export function KanbanBoard({ items, onStatusChange, onCardClick }: KanbanBoardP
             items={columnItems[status]}
             onCardClick={onCardClick}
             onStatusChange={onStatusChange}
+            onExecute={onExecute}
+            isExecuting={isExecuting}
           />
         ))}
       </div>

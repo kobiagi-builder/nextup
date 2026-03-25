@@ -98,6 +98,7 @@ function ChatPanelWrapper({
             endpoint={config.endpoint}
             suggestions={config.suggestions}
             height="100%"
+            initialMessage={config.initialMessage}
           />
         ) : (
           <ChatPanel

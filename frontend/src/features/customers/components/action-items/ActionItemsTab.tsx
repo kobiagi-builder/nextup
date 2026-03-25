@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { MultiSelectFilter } from '../shared/MultiSelectFilter'
 import { useFilterStore } from '@/stores/filterStore'
 import { useActionItems, useDeleteActionItem, useUpdateActionItem } from '../../hooks'
+import { useExecuteActionItem } from '../../hooks/useExecuteActionItem'
 import type { ActionItem, ActionItemStatus } from '../../types'
 import {
   ACTION_ITEM_STATUSES,
@@ -24,16 +25,26 @@ import { ActionItemForm } from './ActionItemForm'
 
 interface ActionItemsTabProps {
   customerId: string
+  customerName?: string
 }
 
-export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
+export function ActionItemsTab({ customerId, customerName }: ActionItemsTabProps) {
   const { data: actionItems = [], isLoading } = useActionItems(customerId)
   const deleteActionItem = useDeleteActionItem(customerId)
   const updateActionItem = useUpdateActionItem(customerId)
 
+  const { execute, executingItemId } = useExecuteActionItem()
+
+  const handleExecute = (item: ActionItem) => {
+    execute(item, customerId, customerName ?? 'Customer', handleStatusChange)
+  }
+
   const [formOpen, setFormOpen] = useState(false)
   const [editingItem, setEditingItem] = useState<ActionItem | null>(null)
-  const { status: statusFilter, type: typeFilter, sortBy } = useFilterStore((s) => s.getCustomerActionItemsFilters(customerId))
+  const filters = useFilterStore((s) => s.customerActionItems[customerId])
+  const statusFilter = filters?.status ?? []
+  const typeFilter = filters?.type ?? []
+  const sortBy = filters?.sortBy ?? 'due_date'
   const setFilters = (filters: Partial<{ status: string[]; type: string[]; sortBy: 'due_date' | 'created_at' }>) =>
     useFilterStore.getState().setCustomerActionItemsFilters(customerId, filters)
   const setStatusFilter = (v: string[]) => setFilters({ status: v })
@@ -194,10 +205,13 @@ export function ActionItemsTab({ customerId }: ActionItemsTabProps) {
             <ActionItemRow
               key={item.id}
               item={item}
+              customerId={customerId}
               onEdit={handleEdit}
               onDelete={handleDelete}
               onStatusChange={handleStatusChange}
               onDueDateChange={handleDueDateChange}
+              onExecute={handleExecute}
+              isExecuting={executingItemId !== null}
               isDeleting={deleteActionItem.isPending}
             />
           ))}

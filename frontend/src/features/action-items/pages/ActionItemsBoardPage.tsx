@@ -5,7 +5,7 @@
  * Supports drag-and-drop status changes, filtering, and create/edit.
  */
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import { ListChecks } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -22,6 +22,7 @@ import {
   ACTION_ITEM_STATUS_LABELS,
 } from '../types'
 import type { ActionItemStatus, ActionItemWithCustomer, ActionItem } from '../types'
+import { useExecuteActionItem } from '@/features/customers/hooks/useExecuteActionItem'
 
 export function ActionItemsBoardPage() {
   const boardFilters = useFilterStore((s) => s.actionItemsBoard)
@@ -70,9 +71,19 @@ export function ActionItemsBoardPage() {
     return result
   }, [items, filterTypes, searchQuery])
   const updateMutation = useUpdateBoardActionItem(filters)
+  const { execute, executingItemId } = useExecuteActionItem()
 
   function handleStatusChange(id: string, status: ActionItemStatus) {
     updateMutation.mutate({ id, status })
+  }
+
+  const handleStatusChangeAsync = useCallback(async (id: string, status: ActionItemStatus) => {
+    await updateMutation.mutateAsync({ id, status })
+  }, [updateMutation])
+
+  function handleExecute(item: ActionItemWithCustomer) {
+    if (!item.customer_id) return
+    execute(item, item.customer_id, item.customer_name || 'Customer', handleStatusChangeAsync)
   }
 
   function handleCardClick(item: ActionItemWithCustomer) {
@@ -191,6 +202,8 @@ export function ActionItemsBoardPage() {
           items={filteredItems || []}
           onStatusChange={handleStatusChange}
           onCardClick={handleCardClick}
+          onExecute={handleExecute}
+          isExecuting={executingItemId !== null}
         />
       </div>
       <ActionItemForm
