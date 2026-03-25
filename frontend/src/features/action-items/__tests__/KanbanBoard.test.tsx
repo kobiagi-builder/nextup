@@ -44,6 +44,9 @@ function makeItem(overrides: Partial<ActionItemWithCustomer> = {}): ActionItemWi
     updated_at: '2026-03-01T00:00:00Z',
     customer_name: 'Test Customer',
     reported_by: null,
+    document_title: null,
+    document_id: null,
+    execution_summary: null,
     ...overrides,
   }
 }

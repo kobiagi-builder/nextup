@@ -61,6 +61,8 @@ const BASE_ITEM: ActionItem = {
   due_date: '2026-04-01',
   status: 'todo',
   reported_by: null,
+  document_id: null,
+  execution_summary: null,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
